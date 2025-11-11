@@ -1,0 +1,22 @@
+[
+  {
+    "id": "C001",
+    "name": "Fada Curandeira",
+    "rarity": 2,
+    "race": "Fada",
+    "hp": 400,
+    "attack": 80,
+    "effects": ["cura_aliado", "buff_hp", "resistencia_magia"],
+    "evolutionEffect": "renascer"
+  },
+  {
+    "id": "C002",
+    "name": "Monstro Rochoso",
+    "rarity": 3,
+    "race": "Monstro",
+    "hp": 900,
+    "attack": 120,
+    "effects": ["defesa_pedregosa", "reflexao", "contra_ataque"],
+    "evolutionEffect": "armadura_de_pedra"
+  }
+]

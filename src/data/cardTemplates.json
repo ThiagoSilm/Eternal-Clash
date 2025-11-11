@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Cavaleiro da Luz",
+    "rarity": 3,
+    "hp": 150,
+    "attack": 35,
+    "effects": ["Luz Divina", "Corte Duplo", "Auto Cura"],
+    "evolutionEffect": "Espada Celestial",
+    "xpToLevel": 12000
+  },
+  {
+    "id": 2,
+    "name": "Demônio do Caos",
+    "rarity": 5,
+    "hp": 300,
+    "attack": 80,
+    "effects": ["Raiva Caótica", "Explosão Negra", "Sede de Sangue"],
+    "evolutionEffect": "Caos Supremo",
+    "xpToLevel": 20000
+  },
+  {
+    "id": 3,
+    "name": "Arqueira das Fadas",
+    "rarity": 2,
+    "hp": 100,
+    "attack": 25,
+    "effects": ["Flecha Dupla", "Agilidade", "Bênção da Floresta"],
+    "evolutionEffect": "Chuva de Flechas",
+    "xpToLevel": 8000
+  }
+]

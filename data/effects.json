@@ -1,0 +1,30 @@
+[
+  {
+    "id": "buff_attack",
+    "type": "onAttackStart",
+    "effect": "buffAttack",
+    "value": 0.2,
+    "desc": "Aumenta o ataque em 20% no início do turno."
+  },
+  {
+    "id": "heal_on_hit",
+    "type": "onHit",
+    "effect": "heal",
+    "value": 0.15,
+    "desc": "Cura 15% do HP máximo ao ser atingido."
+  },
+  {
+    "id": "reflect_damage",
+    "type": "afterDefense",
+    "effect": "reflect",
+    "value": 0.25,
+    "desc": "Reflete 25% do dano recebido no atacante."
+  },
+  {
+    "id": "burn_attack",
+    "type": "afterAttack",
+    "effect": "burn",
+    "value": 0.1,
+    "desc": "Aplica queimadura que causa 10% do ataque por 2 turnos."
+  }
+]

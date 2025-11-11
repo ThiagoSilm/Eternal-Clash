@@ -1,0 +1,9 @@
+[
+  { "day": 1, "reward": { "gold": 500, "xp": 10 } },
+  { "day": 2, "reward": { "gold": 800, "gems": 1 } },
+  { "day": 3, "reward": { "gold": 1000, "xp": 30 } },
+  { "day": 4, "reward": { "gold": 1500, "gems": 2 } },
+  { "day": 5, "reward": { "gold": 2000, "xp": 50, "gems": 3 } },
+  { "day": 6, "reward": { "gold": 2500, "xp": 70 } },
+  { "day": 7, "reward": { "gold": 3000, "gems": 5, "xp": 100 } }
+]

@@ -1,0 +1,7 @@
+[
+  { "floor": 1, "enemy": "Slime Rei", "deckPower": 200, "reward": { "gold": 1000, "xp": 30, "gems": 1 } },
+  { "floor": 2, "enemy": "Orc Guerreiro", "deckPower": 350, "reward": { "gold": 2000, "xp": 50, "gems": 2 } },
+  { "floor": 3, "enemy": "Dragão Jovem", "deckPower": 600, "reward": { "gold": 4000, "xp": 100, "gems": 4 } },
+  { "floor": 4, "enemy": "Cavaleiro Fantasma", "deckPower": 900, "reward": { "gold": 8000, "xp": 200, "gems": 5 } },
+  { "floor": 5, "enemy": "Dragão Ancião", "deckPower": 1500, "reward": { "gold": 15000, "xp": 500, "gems": 10 } }
+]

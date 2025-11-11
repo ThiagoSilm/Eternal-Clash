@@ -1,0 +1,8 @@
+[
+  { "type": "enemy", "name": "Slime", "reward": { "gold": 1000, "xp": 30 } },
+  { "type": "enemy", "name": "Goblin", "reward": { "gold": 1500, "xp": 40 } },
+  { "type": "chest", "name": "Baú de Prata", "reward": { "gold": 2000, "xp": 10, "gems": 1 } },
+  { "type": "heal", "name": "Fonte de Cura", "reward": { "heal": 20 } },
+  { "type": "boss", "name": "Dragão Menor", "reward": { "gold": 5000, "xp": 200, "gems": 2 } },
+  { "type": "empty", "name": "Nada aqui..." }
+]

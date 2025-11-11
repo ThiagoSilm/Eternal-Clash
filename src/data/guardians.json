@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Guardião Solar",
+    "hp": 500,
+    "attack": 45,
+    "passive": "Aumenta o ataque das cartas em 10%",
+    "special": "Causa 150 de dano direto no Guardião inimigo",
+    "specialTurn": 5,
+    "passiveBonus": { "attackMultiplier": 1.1 }
+  },
+  {
+    "id": 2,
+    "name": "Guardião Sombrio",
+    "hp": 600,
+    "attack": 30,
+    "passive": "Reduz o dano recebido em 15%",
+    "special": "Causa 50 de dano em todas as cartas inimigas",
+    "specialTurn": 5,
+    "passiveBonus": { "damageReduction": 0.85 }
+  },
+  {
+    "id": 3,
+    "name": "Guardião dos Ventos",
+    "hp": 450,
+    "attack": 40,
+    "passive": "Aumenta a chance de crítico em 20%",
+    "special": "Dano duplo no próximo turno",
+    "specialTurn": 5,
+    "passiveBonus": { "critChance": 0.2 }
+  }
+]

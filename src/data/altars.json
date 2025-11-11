@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "name": "Altar do Caos",
+    "bonusRarity": 5,
+    "bonusChance": 10,
+    "active": true,
+    "featuredCards": [2]
+  }
+]

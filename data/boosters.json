@@ -1,0 +1,4 @@
+[
+  { "name": "Booster Comum", "pool": [1, 2], "starGuaranteed": 1 },
+  { "name": "Booster Épico", "pool": [2, 3], "starGuaranteed": 3 }
+]

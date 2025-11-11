@@ -1,0 +1,9 @@
+[
+  { "type": "gold", "amount": 1000, "chance": 40 },
+  { "type": "gems", "amount": 5, "chance": 25 },
+  { "type": "xp", "amount": 50, "chance": 15 },
+  { "type": "energy", "amount": 20, "chance": 10 },
+  { "type": "card", "rarity": 3, "chance": 5 },
+  { "type": "card", "rarity": 5, "chance": 2 },
+  { "type": "booster", "name": "Booster Épico", "chance": 3 }
+]
