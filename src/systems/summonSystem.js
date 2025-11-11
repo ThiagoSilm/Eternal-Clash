@@ -1,7 +1,7 @@
 // src/systems/summonSystem.js
 import { getCardTemplate, giveCardToUser } from "./cardSystem.js";
 import { saveUser } from "./economySystem.js";
-const altars = require("../data/altars.json");
+import altars from "../data/altars.json" with {type: 'json'};
 
 // Taxas de drop por raridade
 const dropRates = {

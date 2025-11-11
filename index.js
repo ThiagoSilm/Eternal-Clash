@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 import { fileURLToPath } from "url";
-import { summonCommand } from "./src/commands/summon.njs";
+import { summonCommand } from "./src/commands/summon.js";
 import { handleUpgrade} from "./src/commands/upgrade.js";
 import { battleCommand } from "./src/commands/battle.js";
 import { evoluirCommand, meldCommand } from "./src/commands/cards.js";

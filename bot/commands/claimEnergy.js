@@ -1,5 +1,5 @@
-import { claimDailyEnergy } from "../src/systems/dailyEnergySystem.js";
-import { saveUser } from "../src/systems/userSystem.js"; // ou userCacheSystem se for o caso
+import { claimDailyEnergy } from "../../src/systems/dailyEnergySystem.js";
+import { saveUser } from "../../src/systems/userSystem.js"; // ou userCacheSystem se for o caso
 
 export default {
   name: "claimenergy",

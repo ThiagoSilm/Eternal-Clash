@@ -1,7 +1,7 @@
 import { loadUser, saveUser } from "./economySystem.js";
-const rewards = require("../../data/luckySpinRewards.json");
-const cards = require("../../data/cards.json");
-const boosters = require("../../data/boosters.json");
+import rewards from "../../data/luckySpinRewards.json" with {type: 'json'};
+import cards from "../../data/cards.json" with {type: 'json'};
+import boosters from "../../data/boosters.json" with {type: 'json'};
 
 export function spinLucky(username) {
   const user = loadUser(username);

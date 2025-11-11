@@ -1,5 +1,5 @@
 import { loadUser, saveUser } from "./economySystem.js";
-const floors = require("../../data/towerFloors.json");
+import floors from "../../data/towerFloors.json" with {type: 'json'};
 import { spendEnergy } from "./energySystem.js";
 import { simulateBattle } from "./battleSimulator.js";
 

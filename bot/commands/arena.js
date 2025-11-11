@@ -1,4 +1,4 @@
-import { arenaChallenge, arenaStatus, arenaReward } from "../src/systems/arenaSystem.js";
+import { arenaChallenge, arenaStatus, arenaReward } from "../../src/systems/arenaSystem.js";
 
 export default {
   name: "arena",

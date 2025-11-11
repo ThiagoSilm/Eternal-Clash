@@ -4,9 +4,9 @@ import {
   leaveClan,
   donateToClan,
   getClanInfo
-} from "../src/systems/clanSystem.js";
+} from "../../src/systems/clanSystem.js";
 
-import { saveUser } from "../src/systems/userSystem.js"; // garante persistência
+import { saveUser } from "../../src/systems/userSystem.js"; // garante persistência
 
 export default {
   name: "clan",

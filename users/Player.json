@@ -1,0 +1,11 @@
+{
+  "id": "Player",
+  "level": 1,
+  "xp": 0,
+  "gold": 500,
+  "energy": 20,
+  "lastEnergyClaim": 0,
+  "cards": [],
+  "guardianId": 1,
+  "lastReset": "Tue Nov 11 2025"
+}

@@ -1,4 +1,4 @@
-import { enterTower, resetTower, getTowerStatus } from "../../src/systems/towerSystem.js";
+import { enterTower, getTowerStatus } from "../../src/systems/towerSystem.js";
 
 export default {
   name: "tower",

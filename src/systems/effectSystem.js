@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const effectsPath = path.join(__dirname, "../data/effects.json");
+const effectsPath = path.join("./data/effects.json");
 const effects = JSON.parse(fs.readFileSync(effectsPath, "utf-8"));
 
 /**

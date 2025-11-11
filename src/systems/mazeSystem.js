@@ -1,5 +1,5 @@
 // src/systems/mazeSystem.js
-const events = requiee("../../data/mazeEvents.json");
+import events from "../../data/mazeEvents.json" with {type: 'json'};
 import { loadUser, saveUser } from "./economySystem.js";
 import { spendEnergy } from "./energySystem.js";
 

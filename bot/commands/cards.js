@@ -1,5 +1,5 @@
-import { addCardXp, tryMeld } from "../src/systems/cardSystem.js";
-import { saveUser } from "../src/systems/userSystem.js"; // ajusta conforme o nome do arquivo que salva os dados
+import { addCardXp, tryMeld } from "../../src/systems/cardSystem.js";
+import { saveUser } from "../../src/systems/userSystem.js"; // ajusta conforme o nome do arquivo que salva os dados
 
 export default {
   name: "cards",

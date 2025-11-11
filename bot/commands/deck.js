@@ -2,9 +2,9 @@ import {
   addCardToDeck,
   removeCardFromDeck,
   viewDeck
-} from "../src/systems/inventorySystem.js";
+} from "../../src/systems/inventorySystem.js";
 
-import { saveUser } from "../src/systems/userSystem.js";
+import { saveUser } from "../../src/systems/userSystem.js";
 
 export default {
   name: "deck",
