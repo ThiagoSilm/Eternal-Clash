@@ -1,5 +1,5 @@
 // src/systems/mazeSystem.js
-import events from "../../data/mazeEvents.json" assert { type: "json" };
+const events = requiee("../../data/mazeEvents.json");
 import { loadUser, saveUser } from "./economySystem.js";
 import { spendEnergy } from "./energySystem.js";
 

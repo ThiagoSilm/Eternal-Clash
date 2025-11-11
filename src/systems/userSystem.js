@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const usersPath = path.join(__dirname, "../../users/");
+const usersPath = path.join(__dirname, "./users/");
 
 // Garante que a pasta de usuários existe
 if (!fs.existsSync(usersPath)) {

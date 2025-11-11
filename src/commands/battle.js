@@ -2,7 +2,7 @@
 import { simulateBattle } from "../systems/battleSystem.js";
 import { loadUser, saveUser, spendEnergy, addXp, addGold, regenerateEnergy } from "../systems/economySystem.js";
 
-export default function battleCommand(args) {
+export function battleCommand(args) {
   const player = loadUser("Player");
   const opponent = {
     name: "CPU - Oponente Sombrio",

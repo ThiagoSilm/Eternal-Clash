@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createDefaultUser } from "./userSystem.js"; // tua função de criação padrão
+import { getOrCreateUser } from "./userSystem.js"; // tua função de criação padrão
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +25,7 @@ export function loadUserCached(userId) {
   if (fs.existsSync(userFile)) {
     user = JSON.parse(fs.readFileSync(userFile, "utf-8"));
   } else {
-    user = createDefaultUser(userId);
+    user = getOrCreateUser(userId);
     fs.writeFileSync(userFile, JSON.stringify(user, null, 2));
   }
   

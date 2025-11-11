@@ -3,9 +3,9 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 import { fileURLToPath } from "url";
-import { handleSummon } from "./src/commands/summon.js";
-import { handleUpgrade } from "./src/commands/upgrade.js";
-import { handleBattle } from "./src/commands/battle.js";
+import { summonCommand } from "./src/commands/summon.njs";
+import { handleUpgrade} from "./src/commands/upgrade.js";
+import { battleCommand } from "./src/commands/battle.js";
 import { evoluirCommand, meldCommand } from "./src/commands/cards.js";
 import { inventoryCommand } from "./src/commands/inventory.js";
 import { deckCommand } from "./src/commands/deck.js";
@@ -79,7 +79,7 @@ function start() {
         await handleUpgrade("player1", args);
         break;
       case "battle":
-        await handleBattle("player1");
+        await battleCommand("player1");
         break;
       case "!evoluir":
         evoluirCommand(args);

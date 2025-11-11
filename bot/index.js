@@ -6,8 +6,8 @@ import { Client, GatewayIntentBits, Collection } from "discord.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-import { getOrCreateUser, saveUser } from "./src/systems/userSystem.js";
-import { loadUserCached, markUserDirty, touchUser, autoSaveUsers } from "./src/systems/userCacheSystem.js";
+import { getOrCreateUser, saveUser } from "../src/systems/userSystem.js";
+import { loadUserCached, markUserDirty, touchUser, autoSaveUsers } from "../src/systems/userCacheSystem.js";
 
 // Auto-salvar usuários a cada 30 segundos
 setInterval(autoSaveUsers, 30 * 1000);

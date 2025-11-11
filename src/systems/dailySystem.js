@@ -1,5 +1,5 @@
 // src/systems/dailySystem.js
-import rewards from "../../data/dailyRewards.json" assert { type: "json" };
+const rewards = require("../../data/dailyRewards.json");
 import { loadUser, saveUser } from "./economySystem.js";
 
 export function claimDaily(username) {

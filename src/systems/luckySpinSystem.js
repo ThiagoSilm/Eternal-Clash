@@ -1,7 +1,7 @@
 import { loadUser, saveUser } from "./economySystem.js";
-import rewards from "../../data/luckySpinRewards.json" assert { type: "json" };
-import cards from "../../data/cards.json" assert { type: "json" };
-import boosters from "../../data/boosters.json" assert { type: "json" };
+const rewards = require("../../data/luckySpinRewards.json");
+const cards = require("../../data/cards.json");
+const boosters = require("../../data/boosters.json");
 
 export function spinLucky(username) {
   const user = loadUser(username);

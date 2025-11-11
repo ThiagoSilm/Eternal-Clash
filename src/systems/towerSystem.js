@@ -1,5 +1,5 @@
 import { loadUser, saveUser } from "./economySystem.js";
-import floors from "../../data/towerFloors.json" assert { type: "json" };
+const floors = require("../../data/towerFloors.json");
 import { spendEnergy } from "./energySystem.js";
 import { simulateBattle } from "./battleSimulator.js";
 

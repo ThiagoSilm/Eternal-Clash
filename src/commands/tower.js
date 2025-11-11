@@ -1,5 +1,5 @@
 // src/commands/tower.js
-import { enterTower, resetTower, getTowerStatus } from "../systems/towerSystem.js";
+import { enterTower, getTowerStatus } from "../systems/towerSystem.js";
 
 export function towerCommand(args) {
   const sub = args[0];
