@@ -62,23 +62,3 @@ export function regenerateEnergy(user) {
 export function addGold(user, amount) {
   user.gold += amount;
 }
-
-export function createNewUser(userid) {
-  return {
-    id: userid,
-    gold: 100000,
-    gems: 50,
-    coupons: 10,
-    energy: 30,
-    maxEnergy: 100,
-    lastEnergyClaim: null,
-    lastEnergyTick: Date.now(),
-    cards: [],
-    decks: {
-      main: [],
-      tower: [],
-      pvp: []
-    },
-    guardian: null
-  };
-}

@@ -26,11 +26,12 @@ export function getOrCreateUser(userId) {
       id: userId,
       level: 1,
       xp: 0,
-      gold: 1000,
+      gold: 1000000,
       gems: 50,
       energy: 30,
+      maxEnergy: 100,
       cards: [],
-      decks: { main: [] },
+      decks: { main: [], tower: [], pvp: [] },
       guardian: null,
       daily: { lastClaim: null, streak: 0 },
       clan: null,
@@ -51,17 +52,20 @@ export function getOrCreateUser(userId) {
     // Recupera criando novo perfil
     const backupUser = {
       id: userId,
-      level: 1,
-      xp: 0,
-      gold: 1000,
+      gold: 100000,
       gems: 50,
+      coupons: 10,
       energy: 30,
+      maxEnergy: 100,
+      lastEnergyClaim: null,
+      lastEnergyTick: Date.now(),
       cards: [],
-      decks: { main: [] },
-      guardian: null,
-      daily: { lastClaim: null, streak: 0 },
-      clan: null,
-      tower: { floor: 1, progress: [] },
+      clan: [],
+      decks: {
+      main: [],
+      tower: [],
+      pvp: []},
+      guardian: null                                                                 
     };
     fs.writeFileSync(userFile, JSON.stringify(backupUser, null, 2));
     return backupUser;
