@@ -7,11 +7,8 @@ export default {
   async execute(message) {
     const userId = message.author.id;
     
-    // garante que o usuário exista antes de consultar energia
-    const user = getOrCreateUser(userId);
-    
     try {
-      const response = getEnergyStatus(user);
+      const response = getEnergyStatus(userId);
       await message.reply(response);
     } catch (err) {
       console.error("Erro ao checar energia:", err);

@@ -1,11 +1,18 @@
 {
   "id": "Player",
-  "level": 1,
-  "xp": 0,
-  "gold": 500,
-  "energy": 20,
-  "lastEnergyClaim": 0,
+  "gold": 100000,
+  "gems": 50,
+  "coupons": 10,
+  "energy": 30,
+  "maxEnergy": 100,
+  "lastEnergyClaim": null,
+  "lastEnergyTick": 1762899339076,
   "cards": [],
-  "guardianId": 1,
+  "decks": {
+    "main": [],
+    "tower": [],
+    "pvp": []
+  },
+  "guardian": null,
   "lastReset": "Tue Nov 11 2025"
 }

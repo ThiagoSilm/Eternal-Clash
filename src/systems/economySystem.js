@@ -11,16 +11,7 @@ const userDataPath = path.join(__dirname, "../../users");
 export function loadUser(userid) {
   const file = path.join(userDataPath, `${userid}.json`);
   if (!fs.existsSync(file)) {
-    const data = {
-      id: userid,
-      level: 1,
-      xp: 0,
-      gold: 500,
-      energy: 20,
-      lastEnergyClaim: 0,
-      cards: [],
-      guardianId: 1
-    };
+    const data = createNewUser(userid);
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
     return data;
   }
