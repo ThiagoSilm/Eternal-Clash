@@ -19,6 +19,7 @@ import { clanCommand } from "./src/commands/clan.js";
 import { eventCommand } from "./src/commands/events.js";
 import { arenaCommand } from "./src/commands/arena.js";
 import { luckySpinCommand } from "./src/commands/luckySpin.js";
+import "./bot/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -2,11 +2,11 @@
   "name": "eternal-clash",
   "version": "0.1.0",
   "description": "Bot RPG baseado em JSON com sistemas de batalha, maze e economia.",
-  "main": "src/index.js",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "keywords": [
     "rpg",
@@ -19,7 +19,8 @@
   "license": "MIT",
   "dependencies": {
     "discord.js": "^14.15.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "index.js": "^0.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
