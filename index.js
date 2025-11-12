@@ -1,27 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-<<<<<<< HEAD
 import "./bot/index.js";
-=======
-
-// Imports dos comandos do jogo (preservados)
-import { handleSummon } from "./src/commands/summon.js";
-import { handleUpgrade } from "./src/commands/upgrade.js";
-import { handleBattle } from "./src/commands/battle.js";
-import { evoluirCommand, meldCommand } from "./src/commands/cards.js";
-import { inventoryCommand } from "./src/commands/inventory.js";
-import { deckCommand } from "./src/commands/deck.js";
-import { energyCommand } from "./src/commands/energy.js";
-import { claimEnergyCommand } from "./src/commands/claimEnergy.js";
-import { towerCommand } from "./src/commands/tower.js";
 import { dailyReset } from "./src/utils/dailyReset.js";
-import { mazeCommand } from "./src/commands/maze.js";
-import { clanCommand } from "./src/commands/clan.js";
-import { eventCommand } from "./src/commands/events.js";
-import { arenaCommand } from "./src/commands/arena.js";
-import { luckySpinCommand } from "./src/commands/luckySpin.js";
->>>>>>> 9f9529367f853f8ba4df1b120188b3b36b851c71
 
 // Executa o reset diário para o jogador (manter aqui)
 dailyReset("Player");
