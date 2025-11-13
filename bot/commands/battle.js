@@ -34,15 +34,16 @@ export default {
       const battleMessage = await displayBattleLog(message, battle); // log em tempo real
       
       // 4. Mensagem final com recompensas
-      let finalMsg = battle.winner === "player" ?
-        `\n🏆 **Você venceu!**\n✨ XP ganho: **1500**\n💰 Ouro ganho: **800**` :
+      const rewards = battle.rewards;
+      let finalMsg = battle.win ?
+        `\n🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**` :
         `\n😓 **Derrota!** Nenhuma recompensa recebida.`;
       
       await battleMessage.edit(battleMessage.content + finalMsg);
       
-      if (battle.winner === "player") {
-        addXP(user, 1500);
-        addGold(user, 800);
+      if (battle.win) {
+        addXP(user, rewards.xp);
+        addGold(user, rewards.gold);
       }
       
     } catch (err) {
@@ -56,31 +57,13 @@ export default {
 // Função externa para exibir log
 // -----------------------------
 async function displayBattleLog(message, battle) {
-  const battleMessage = await message.reply("⚔️ Iniciando a batalha...\n🔄 Preparando o inimigo...");
+  const battleMessage = await message.reply(`⚔️ Iniciando a batalha...\n🔄 Preparando o inimigo...`);
   
-  for (let i = 0; i < battle.log.length; i++) {
-    const event = battle.log[i];
-    let line = "";
-    
-    switch (event.type) {
-      case "attack":
-        line = `💥 ${event.actor} ataca ${event.target} e causa ${event.value} de dano!`;
-        break;
-      case "critical":
-        line = `🔥 CRÍTICO! ${event.actor} acerta ${event.target} com ${event.value} de dano!`;
-        break;
-      case "miss":
-        line = `❌ ${event.actor} errou o ataque em ${event.target}!`;
-        break;
-      case "status":
-        line = `✨ ${event.target} agora está **${event.status}**!`;
-        break;
-      default:
-        line = `🔹 ${event.text || event.actor}...`;
-    }
-    
-    await battleMessage.edit(battleMessage.content + "\n" + line);
-    await new Promise(r => setTimeout(r, 1200)); // tempo entre eventos
+  for (const line of battle.log) {
+    // Força linha como string
+    const text = String(line);
+    await battleMessage.edit(battleMessage.content + "\n" + text);
+    await new Promise(r => setTimeout(r, 1200)); // delay para simular gameplay
   }
   
   return battleMessage;
