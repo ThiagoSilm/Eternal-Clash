@@ -47,7 +47,7 @@ export default {
       const goldGain = 800;
       
       // Funções modificam o objeto 'player' (que é 'user')
-      addXp(player, xpGain);
+      addXP(player, xpGain);
       addGold(player, goldGain);
       
       response += `🏆 **Vitória!** Você ganhou **${xpGain} XP** e **${goldGain} ouro**!`;

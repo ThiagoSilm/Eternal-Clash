@@ -77,3 +77,22 @@ export function addEnergy(user, amount) {
   markUserDirty(user.id);
   return true;
 }
+
+export function regenerateEnergy(user) {
+  if (!user.energy) user.energy = { current: 100, max: 100, lastRegen: Date.now() };
+  const now = Date.now();
+  const lastRegen = user.energy.lastRegen || 0;
+  const regenRateMs = 5 * 60 * 1000; // 5 minutos por ponto
+  
+  // quantos pontos poderiam ser regenerados desde o último tick
+  const elapsed = now - lastRegen;
+  const regenPoints = Math.floor(elapsed / regenRateMs);
+  
+  if (regenPoints > 0) {
+    user.energy.current = Math.min(user.energy.max, user.energy.current + regenPoints);
+    user.energy.lastRegen = now - (elapsed % regenRateMs);
+    return `Sua energia foi regenerada em ${regenPoints} ponto(s)! ⚡ (${user.energy.current}/${user.energy.max})`;
+  }
+  
+  return null; // ainda não passou tempo suficiente
+}
