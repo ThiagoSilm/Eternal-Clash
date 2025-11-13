@@ -1,11 +1,13 @@
 // src/systems/arenaSystem.js
 
-import { spendEnergy, addGems } from "./economySystem.js";
-import { battleSystem } from "./battleSystem.js"; // Assumido
-import { generateOpponentForRank } from "./userCacheSystem.js"; // Assumido: gera um NPC ou busca um usuário
+import { addGems } from "./economySystem.js";
+import { battleSystem } from "./battleSystem.js";
+import { generateOpponentForRank } from "./userCacheSystem.js";
 
-// --- Configurações da Arena ---
-const ARENA_SCALING = {
+// =========================================================
+// CONFIGURAÇÕES
+// =========================================================
+const ARENA = {
     MAX_ATTEMPTS: 5,
     ATTACK_COOLDOWN_MS: 60 * 1000, // 1 minuto
     RESET_COOLDOWN_MS: 24 * 60 * 60 * 1000, // 24 horas
@@ -13,156 +15,162 @@ const ARENA_SCALING = {
     GEM_REWARD_WIN: 5,
 };
 
-// Estrutura de oponente da Arena
-function createOpponent(id, name, rank) {
+// =========================================================
+// HELPERS
+// =========================================================
+const now = () => Date.now();
+
+const formatCooldown = (ms) =>
+    ms <= 0 ? "Você está pronto para lutar!" :
+    `Aguarde ${(ms / 1000).toFixed(0)} segundos para a próxima luta.`;
+
+// =========================================================
+// ARENA STRUCTURES
+// =========================================================
+function createOpponent(op) {
     return {
-        id: id,
-        name: name,
-        rank: rank,
-        defeated: false,
+        id: op.id,
+        name: op.name,
+        rank: op.rank,
+        defeated: false
     };
 }
 
-function generateNewOpponentList(user) {
+function generateOpponentList(user) {
     const list = [];
-    // Assumimos que o rank atual do usuário é 'user.arena.rank'
-    const targetRank = (user.arena.rank || 1); 
+    const baseRank = user.arena.rank || 1;
     
-    for (let i = 0; i < ARENA_SCALING.OPPONENT_COUNT; i++) {
-        // Geramos um oponente do rank do usuário + 1 (ou o rank atual se for o primeiro)
-        const opponentRank = targetRank + (i < 3 ? 0 : 1); 
-        
-        // Simulação de geração de oponente (NPC ou User)
-        const opponentData = generateOpponentForRank(opponentRank);
-        list.push(createOpponent(
-            opponentData.id, 
-            opponentData.name, 
-            opponentRank
-        ));
+    for (let i = 0; i < ARENA.OPPONENT_COUNT; i++) {
+        const opponentRank = baseRank + (i < 3 ? 0 : 1);
+        const data = generateOpponentForRank(opponentRank);
+        list.push(createOpponent({ ...data, rank: opponentRank }));
     }
+    
     return list;
 }
 
-// Inicializa ou reseta o estado da Arena
+// =========================================================
+// INIT
+// =========================================================
 export function initializeArena(user) {
     if (!user.arena) {
         user.arena = {
             rank: 1,
             points: 0,
-            attempts: ARENA_SCALING.MAX_ATTEMPTS,
+            attempts: ARENA.MAX_ATTEMPTS,
             lastBattleTime: 0,
             lastReset: 0,
-            opponents: generateNewOpponentList(user),
+            opponents: generateOpponentList(user)
         };
     }
 }
 
-// Verifica e aplica o reset diário de tentativas e lista de oponentes
-function checkAndResetAttempts(user) {
+// =========================================================
+// DAILY RESET
+// =========================================================
+function resetIfNeeded(user) {
     initializeArena(user);
-    const now = Date.now();
     const state = user.arena;
     
-    if (now - state.lastReset >= ARENA_SCALING.RESET_COOLDOWN_MS) {
-        state.attempts = ARENA_SCALING.MAX_ATTEMPTS;
-        state.lastReset = now;
-        state.opponents = generateNewOpponentList(user);
+    if (now() - state.lastReset >= ARENA.RESET_COOLDOWN_MS) {
+        state.lastReset = now();
+        state.attempts = ARENA.MAX_ATTEMPTS;
+        state.opponents = generateOpponentList(user);
         return true;
     }
+    
     return false;
 }
 
-// Função para mostrar o status e a lista
+// =========================================================
+// STATUS
+// =========================================================
 export async function arenaStatus(user) {
-    const wasReset = checkAndResetAttempts(user);
-    const state = user.arena;
+    const didReset = resetIfNeeded(user);
+    const a = user.arena;
     
-    // Calcula o cooldown restante
-    const timeSinceLastBattle = Date.now() - state.lastBattleTime;
-    const cooldownRemaining = ARENA_SCALING.ATTACK_COOLDOWN_MS - timeSinceLastBattle;
-    const cooldownMsg = cooldownRemaining > 0 
-        ? `Aguarde ${(cooldownRemaining / 1000).toFixed(0)} segundos para a próxima luta.`
-        : "Você está pronto para lutar!";
+    const timeLeft = ARENA.ATTACK_COOLDOWN_MS - (now() - a.lastBattleTime);
     
-    // Lista de oponentes
-    const opponentList = state.opponents.map((o, i) => {
-        const status = o.defeated ? "✅ VENCIDO" : "❌ PENDENTE";
-        return `${i + 1}. [Rk ${o.rank}] ${o.name} - ${status}`;
-    }).join("\n");
+    const opponentsText = a.opponents
+        .map((o, i) => `${i + 1}. [Rk ${o.rank}] ${o.name} — ${o.defeated ? "✅ VENCIDO" : "❌ DISPONÍVEL"}`)
+        .join("\n");
     
     return (
         `🏆 **Status da Arena**\n` +
-        (wasReset ? "🔄 Tentativas e lista de oponentes diárias foram resetadas.\n" : "") +
-        `• Rank: ${state.rank} (${state.points} Pts)\n` +
-        `• Tentativas Restantes: ${state.attempts}/${ARENA_SCALING.MAX_ATTEMPTS}\n` +
-        `• Cooldown: ${cooldownMsg}\n\n` +
-        `**Oponentes Atuais:**\n${opponentList}`
+        (didReset ? "🔄 Reset diário aplicado.\n" : "") +
+        `• Rank: ${a.rank} (${a.points} pontos)\n` +
+        `• Tentativas: ${a.attempts}/${ARENA.MAX_ATTEMPTS}\n` +
+        `• Cooldown: ${formatCooldown(timeLeft)}\n\n` +
+        `📜 **Oponentes:**\n${opponentsText}`
     );
 }
 
-// Lógica principal de desafio
-export async function arenaChallenge(user, opponentIndex) {
-    checkAndResetAttempts(user);
-    const state = user.arena;
-    const idx = opponentIndex - 1;
-
-    // 1. Validação de Tentativas
-    if (state.attempts <= 0) {
-        throw new Error("Suas tentativas diárias de Arena acabaram.");
+// =========================================================
+// BATTLE FLOW
+// =========================================================
+export async function arenaChallenge(user, index) {
+    resetIfNeeded(user);
+    
+    const a = user.arena;
+    const i = index - 1;
+    
+    if (a.attempts <= 0)
+        throw new Error("Você não tem mais tentativas hoje.");
+    
+    const timePassed = now() - a.lastBattleTime;
+    if (timePassed < ARENA.ATTACK_COOLDOWN_MS) {
+        const wait = (ARENA.ATTACK_COOLDOWN_MS - timePassed) / 1000;
+        throw new Error(`Aguarde ${wait.toFixed(1)}s para lutar novamente.`);
     }
     
-    // 2. Validação de Cooldown
-    const timeSinceLastBattle = Date.now() - state.lastBattleTime;
-    if (timeSinceLastBattle < ARENA_SCALING.ATTACK_COOLDOWN_MS) {
-        const remaining = (ARENA_SCALING.ATTACK_COOLDOWN_MS - timeSinceLastBattle) / 1000;
-        throw new Error(`Aguarde ${remaining.toFixed(1)} segundos antes de lutar novamente (cooldown de 1 minuto).`);
-    }
-
-    // 3. Validação do Oponente
-    const opponent = state.opponents[idx];
-    if (!opponent) {
-        throw new Error("Oponente inválido ou não encontrado na lista (use `!arena status`).");
-    }
-    if (opponent.defeated) {
-        throw new Error(`Você já venceu ${opponent.name}. Escolha outro.`);
-    }
-
-    // 4. Batalha
-    const userDeck = user.decks?.main || [];
-    // O sistema de batalha deve ser capaz de receber oponentes pelo ID/estrutura
-    const battleResult = await battleSystem(userDeck, { type: "arenaOpponent", targetId: opponent.id });
+    const opponent = a.opponents[i];
+    if (!opponent)
+        throw new Error("Oponente inválido. Use `!arena status`.");
     
-    // 5. Atualização de Estado
-    state.lastBattleTime = Date.now();
-    state.attempts -= 1; // Gasta a tentativa (seja vitória ou derrota)
-
-    let finalMessage = `⚔️ Você lutou contra **${opponent.name}**!\n`;
-    finalMessage += `--- Resultado da Batalha ---\n`;
-    finalMessage += battleResult.log || "Log de batalha indisponível.";
-
-    if (battleResult.win) {
-        // Vitória: Recompensa e Marca oponente como vencido
-        addGems(user, ARENA_SCALING.GEM_REWARD_WIN);
+    if (opponent.defeated)
+        throw new Error(`Você já derrotou **${opponent.name}**.`);
+    
+    // =========================================================
+    // BATALHA
+    // =========================================================
+    const deck = user.decks?.main || [];
+    const battle = await battleSystem(deck, {
+        type: "arenaOpponent",
+        targetId: opponent.id
+    });
+    
+    a.lastBattleTime = now();
+    a.attempts--;
+    
+    let msg =
+        `⚔️ **Batalha contra ${opponent.name}!**\n` +
+        `━━━━━━━━━━━━━━\n` +
+        (battle.log || "Log de batalha indisponível.") +
+        `\n━━━━━━━━━━━━━━\n`;
+    
+    if (battle.win) {
         opponent.defeated = true;
+        addGems(user, ARENA.GEM_REWARD_WIN);
         
-        // Verifica se todos os 5 foram vencidos para gerar nova lista
-        const allDefeated = state.opponents.every(o => o.defeated);
-        if (allDefeated) {
-             state.opponents = generateNewOpponentList(user);
-             finalMessage += "\n✅ **VITÓRIA!** Você venceu todos os 5 oponentes! Sua lista foi atualizada com desafios de Rank mais alto!";
+        const allWin = a.opponents.every(o => o.defeated);
+        
+        if (allWin) {
+            a.opponents = generateOpponentList(user);
+            msg += `\n🏆 **VITÓRIA TOTAL!**\nVocê derrotou todos os 5 oponentes.\nNova lista gerada com oponentes mais fortes!`;
         } else {
-             finalMessage += `\n✅ **VITÓRIA!** Você ganhou ${ARENA_SCALING.GEM_REWARD_WIN} Gemas 💎!`;
+            msg += `\n✅ **VITÓRIA!** Você ganhou **${ARENA.GEM_REWARD_WIN} gemas 💎**!`;
         }
+        
     } else {
-        // Derrota: Perde a tentativa, sem recompensa.
-        finalMessage += `\n❌ **DERROTA.** Você perdeu a chance diária.`;
+        msg += "\n❌ **DERROTA.** Você perdeu sua tentativa.";
     }
     
-    return finalMessage;
+    return msg;
 }
 
-// A função arenaReward é mantida aqui, mas sem implementação detalhada
+// =========================================================
+// REWARD
+// =========================================================
 export async function arenaReward(user) {
-    // Lógica para dar recompensas de rank diárias/semanais (não especificada)
-    return "Recompensa de Rank resgatada com sucesso (lógica não implementada).";
+    return "🎁 Sistema de recompensas da Arena ainda será implementado.";
 }

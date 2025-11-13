@@ -1,114 +1,131 @@
+// userCacheSystem.js
 import fs from "fs";
 import path from "path";
 
-// --- Configuração e Estado do Cache ---
 const dataPath = path.join(process.cwd(), "data/users.json");
-const cache = new Map(); // Cache in-memory para dados do usuário
-const dirty = new Set(); // Conjunto de IDs de usuários com dados alterados
-let allDiskData = {}; // Todos os dados lidos do disco
+const tempPath = dataPath + ".tmp";
 
-/**
- * Carrega todos os dados de usuários do arquivo users.json para a memória (allDiskData).
- */
+const cache = new Map(); // usuários carregados
+const dirty = new Set(); // usuários alterados
+let allDiskData = {}; // conteúdo original do users.json no disco
+
+// ------------------------------------------------------------
+// Carregamento inicial do arquivo users.json
+// ------------------------------------------------------------
+
 function loadAllDiskData() {
-  if (fs.existsSync(dataPath)) {
-    try {
-      const data = fs.readFileSync(dataPath, "utf-8");
-      allDiskData = JSON.parse(data);
-      console.log(`[Cache] Dados de ${Object.keys(allDiskData).length} usuários carregados do disco.`);
-    } catch (e) {
-      console.error("Erro ao ler ou desserializar users.json. Iniciando com cache vazio.", e);
-      allDiskData = {};
-    }
-  } else {
-    console.log("[Cache] Arquivo users.json não encontrado. Será criado ao salvar.");
-  }
-}
-
-// Carrega os dados na inicialização do sistema
-loadAllDiskData();
-
-// --- Funções Exportadas ---
-
-/**
- * Carrega os dados de um usuário do cache ou do disco.
- * Se o usuário não existir, cria um novo objeto com dados iniciais padrão.
- * @param {string} userId - O ID único do usuário.
- * @returns {object} O objeto usuário.
- */
-export function loadUserCached(userId) {
-  if (cache.has(userId)) return cache.get(userId);
-  
-  let userData = allDiskData[userId] || null;
-  
-  if (!userData) {
-    // Criação de um novo usuário com dados iniciais ricos (herdado do mock)
-    userData = {
-      id: userId,
-      username: `Player_${userId.substring(0, 4)}`,
-      level: 1,
-      xp: 0,
-      gold: 10000,
-      gems: 100,
-      coupons: 5,
-      clanId: null,
-      // Inicialização de energia padronizada para o economySystem.js
-      energy: { current: 100, max: 100, lastRegen: Date.now() },
-      dailyBonusReceived: {},
-      cards: [],
-      lastEnergyRegen: Date.now(), // Usado por dailyEnergySystem
-    };
-    console.log(`[Cache] Novo usuário criado: ${userId}`);
-  }
-  
-  // Coloca no cache e retorna
-  cache.set(userId, userData);
-  return userData;
-}
-
-/**
- * Marca o ID do usuário como 'dirty' (sujo), indicando que ele precisa ser salvo no disco.
- * @param {string} userId - O ID único do usuário.
- */
-export function markUserDirty(userId) {
-  dirty.add(userId);
-  // console.log(`[Cache] Usuário ${userId} marcado como sujo.`);
-}
-
-/**
- * Persiste todos os dados de usuários 'sujos' para o arquivo users.json.
- */
-export function flushCache() {
-  if (dirty.size === 0) {
-    // console.log("[Cache] Nenhum usuário sujo para salvar.");
+  if (!fs.existsSync(dataPath)) {
+    console.warn("[Cache] users.json não encontrado. Será criado depois.");
+    allDiskData = {};
     return;
   }
   
-  // Itera sobre os IDs sujos e atualiza o objeto de dados do disco
-  dirty.forEach((userId) => {
-    const user = cache.get(userId);
-    if (user) {
-      allDiskData[userId] = user;
+  try {
+    const raw = fs.readFileSync(dataPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    
+    if (parsed && typeof parsed === "object") {
+      allDiskData = parsed;
+      console.log(`[Cache] Carregado ${Object.keys(allDiskData).length} usuários.`);
     } else {
-      // Caso o usuário tenha sido marcado como sujo, mas removido do cache (cenário incomum)
+      throw new Error("JSON inválido");
+    }
+    
+  } catch (err) {
+    console.error("[Cache] Erro ao carregar users.json. Criando novo.", err);
+    allDiskData = {};
+  }
+}
+
+loadAllDiskData();
+
+// ------------------------------------------------------------
+// Funções de apoio internas
+// ------------------------------------------------------------
+
+/**
+ * Cria um novo usuário base para fallback, alinhado ao userSystem.js
+ */
+function createFallbackUser(userId) {
+  return {
+    id: userId,
+    username: `Player_${userId.slice(0, 4)}`,
+    level: 1,
+    xp: 0,
+    gold: 0,
+    gems: 0,
+    coupons: 0,
+    energy: { current: 100, max: 100, lastRegen: Date.now() },
+    cards: [],
+    decks: {},
+    graveyard: [],
+    dailyBonusReceived: {},
+    lastEnergyRegen: Date.now(),
+  };
+}
+
+// ------------------------------------------------------------
+// Funções Exportadas
+// ------------------------------------------------------------
+
+/**
+ * Carrega um usuário do cache. Se não existir, carrega do disco ou cria novo.
+ */
+export function loadUserCached(userId) {
+  if (cache.has(userId)) {
+    return cache.get(userId);
+  }
+  
+  let user = allDiskData[userId];
+  
+  if (!user || typeof user !== "object" || !user.id) {
+    user = createFallbackUser(userId);
+    console.log(`[Cache] Novo usuário inicializado: ${userId}`);
+    dirty.add(userId);
+  }
+  
+  cache.set(userId, user);
+  return user;
+}
+
+/**
+ * Marca um usuário como alterado para ser salvo posteriormente.
+ */
+export function markUserDirty(userId) {
+  if (!userId) return;
+  dirty.add(userId);
+}
+
+/**
+ * Escreve todos os usuários 'sujos' no disco de forma segura.
+ * Usa escrita atômica -> nunca corrompe usuários.json.
+ */
+export function flushCache() {
+  if (dirty.size === 0) return;
+  
+  dirty.forEach((userId) => {
+    const userObj = cache.get(userId);
+    if (!userObj) {
       delete allDiskData[userId];
+    } else {
+      allDiskData[userId] = userObj;
     }
   });
   
-  const usersToSaveCount = dirty.size;
-  
   try {
-    fs.writeFileSync(dataPath, JSON.stringify(allDiskData, null, 2));
+    // escrita atômica (evita perder tudo em caso de falha)
+    fs.writeFileSync(tempPath, JSON.stringify(allDiskData, null, 2));
+    fs.renameSync(tempPath, dataPath);
+    
+    console.log(`[Cache] ${dirty.size} usuários salvos.`);
     dirty.clear();
-    console.log(`[Cache] ${usersToSaveCount} usuários salvos no users.json.`);
-  } catch (e) {
-    console.error("FATAL ERROR: Falha ao escrever users.json no disco.", e);
+  } catch (err) {
+    console.error("[Cache] ERRO CRÍTICO ao salvar users.json", err);
   }
 }
 
 /**
- * Função de limpeza, mantida para compatibilidade com outros sistemas.
- * Agora, apenas um alias para flushCache.
+ * Alias para compatibilidade com sistemas antigos.
  */
 export function flushDirtyUsers() {
   flushCache();
