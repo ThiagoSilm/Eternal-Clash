@@ -1,7 +1,7 @@
 // src/commands/maze.js
 
 // 🚨 CORREÇÃO: Removemos a importação de loadUser/saveUser.
-import { rollMaze, useGoldDice, resetMaze } from "../../src/systems/mazeSystem.js";
+import { rollMaze, useGoldDice, resetMaze } from "../src/systems/mazeSystem.js";
 
 export default {
   name: "maze",

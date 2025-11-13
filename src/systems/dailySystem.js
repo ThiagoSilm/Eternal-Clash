@@ -3,8 +3,7 @@
 // 1. CORREÇÕES DE IMPORTAÇÃO: loadUser/saveUserData removidos.
 // Assumimos que o economySystem exporta addEnergy.
 import { addGold, addGems, addXP, addEnergy } from "./economySystem.js";
-import rewards from "../../data/dailyRewards.json"
-with { type: "json" };
+import rewards from "../../data/dailyRewards.json" with { type: "json" };
 
 const MILLIS_PER_DAY = 1000 * 60 * 60 * 24;
 

@@ -5,8 +5,8 @@ import { getCardTemplate, giveCardToUser, getCardList } from "./cardSystem.js";
 import { spendCurrency } from "./economySystem.js"; 
 
 // Importações de dados
-import altars from "../data/altars.json" with { type: "json" };
-import boosters from "../data/boosters.json" with { type: "json" };
+import altars from "../../data/altars.json" with { type: "json" };
+import boosters from "../../data/boosters.json" with { type: "json" };
 
 // Taxas de drop por raridade (em %)
 const dropRates = {

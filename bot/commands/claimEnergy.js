@@ -1,7 +1,7 @@
 // src/commands/claimEnergy.js
 
 // 🚨 CORREÇÃO: Removemos a importação de saveUser. O salvamento é delegado ao index.js.
-import { addEnergy } from "../../src/systems/economySystem.js";
+import { addEnergy } from "../src/systems/economySystem.js";
 
 export default {
   name: "claimenergy",

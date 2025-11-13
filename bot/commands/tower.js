@@ -1,8 +1,9 @@
 // src/commands/tower.js
 
-import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../../src/systems/towerSystem.js";
-import { battleSystem } from "../../src/systems/battleSystem.js";
-import { addXp, addGold } from "../../src/systems/economySystem.js";
+// 🟢 CORREÇÃO 1: Caminho de importação
+import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../systems/towerSystem.js";
+import { battleSystem } from "../systems/battleSystem.js";
+import { addXp, addGold } from "../systems/economySystem.js";
 
 export default {
   name: "tower",
@@ -10,16 +11,17 @@ export default {
   usage: "[status | challenge]",
   
   async execute(message, args, user) {
-    const sub = args[0]?.toLowerCase() || 'status';
-    
-    // Garante que a estrutura tower exista
+    // 🟢 MELHORIA 1: Garante que a estrutura tower exista logo no início
     if (!user.tower) user.tower = { floor: 1, attempts: 3 }; 
     
+    const sub = args[0]?.toLowerCase() || 'status';
+
     try {
       if (sub === 'status') {
         // 1. STATUS
+        // Nota: Assumimos que getTowerStatus(user) retorna uma string formatada.
         const status = getTowerStatus(user);
-        return message.reply(`🏰 **Status da Torre:**\n${status}`);
+        return message.reply(`🏰 **Status da Torre de Batalha:**\n${status}`);
         
       } else if (sub === 'challenge' || sub === 'c') {
         // 2. DESAFIO
@@ -33,24 +35,28 @@ export default {
         
         // B. Prepara o inimigo e gasta a tentativa
         const opponent = getFloorEnemy(currentFloor);
-        spendTowerAttempt(user); // Funções do towerSystem devem decrementar user.tower.attempts
+        
+        // 🟢 GARANTIA: Gasta a tentativa ANTES da batalha
+        spendTowerAttempt(user); 
 
         // C. Simula a Batalha (reutilizando battleSystem)
+        // Nota: Assumimos que user.cards é o deck que o usuário usa na batalha.
         const result = battleSystem(user, opponent);
         
-        let response = `\n**--- ⚔️ ANDAR ${currentFloor}: ${opponent.name} ⚔️ ---**\n`;
-        response += result.log.slice(0, 5).join("\n") + "\n... (Finalizado em " + result.turns + " turnos)\n";
+        let response = `\n**--- ⚔️ ANDAR ${currentFloor}: ${opponent.name} (PvP: ${opponent.isPlayer ? 'Sim' : 'Não'}) ⚔️ ---**\n`;
+        // Exibe o resumo do log
+        response += result.log.slice(0, 5).join("\n") + "\n... (Batalha concluída em " + result.turns + " turnos)\n";
 
         // D. Recompensas
         if (result.winner === "player") {
           const rewards = getFloorReward(currentFloor);
           
-          // Adiciona recompensas (modifica o objeto 'user')
+          // Adiciona recompensas (modifica o objeto 'user' e funções devem marcar dirty)
           addXp(user, rewards.xp);
           addGold(user, rewards.gold);
-          // (Outros itens/cartas seriam adicionados aqui)
+          // 💡 Ponto de Extensão: Adicionar logicamente recompensas de cartas/itens aqui.
           
-          // Avança para o próximo andar
+          // Avança para o próximo andar (Modificação direta no user, que será salvo)
           user.tower.floor += 1; 
 
           response += `\n🎉 **SUCESSO!** Andar ${currentFloor} conquistado!`;
@@ -58,11 +64,11 @@ export default {
           response += `\nSeu próximo desafio é o **Andar ${user.tower.floor}**.`;
           
         } else {
+          // A tentativa já foi gasta acima, não precisa de lógica extra aqui.
           response += "\n😓 **DERROTA.** Suas cartas não foram páreo para este andar.";
           response += "\nVocê perdeu uma tentativa. Tente novamente ou melhore suas cartas!";
         }
         
-        // O index.js fará o salvamento automático.
         return message.reply(response);
         
       } else {
@@ -75,7 +81,8 @@ export default {
       
     } catch (err) {
       console.error("❌ Erro no comando tower:", err);
-      await message.reply("⚠️ Ocorreu um erro ao processar o desafio da Torre.");
+      // Incluir detalhes do erro apenas se for seguro (em produção, evite mostrar detalhes do erro)
+      await message.reply("⚠️ Ocorreu um erro interno ao processar o desafio da Torre.");
     }
   }
 };

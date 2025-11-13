@@ -22,7 +22,7 @@ function saveArenaRankings(rankings) {
 }
 
 // --- CONFIGURAÇÕES ---
-const ENERGY_COST = 5;
+const ENERGY_COST = 4;
 const MMR_BASE_CHANGE = 20;
 
 const REWARDS = [

@@ -4,16 +4,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from 'uuid'; 
-
-// 🚨 CORREÇÃO 1: Remover I/O de usuário e spendGold não alinhado.
-// ❌ REMOVIDO: import { loadUser, saveUserData } from "./userSystem.js";
-// ❌ REMOVIDO: import { levelUpCard } from "./xpSystem.js"; (Não utilizada)
+// Importamos o markUserDirty para sinalizar que o objeto do usuário foi modificado
+import { markUserDirty } from "./userCacheSystem.js"; 
+// Importamos a função de economia, pois tryMeld precisa dela.
 import { spendGold } from "./economySystem.js"; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // 🔹 PONTO DE CARGA COERENTE COM SEU ARQUIVO DE DADOS
+// Subir dois níveis: 'src/systems' -> 'src' -> '..' (data)
 const CARD_DEFINITIONS_PATH = path.join(__dirname, "../../data/cards.json"); 
 
 // 🔹 Carrega definições de cartas (o JSON que contém todas as cartas do jogo)
@@ -25,7 +25,7 @@ function loadCardDefinitions() {
 export const cardDefinitions = loadCardDefinitions(); 
 
 // ------------------------------------
-// 🔹 FUNÇÕES DE ACESSO A DEFINIÇÃO (Inalteradas)
+// 🔹 FUNÇÕES DE ACESSO A DEFINIÇÃO
 // ------------------------------------
 
 export function getCardTemplate(id) {
@@ -37,7 +37,7 @@ export function getCardList() {
 }
 
 // ------------------------------------
-// 🔹 GESTÃO DE INSTÂNCIAS (Criação)
+// 🔹 GESTÃO DE INSTÂNCIAS (Criação e Remoção)
 // ------------------------------------
 
 // 🔹 Cria uma instância nova de carta pro usuário
@@ -69,7 +69,29 @@ export function giveCardToUser(user, cardId) {
   if (!user.cards) user.cards = [];
   user.cards.push(newCard);
   
+  // 🟢 Sinaliza a modificação do usuário
+  markUserDirty(user.id);
+  
   return newCard;
+}
+
+/**
+ * Remove uma carta pelo uniqueId do inventário do usuário.
+ * 🎯 NOVA FUNÇÃO exigida pelo xpSystem.js (burnCardForXp)
+ */
+export function removeCardFromUser(user, cardUniqueId) {
+    const cardIndex = user.cards.findIndex(c => c.uniqueId === cardUniqueId);
+    
+    if (cardIndex === -1) {
+        return { success: false, message: "Carta não encontrada." };
+    }
+    
+    const removedCard = user.cards.splice(cardIndex, 1)[0];
+    
+    // 🟢 Sinaliza a modificação do usuário
+    markUserDirty(user.id);
+    
+    return { success: true, removedCard: removedCard };
 }
 
 // ------------------------------------
@@ -83,32 +105,27 @@ export function calculateMeldCost(card) {
 }
 
 /**
- * Faz a fusão de duas cartas
- * 🎯 CORREÇÃO 2: Aceita o objeto 'user'
+ * Faz a fusão de duas cartas.
  */
 export function tryMeld(user, baseUniqueId, donorUniqueId) {
-  // ❌ REMOVIDO: const user = loadUser(userId);
-  
   const cardIndex = user.cards.findIndex(c => c.uniqueId === baseUniqueId);
   const donorIndex = user.cards.findIndex(c => c.uniqueId === donorUniqueId);
   
   const card = user.cards[cardIndex];
   const donor = user.cards[donorIndex];
   
-  if (!card || !donor) return "❌ Carta base ou doadora inválida.";
-  if (!card.unlockedEvolution) return "⚠️ Essa carta ainda não evoluiu.";
-  if (baseUniqueId === donorUniqueId) return "❌ Não pode usar a mesma carta como doadora.";
+  if (!card || !donor) return { success: false, message: "❌ Carta base ou doadora inválida." };
+  if (!card.unlockedEvolution) return { success: false, message: "⚠️ Essa carta ainda não evoluiu." };
+  if (baseUniqueId === donorUniqueId) return { success: false, message: "❌ Não pode usar a mesma carta como doadora." };
   
   const donorEffectId = getCardTemplate(donor.id)?.evolutionEffectId;
-  if (!donorEffectId) return `❌ A carta doadora (${donor.name}) não possui efeito de evolução para meld.`;
+  if (!donorEffectId) return { success: false, message: `❌ A carta doadora (${donor.name}) não possui efeito de evolução para meld.` };
 
   const goldCost = calculateMeldCost(card);
   
-  // 🎯 CORREÇÃO 3: Usa spendGold com o objeto 'user'. Lança erro se falhar.
-  try {
-      if (!spendGold(user, goldCost)) return `❌ Ouro insuficiente. Custo: ${goldCost}.`; 
-  } catch (e) {
-      return `❌ Ouro insuficiente. Custo: ${goldCost}.`;
+  // 🎯 CORREÇÃO: Usa spendGold com o objeto 'user'. Retorna objeto de erro se falhar.
+  if (!spendGold(user, goldCost)) {
+      return { success: false, message: `❌ Ouro insuficiente. Custo: ${goldCost}.` };
   }
 
   // Chance de sucesso e acúmulo
@@ -116,21 +133,26 @@ export function tryMeld(user, baseUniqueId, donorUniqueId) {
   const successChance = Math.min(card.meldChance + 20, 100); 
   const success = Math.random() * 100 < successChance;
   
+  // Remove a carta doadora do inventário (antes de marcar como dirty)
+  const donorCardRemoved = removeCardFromUser(user, donorUniqueId);
+  if (!donorCardRemoved.success) {
+      // Isso nunca deve acontecer se o donorIndex foi encontrado antes, mas é um bom *guard*.
+      return { success: false, message: "Erro interno: Falha ao remover a carta doadora." };
+  }
+
   if (success) {
     if (!card.effects.includes(donorEffectId)) {
         card.effects.push(donorEffectId); 
     }
     
-    // Remove a carta doadora do inventário
-    user.cards.splice(donorIndex, 1); 
-    
     card.meldChance = 0;
-    // ❌ REMOVIDO: saveUserData(user);
-    return `🔥 Meld bem-sucedido! ${card.name} agora possui o 4º efeito (ID: ${donorEffectId})!`;
+    // 🟢 O markUserDirty já foi chamado dentro de removeCardFromUser e será chamado em qualquer comando que faça I/O.
+    return { success: true, message: `🔥 Meld bem-sucedido! ${card.name} agora possui o 4º efeito (ID: ${donorEffectId})!` };
   } else {
     card.meldChance = successChance;
-    // ❌ REMOVIDO: saveUserData(user);
-    return `⚡ Meld falhou! Chance aumentada para ${successChance}%.`;
+    // 🟢 Sinaliza a modificação do usuário (meldChance mudou)
+    markUserDirty(user.id);
+    return { success: false, message: `⚡ Meld falhou! Chance aumentada para ${successChance}%.` };
   }
 }
 
@@ -140,42 +162,40 @@ export function tryMeld(user, baseUniqueId, donorUniqueId) {
 
 /**
  * Adiciona uma runa a uma carta.
- * 🎯 CORREÇÃO 4: Aceita o objeto 'user'
  */
 export function addRune(user, uniqueId, rune) {
-    // ❌ REMOVIDO: const user = loadUser(userId);
     const card = user.cards.find(c => c.uniqueId === uniqueId);
-    if (!card) return "❌ Carta não encontrada.";
+    if (!card) return { success: false, message: "❌ Carta não encontrada." };
     
     if (!card.runes) card.runes = [];
-    if (card.runes.length >= 3) return "❌ Limite de 3 runas por carta.";
+    if (card.runes.length >= 3) return { success: false, message: "❌ Limite de 3 runas por carta." };
     card.runes.push(rune);
     
-    // ❌ REMOVIDO: saveUserData(user);
-    return `🔮 Runa "${rune.name}" adicionada à carta ${card.name}.`;
+    // 🟢 Sinaliza a modificação do usuário
+    markUserDirty(user.id);
+    return { success: true, message: `🔮 Runa "${rune.name}" adicionada à carta ${card.name}.` };
 }
 
 /**
  * Remove uma runa de uma carta.
- * 🎯 CORREÇÃO 5: Aceita o objeto 'user'
  */
 export function removeRune(user, uniqueId, runeId) {
-    // ❌ REMOVIDO: const user = loadUser(userId);
     const card = user.cards.find(c => c.uniqueId === uniqueId);
-    if (!card) return "❌ Carta não encontrada.";
+    if (!card) return { success: false, message: "❌ Carta não encontrada." };
 
-    if (!card.runes) return "⚠️ Essa carta não tem runas.";
+    if (!card.runes) return { success: false, message: "⚠️ Essa carta não tem runas." };
     const index = card.runes.findIndex(r => r.id === runeId);
-    if (index === -1) return "❌ Runa não encontrada.";
+    if (index === -1) return { success: false, message: "❌ Runa não encontrada." };
     
     const removed = card.runes.splice(index, 1)[0];
     
-    // ❌ REMOVIDO: saveUserData(user);
-    return `💀 Runa "${removed.name}" removida da carta ${card.name}.`;
+    // 🟢 Sinaliza a modificação do usuário
+    markUserDirty(user.id);
+    return { success: true, message: `💀 Runa "${removed.name}" removida da carta ${card.name}.` };
 }
 
 // ------------------------------------
-// 🔹 HELPER DE EXIBIÇÃO (Inalterado)
+// 🔹 HELPER DE EXIBIÇÃO 
 // ------------------------------------
 
 export function formatCardInfo(card) {
@@ -190,7 +210,12 @@ export function formatCardInfo(card) {
   
   // Adiciona o ID do efeito de evolução na exibição se a evolução estiver desbloqueada
   if (card.unlockedEvolution && template?.evolutionEffectId) {
-      effectsList += ` (Evolução: [${template.evolutionEffectId}])`;
+      // Não duplica se o efeito já foi fundido (Meld), mas o status está ativo.
+      const evolutionEffectDisplay = card.effects.includes(template.evolutionEffectId) 
+          ? `(Evoluída)` 
+          : `(Evolução: [${template.evolutionEffectId}])`;
+          
+      effectsList += ` ${evolutionEffectDisplay}`;
   }
 
   return (

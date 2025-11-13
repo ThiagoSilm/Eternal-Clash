@@ -1,7 +1,7 @@
 // src/commands/events.js
 
-import { claimDaily, getDailyStatus } from "../../src/systems/dailySystem.js";
-import { dailyDraw } from "../../src/systems/drawSystem.js";
+import { claimDaily, getDailyStatus } from "../src/systems/dailySystem.js";
+import { dailyDraw } from "../src/systems/drawSystem.js";
 // 🚨 CORREÇÃO: Removemos getOrCreateUser, pois o usuário já é carregado pelo index.js.
 
 export default {

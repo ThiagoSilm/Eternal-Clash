@@ -1,7 +1,7 @@
 // src/commands/luckySpin.js
 
 // 🚨 CORREÇÃO: Removemos a importação de loadUser/saveUser.
-import { spinLuckyWheel } from "../../src/systems/luckySpinSystem.js";
+import { spinLuckyWheel } from "../src/systems/luckySpinSystem.js";
 
 export default {
   name: "luckyspin",

@@ -1,7 +1,7 @@
 // src/commands/card.js
 
 // 🎯 Importa a função do InventorySystem, que deve conter a lógica de formatação.
-import { viewCardDetails } from "../../src/systems/inventorySystem.js";
+import { viewCardDetails } from "../src/systems/inventorySystem.js";
 
 export default {
   name: "card",

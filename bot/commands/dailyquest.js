@@ -1,6 +1,6 @@
 // src/commands/dailyquest.js
 
-import { getQuestStatus, claimDailyQuestReward } from "../../src/systems/dailyQuestSystem.js";
+import { getQuestStatus, claimDailyQuestReward } from "../src/systems/dailyQuestSystem.js";
 
 export default {
   name: "dailyquest",
