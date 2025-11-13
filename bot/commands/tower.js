@@ -2,8 +2,8 @@
 
 // 🟢 CORREÇÃO 1: Caminho de importação
 import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../../systems/towerSystem.js";
-import { battleSystem } from "../../systems/battleSystem.js";
-import { addXP, addGold } from "../../systems/economySystem.js";
+import { battleSystem } from "../../src/systems/battleSystem.js";
+import { addXP, addGold } from "../../src/systems/economySystem.js";
 
 export default {
   name: "tower",
