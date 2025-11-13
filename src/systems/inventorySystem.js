@@ -249,3 +249,27 @@ export function filterCards(cards, filters = {}) {
         return true;
     });
 }
+
+export function listInventory(user, filters = {}) {
+    if (!user.cards || user.cards.length === 0)
+        return "📦 Seu inventário está vazio.";
+    
+    let cards = [...user.cards];
+    
+    // Aplicar filtros simples
+    for (const [key, value] of Object.entries(filters)) {
+        cards = cards.filter(c => {
+            if (typeof value === "number") return c[key] === value;
+            if (typeof value === "string") return String(c[key]).toLowerCase() === value.toLowerCase();
+            if (typeof value === "boolean") return !!c[key] === value;
+            return true;
+        });
+    }
+    
+    const list = cards.map((c, i) => {
+        const template = getCardTemplate(c.id);
+        return `${i + 1}. ${template.name} (Lv.${c.level}) [${c.rarity}★]`;
+    }).join("\n");
+    
+    return `📜 **Inventário (${cards.length})**:\n${list}`;
+}

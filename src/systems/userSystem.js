@@ -33,3 +33,8 @@ export function getUserLevel(userId) {
     const user = loadUser(userId);
     return user.level || 1;
 }
+
+export function getCardByUniqueId(user, uniqueId) {
+    if (!user || !user.cards || !uniqueId) return null;
+    return user.cards.find(card => card.uniqueId === uniqueId) || null;
+}
