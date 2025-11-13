@@ -1,14 +1,17 @@
 // src/systems/shopSystem.js
 
 import { spendCurrency, addEnergy } from "./economySystem.js";
-import { addItemToInventory } from "./inventorySystem.js"; // Assume-se que existe um sistema para itens
+import { addItemToInventory } from "./inventorySystem.js"; 
+// Importação de sistemas de terceiros (Tower) se necessário para lógica complexa
+import { advanceFloor } from "./towerSystem.js"; 
+
 
 // ----------------------------------------------------
 // 🔹 CATÁLOGO DA LOJA
 // ----------------------------------------------------
 
-// O catálogo deve ser um array de objetos, fácil de expandir
 const SHOP_CATALOG = [
+  // ... (Itens inalterados) ...
   {
     id: "xp_booster_small",
     name: "Booster de XP (Pequeno)",
@@ -22,7 +25,7 @@ const SHOP_CATALOG = [
     id: "energy_potion",
     name: "Poção de Energia",
     description: "Restaura 30 de energia instantaneamente.",
-    currency: "gem",
+    currency: "gem", // Mantido como 'gem'
     cost: 50,
     type: "consumable",
     effect: { amount: 30, resource: "energy" },
@@ -51,71 +54,56 @@ const SHOP_CATALOG = [
 // 🔹 FUNÇÕES DO SISTEMA
 // ----------------------------------------------------
 
-/**
- * Retorna o catálogo completo da loja.
- * @returns {Array} Lista de itens.
- */
 export function getShopCatalog() {
   return SHOP_CATALOG;
 }
 
 /**
  * Processa a compra de um item da loja.
- * Modifica o objeto 'user' diretamente.
  *
  * @param {object} user O objeto usuário em cache.
  * @param {string} itemId O ID do item a ser comprado.
  * @param {number} quantity A quantidade a ser comprada.
- * @returns {string} Mensagem de sucesso ou erro.
+ * @returns {string} Mensagem de sucesso.
+ * @throws {Error} Se o item não for encontrado ou os recursos forem insuficientes.
  */
 export function processPurchase(user, itemId, quantity = 1) {
   const item = SHOP_CATALOG.find(i => i.id === itemId);
 
   if (!item) {
-    return `❌ Item com ID \`${itemId}\` não encontrado na loja.`;
+    throw new Error(`❌ Item com ID \`${itemId}\` não encontrado na loja.`);
   }
 
   const totalCost = item.cost * quantity;
 
-  // 1. Verificar Recursos
-  const hasEnough = (item.currency === 'gold' && user.gold >= totalCost) ||
-                    (item.currency === 'gem' && user.gems >= totalCost);
-
-  if (!hasEnough) {
-    return `💰 Recursos insuficientes. Você precisa de ${totalCost} ${item.currency.toUpperCase()}.`;
-  }
-
-  // 2. Subtrair Recursos
-  // A função spendCurrency (do economySystem) deve modificar user.gold ou user.gems
-  const spent = spendCurrency(user, item.currency, totalCost);
-  
-  if (!spent) {
-      // Isso só deve acontecer se a verificação anterior falhar, mas é um bom fail-safe
-      return "⚠️ Falha crítica ao subtrair recursos. Tente novamente.";
-  }
+  // 1. Subtrair Recursos
+  // 🎯 CORREÇÃO: Removemos a checagem manual e confiamos no spendCurrency.
+  // Se o saldo for insuficiente, spendCurrency LANÇARÁ um Error.
+  spendCurrency(user, item.currency, totalCost); 
+  // Se chegarmos aqui, o custo foi debitado com sucesso.
 
   let logMessage = `✅ Compra realizada: **${item.name}** (x${quantity}). ${totalCost} ${item.currency.toUpperCase()} gasto(s).\n`;
 
-  // 3. Entregar o Item
-  if (item.type === 'consumable') {
-    // Lida com consumíveis (e.g., Poções de Energia, Tentativas de Torre)
+  // 2. Entregar o Item
+  if (item.type === 'consumable' || item.type === 'buff') { 
+    // Buffs e Consumíveis são entregues pelo deliverConsumable/efeito imediato
     for (let i = 0; i < quantity; i++) {
+        // Concatenamos a mensagem de entrega
         logMessage += deliverConsumable(user, item.effect) + "\n";
     }
   } else {
-    // Lida com itens que vão para o inventário (e.g., Boosters, Cupons, Itens)
-    // Assume-se que addItemToInventory é genérico
+    // Itens que vão para o inventário (ex: materiais, cupons)
+    // Se o efeito for um cupom, ele deve ser adicionado ao inventário de itens/cupons
     const added = addItemToInventory(user, itemId, quantity); 
     logMessage += `Adicionado ao seu inventário de itens.`;
   }
   
-  // O objeto 'user' foi modificado (gasto e item adicionado/recurso entregue).
+  // Confiança: O Middleware fará o markUserDirty() após a execução do comando.
   return logMessage.trim();
 }
 
 /**
- * Lógica específica para entregar um consumível.
- * Modifica o objeto 'user'.
+ * Lógica específica para entregar um consumível ou aplicar um efeito imediato.
  * @param {object} user O objeto usuário.
  * @param {object} effect Os detalhes do efeito do item.
  * @returns {string} Mensagem de entrega.
@@ -123,19 +111,24 @@ export function processPurchase(user, itemId, quantity = 1) {
 function deliverConsumable(user, effect) {
     switch (effect.resource) {
         case 'energy':
-            // addEnergy(user, amount) deve ser a função do economySystem
+            // addEnergy é a função do economySystem
             const added = addEnergy(user, effect.amount);
             return added 
                 ? `⚡ Energia restaurada: +${effect.amount}.` 
                 : `⚡ Energia no máximo. A poção não teve efeito.`;
         
         case 'towerAttempt':
-            // Garante que a estrutura exista
-            if (!user.tower) user.tower = { attempts: 0 };
+            // 🎯 CORREÇÃO: Removemos a checagem perigosa 'if (!user.tower)'.
+            // Confiamos no userSystem para inicializar user.tower.
             user.tower.attempts += effect.amount;
             return `🏰 Tentativa de Torre restaurada: +${effect.amount}.`;
             
-        // Se houver outros recursos consumíveis (e.g., tickets de arena)
+        case 'coupon':
+             // Adiciona cupons ao inventário/recursos, se não for um efeito imediato
+             addItemToInventory(user, effect.summonType + "_coupon", 1);
+             return `🎟️ Cupom de Invocação (${effect.summonType}) adicionado ao inventário.`;
+             
+        // Se houver outros recursos consumíveis ou buffs (ex: ativa o buff)
         default:
             return `⚠️ Item consumível ${effect.resource} entregue (Lógica a ser implementada).`;
     }

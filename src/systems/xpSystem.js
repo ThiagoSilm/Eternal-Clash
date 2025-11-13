@@ -1,12 +1,14 @@
 // src/systems/xpSystem.js
+
 import { markUserDirty } from "./userCacheSystem.js";
+// Importação do cardSystem (assumindo que existe) para buscar o nome se necessário
+import { getCardTemplate } from "./cardSystem.js"; 
 
 // --- FÓRMULAS BASE DE XP ---
 
 /**
  * Retorna o XP total necessário para subir para um determinado nível da carta.
- * Nota: Esta é a fórmula para Cartas, diferente da fórmula de XP do Jogador (economySystem).
- * @param {number} level - O nível que será atingido (ex: 2 para passar do 1 para o 2).
+ * @param {number} level - O nível que será atingido.
  * @returns {number} O XP cumulativo necessário.
  */
 function getBaseCardXPRequired(level) {
@@ -16,17 +18,16 @@ function getBaseCardXPRequired(level) {
 
 /**
  * Retorna o XP necessário APENAS para passar do nível atual (currentLevel) para o próximo.
- * Esta é a função que outros sistemas devem chamar.
  * @param {number} currentLevel
  * @returns {number} O XP incremental.
  */
 export function getCardNextLevelXP(currentLevel) {
-    if (currentLevel >= 15) return Infinity; // Nível máximo
+    const MAX_LEVEL = 15;
+    if (currentLevel >= MAX_LEVEL) return Infinity; 
     
     const xpForNext = getBaseCardXPRequired(currentLevel + 1);
     const xpForCurrent = getBaseCardXPRequired(currentLevel);
     
-    // XP incremental necessário
     return xpForNext - xpForCurrent; 
 }
 
@@ -38,8 +39,7 @@ export function getCardNextLevelXP(currentLevel) {
  * @param {Object} sacrificeCard - carta sacrificada (com raridade e level)
  */
 export function getCardXPValue(sacrificeCard) {
-  // Fórmula revisada para ser mais impactante e usar a raridade
-  // Ex: Base (100) + Raridade * 50 + Level * 20
+  // Fórmula: Base (100) + Raridade * 50 + Level * 20
   const baseValue = 100;
   const rarityBonus = (sacrificeCard.rarity || 1) * 50;
   const levelBonus = (sacrificeCard.level || 1) * 20;
@@ -52,7 +52,6 @@ export function getCardXPValue(sacrificeCard) {
 
 /**
  * Faz o level up de uma carta, processando XP ganho.
- * Este módulo não se preocupa com o sacrifício/gasto de ouro, apenas com a progressão.
  * @param {Object} user - Objeto do usuário (para marcar como dirty)
  * @param {string} cardUniqueId - O ID único da carta a ser upada.
  * @param {number} gainedXP - A quantidade de XP a ser adicionada.
@@ -61,11 +60,9 @@ export function levelUpCard(user, cardUniqueId, gainedXP) {
   const card = user.cards.find(c => c.uniqueId === cardUniqueId);
   if (!card) return { success: false, message: "❌ Carta não encontrada (uniqueId)." };
   
-  // Limite de nível para evitar loops infinitos ou progressão indesejada
   const MAX_CARD_LEVEL = 15;
   
   card.xp = (card.xp || 0) + gainedXP;
-  let leveledUp = false;
   let levelsGained = 0;
   
   while (card.level < MAX_CARD_LEVEL) {
@@ -75,24 +72,23 @@ export function levelUpCard(user, cardUniqueId, gainedXP) {
       card.xp -= xpNeeded;
       card.level++;
       levelsGained++;
-      leveledUp = true;
-      
-      // NOTA: A lógica de desbloqueio de efeitos (evolved/unlockedEvolution)
-      // foi REMOVIDA daqui para evitar conflito com o CardSystem/Meld.
-      // O level-up é puramente para aumentar o nível e stats base (se houver lógica para isso).
-      
     } else {
       break;
     }
   }
   
-  markUserDirty(user.userId);
+  // 🚨 CORREÇÃO: Usando 'user.id' no lugar de 'user.userId'
+  markUserDirty(user.id);
   
   if (levelsGained > 0) {
+      // Tenta obter o nome da carta do template para uma mensagem mais informativa
+      const cardTemplate = getCardTemplate(card.id);
+      const cardDisplayName = cardTemplate?.name || card.id;
+      
       return { 
           success: true, 
           levelsGained: levelsGained,
-          message: `⭐ ${card.name} subiu ${levelsGained} nível(is) para o **Nível ${card.level}**!` 
+          message: `⭐ ${cardDisplayName} subiu ${levelsGained} nível(is) para o **Nível ${card.level}**!` 
       };
   }
   

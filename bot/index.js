@@ -56,7 +56,7 @@ export async function startBot(config) {
     for (const file of commandFiles) {
       try {
         // Ajuste o caminho de import dinâmico
-        const { default: command } = await import(`../commands/${file}`); 
+        const { default: command } = await import(`./commands/${file}`); 
         if (command?.name && typeof command?.execute === "function") {
           client.commands.set(command.name, command);
           console.log(`✅ Comando carregado: \x1b[32m${command.name}\x1b[0m`);

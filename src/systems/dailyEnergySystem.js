@@ -1,9 +1,8 @@
 // src/systems/dailyEnergySystem.js (REVISADO)
 
-// 1. IMPORTAÇÕES CORRIGIDAS
-import { loadUserCached, markUserDirty } from "./userCacheSystem.js";
-// Assumindo que addEnergy e spendGems estão no economySystem.js
-import { spendGems } from "./economySystem.js"; 
+// ❌ REMOVIDO: loadUserCached, markUserDirty
+// 1. CORREÇÃO: Importa addEnergy (assumimos que existe) e spendGems
+import { addEnergy, spendGems } from "./economySystem.js"; 
 
 // --- Configuração ---
 const BONUS_PERIODS = [
@@ -15,36 +14,28 @@ const REGEN_RATE_MIN = 1; // 1 energia a cada minuto
 // --- FUNÇÕES DE REGENERAÇÃO E COMPRA ---
 
 /**
- * [Removida a função claimDailyEnergy]
- * Esta lógica conflita com dailySystem.js.
- * A energia de login deve ser gerenciada em dailySystem.js.
- */
-
-
-/**
  * Verifica e aplica regeneração de energia baseada em tempo.
+ * 🎯 CORREÇÃO 1: Assinatura alterada para receber o objeto 'user'.
+ * @param {object} user O objeto usuário a ser modificado.
  * @returns {number} Quantidade de energia regenerada.
  */
-export function regenEnergyOverTime(userId) {
-  const user = loadUserCached(userId);
+export function regenEnergyOverTime(user) {
   const now = Date.now();
   
   // Garantimos que o usuário tenha o campo de controle
   if (!user.lastEnergyRegen) user.lastEnergyRegen = now;
   
   const delta = now - user.lastEnergyRegen;
-  // Math.floor para evitar conceder energia por milissegundos
+  // Calcula o valor total a ser regenerado com base no tempo decorrido
   const regenAmount = Math.floor(delta / (1000 * 60) * REGEN_RATE_MIN); 
   
   if (regenAmount > 0) {
-    // 2. CORREÇÃO: Usar addEnergy (se existisse no economySystem)
-    // Se não existir, fazemos a manipulação direta e marcamos como dirty, 
-    // mas a responsabilidade de ADD continua sendo do economySystem.
-    user.energy = (user.energy || 0) + regenAmount; 
+    // 🎯 CORREÇÃO 2: Delega a adição de energia ao economySystem.
+    addEnergy(user, regenAmount); 
     
     // Atualiza o tempo para que a próxima contagem comece daqui
     user.lastEnergyRegen = now; 
-    markUserDirty(userId);
+    // ❌ REMOVIDO: markUserDirty(userId);
   }
   
   return regenAmount;
@@ -52,24 +43,24 @@ export function regenEnergyOverTime(userId) {
 
 /**
  * Permite comprar energia usando gemas
+ * 🎯 CORREÇÃO 3: Assinatura alterada para receber o objeto 'user'.
+ * @param {object} user O objeto usuário a ser modificado.
+ * @param {number} gemsSpent A quantidade de gemas a gastar.
+ * @returns {string} Mensagem de sucesso.
+ * @throws {Error} Se gemas insuficientes.
  */
-export function buyEnergy(userId, gemsSpent = 1) {
-  const user = loadUserCached(userId);
+export function buyEnergy(user, gemsSpent = 1) {
   
-  // 1. CORREÇÃO: Usa spendGems do economySystem
-  if (!spendGems(userId, gemsSpent)) {
-     return "💎 Gemas insuficientes.";
-  }
+  // 🎯 CORREÇÃO 4: Usa spendGems no objeto 'user'. Lança Error se insuficiente.
+  spendGems(user, gemsSpent);
   
   const energyPerGem = 40;
   const totalEnergyGained = energyPerGem * gemsSpent;
   
-  // 2. CORREÇÃO: Usar addEnergy (se existisse no economySystem)
-  // Como spendGems já marcou o usuário como dirty, podemos manipular energy aqui.
-  user.energy = (user.energy || 0) + totalEnergyGained;
+  // 🎯 CORREÇÃO 5: Delega a adição de energia ao economySystem.
+  addEnergy(user, totalEnergyGained);
 
-  // Não precisamos chamar markUserDirty novamente, pois spendGems já o fez.
-  // saveUserData(user); // Chamada via userSystem.js
+  // O Middleware salva automaticamente o objeto 'user' mutado.
 
   return `⚡ Você comprou ${totalEnergyGained} de energia usando ${gemsSpent} gema(s). Total atual: ${user.energy} de energia.`;
 }

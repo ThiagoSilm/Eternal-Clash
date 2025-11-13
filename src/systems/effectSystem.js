@@ -36,31 +36,33 @@ function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
  * @param {object} opponent - O combatente adversário.
  * @param {object} context - O objeto de alvo (ex: a carta que foi atacada).
  * @param {function} pushLog - Função para adicionar mensagens ao log de batalha.
- * @param {object} rng - O gerador de números aleatórios.
+ * @param {object} [rng=Math] - O gerador de números aleatórios (usando Math se não injetado).
  */
 export function executeEffect(eff, subject, owner, opponent, context = null, pushLog = () => {}, rng = Math) {
+  // 🎯 CORREÇÃO: Mantemos rng=Math como fallback para facilitar o uso de Math.random() 
+  // dentro do 'with (ctx)' caso nenhum gerador seedable seja passado.
+
   if (!eff) return null;
   
-  // CORREÇÃO: Cria um objeto de contexto único e completo para o escopo da função dinâmica.
+  // Cria um objeto de contexto único e completo para o escopo da função dinâmica.
   const executionContext = {
     // Aliases comuns
-    subject: subject,     // A carta que ativou o efeito (instância)
-    target: context,      // O alvo do efeito (ex: carta atacada)
-    owner: owner,         // O jogador proprietário (com .cards, .graveyard)
-    opponent: opponent,   // O jogador adversário
+    subject: subject,     
+    target: context,      
+    owner: owner,         
+    opponent: opponent,   
     // Utilitários
-    rng: rng,
+    rng: rng, // Passa Math ou um gerador seedable
     pushLog: pushLog,
     deepClone: deepClone,
     // Acesso direto aos dados internos
     graveyard: owner.graveyard, 
-    allCards: owner.cards.concat(opponent.cards), // Todas as cartas em campo
+    allCards: owner.cards.concat(opponent.cards), 
   };
 
   try {
     // 1. Condição (eff.condition)
     if (eff.condition) {
-      // Condição deve ser um corpo de função que retorna um booleano
       const condFn = new Function('ctx', `with (ctx) { return (${eff.condition}); }`);
       const ok = !!condFn(executionContext);
       if (!ok) return null;
@@ -68,8 +70,7 @@ export function executeEffect(eff, subject, owner, opponent, context = null, pus
 
     // 2. Ação (eff.action - Execução Dinâmica)
     if (eff.action) {
-      // 2. CORREÇÃO: Usa um único formato robusto para execução,
-      // injetando o contexto no escopo da função (usando 'with').
+      // Usa um único formato robusto para execução, injetando o contexto.
       const actionFn = new Function('ctx', `with (ctx) { ${eff.action}; }`);
       actionFn(executionContext);
 
@@ -111,7 +112,6 @@ export function runEffectsTrigger(trigger, owner, opponent, context = null, push
   }
 
   // 2. Efeitos do Guardião (Se o guardião for uma entidade de batalha)
-  // 4. INCONSISTÊNCIA CORRIGIDA: Presumimos que owner.guardian é a INSTÂNCIA
   if (owner.guardian && owner.guardian.effects && owner.guardian.effects.length) {
     for (const eid of owner.guardian.effects) {
       const eff = getEffectById(eid);

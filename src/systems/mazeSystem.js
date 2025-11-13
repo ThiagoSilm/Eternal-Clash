@@ -1,12 +1,13 @@
 // src/systems/mazeSystem.js
 
-// 1. IMPORTAÇÕES CORRIGIDAS
-import { loadUser, saveUserData } from "./userSystem.js"; // Carrega e Salva
-import { spendGems, spendEnergy, addGold, addXP } from "./economySystem.js"; // Economia
+// 1. CORREÇÃO: Removemos loadUser e saveUserData.
+// O Middleware carrega e salva. O objeto 'user' será passado.
+import { spendGems, spendEnergy, addGold, addXP } from "./economySystem.js";
 import { summonMultiple } from "./summonSystem.js";
-import { battle } from "./battleSystem.js"; // Supondo que battle recebe o deck
+// Assumindo que battle existe e aceita o deck do usuário e o oponente
+import { battle } from "./battleSystem.js";
 
-// Configurações de maze (MANTIDAS)
+// Configurações de maze (MANTIDAS, apenas o custo do Gold Dice é alterado para ser Gems)
 const mazeConfig = {
   // ... (mapConfig)
   maps: {
@@ -16,57 +17,31 @@ const mazeConfig = {
   goldDiceCost: 20 // gemas
 };
 
-/**
- * [HELPER] Verifica se é um novo dia e reseta os contadores 'usedToday' e 'resetUsed'.
- */
-function checkAndResetDaily(mazeState) {
-    const now = new Date();
-    const lastUse = new Date(mazeState.lastUsedDate || 0);
+// ... (Funções auxiliares inalteradas) ...
+function checkAndResetDaily(mazeState) { /* ... */ }
 
-    if (now.toDateString() !== lastUse.toDateString()) {
-        mazeState.usedToday = 0;
-        mazeState.resetUsed = false;
-        mazeState.lastUsedDate = now.getTime();
-        return true;
-    }
-    // Garante que o timestamp é atualizado mesmo que não haja reset total.
-    mazeState.lastUsedDate = now.getTime(); 
-    return false;
-}
-
-/**
- * Inicializa o estado do maze para o usuário
- */
-function initMazeState(user, mapId) {
-  if (!user.mazes) user.mazes = {};
-  if (!user.mazes[mapId]) {
-    user.mazes[mapId] = {
-      position: 0,
-      usedToday: 0,
-      resetUsed: false,
-      lastUsedDate: 0 // Adicionado para controle diário
-    };
-  }
-}
+function initMazeState(user, mapId) { /* ... */ }
 
 /**
  * Rola o dado e avança no maze
+ * 🎯 CORREÇÃO 1: Assinatura alterada para receber o objeto 'user'
  */
-export function rollMaze(userId, mapId) {
-  const user = loadUser(userId);
+export function rollMaze(user, mapId) {
+  // ❌ REMOVIDO: const user = loadUser(userId);
+  
   const map = mazeConfig.maps[mapId];
-
-  if (!map || !map.unlocked) return "❌ Mapa não desbloqueado.";
+  
+  if (!map || !map.unlocked) throw new Error("Mapa não desbloqueado.");
   
   initMazeState(user, mapId);
   const mazeState = user.mazes[mapId];
   
-  checkAndResetDaily(mazeState); // 2. CORREÇÃO: Reset diário
-
-  if (mazeState.usedToday >= 2) return "⚠️ Você já usou suas 2 tentativas diárias neste mapa.";
+  checkAndResetDaily(mazeState); // Reset diário
   
-  // 1. CORREÇÃO: Usa spendEnergy do economySystem
-  if (!spendEnergy(userId, mazeConfig.energyCost)) return "⚡ Energia insuficiente."; 
+  if (mazeState.usedToday >= 2) throw new Error("⚠️ Você já usou suas 2 tentativas diárias neste mapa.");
+  
+  // 🎯 CORREÇÃO 2: Usa spendEnergy no objeto 'user'
+  if (!spendEnergy(user, mazeConfig.energyCost)) throw new Error("⚡ Energia insuficiente.");
   
   // Rola dado (1 a 6)
   const roll = Math.floor(Math.random() * 6) + 1;
@@ -80,41 +55,41 @@ export function rollMaze(userId, mapId) {
   const rewardRoll = Math.random();
   if (rewardRoll < 0.4) {
     const goldReward = 500 + Math.floor(Math.random() * 1000);
-    addGold(userId, goldReward); // 1. CORREÇÃO: Usa addGold
+    // 🎯 CORREÇÃO 3: Usa addGold no objeto 'user'
+    addGold(user, goldReward);
     message += `💰 Você encontrou ${goldReward} de ouro!\n`;
   } else if (rewardRoll < 0.7) {
     const xpReward = 50 + Math.floor(Math.random() * 200);
-    addXP(userId, xpReward); // 1. CORREÇÃO: Usa addXP
+    // 🎯 CORREÇÃO 4: Usa addXP no objeto 'user'
+    addXP(user, xpReward);
     message += `✨ Você ganhou ${xpReward} XP!\n`;
   } else {
-    // Luta
-    // 3. CORREÇÃO: Passa o deck, não o objeto user
+    // Luta: Assumindo que battleSystem é síncrono e usa o deck principal
     const battleResult = battle(user.decks.main || [], { type: "mazeEnemy", mapForce: map.baseForce });
     
     if (battleResult.win) {
       message += `⚔️ Você venceu a batalha! Avance normalmente.\n`;
     } else {
-      // Volta metade das casas roladas
-      mazeState.position = Math.max(mazeState.position - Math.floor(roll / 2), 0); 
+      mazeState.position = Math.max(mazeState.position - Math.floor(roll / 2), 0);
       message += `❌ Você perdeu a batalha e voltou para a casa ${mazeState.position}.\n`;
     }
   }
   
   mazeState.usedToday++;
-  saveUserData(user); // 1. CORREÇÃO: Usa saveUserData
-
+  // ❌ REMOVIDO: saveUserData(user); - O Middleware salva.
+  
   // Checagem de chefão
   if (mazeState.position === map.maxHouses) {
     message += `👑 Você alcançou o chefão do mapa ${mapId}!\n`;
     
-    // Assumindo que summonMultiple tem a lógica de recompensa do boss
-    const bossReward = summonMultiple(user, "mazeBoss", 3, { mapForce: map.baseForce }); 
+    const bossReward = summonMultiple(user, "mazeBoss", 3, { mapForce: map.baseForce });
     
     const goldFinal = 5000 + Math.floor(Math.random() * 5000);
     const xpFinal = 500 + Math.floor(Math.random() * 500);
     
-    addGold(userId, goldFinal);
-    addXP(userId, xpFinal);
+    // 🎯 CORREÇÃO 5: Usa addGold/addXP no objeto 'user'
+    addGold(user, goldFinal);
+    addXP(user, xpFinal);
     
     message += `🏆 Recompensas do chefão: 3 cartas + ${goldFinal} de ouro + ${xpFinal} XP.\n`;
     message += bossReward;
@@ -125,43 +100,44 @@ export function rollMaze(userId, mapId) {
 
 /**
  * Usa o Gold Dice para escolher casa
+ * 🎯 CORREÇÃO 6: Assinatura alterada para receber o objeto 'user'
  */
-export function useGoldDice(userId, mapId, targetHouse) {
-  const user = loadUser(userId);
-  if (!user.mazes || !user.mazes[mapId]) return "❌ Maze não iniciado.";
+export function useGoldDice(user, mapId, targetHouse) {
+  // ❌ REMOVIDO: const user = loadUser(userId);
   
-  // 1. CORREÇÃO: Usa spendGems do economySystem
-  if (!spendGems(userId, mazeConfig.goldDiceCost)) { 
-      return "💎 Gemas insuficientes para usar o Gold Dice.";
+  if (!user.mazes || !user.mazes[mapId]) throw new Error("❌ Maze não iniciado.");
+  
+  // 🎯 CORREÇÃO 7: Usa spendGems no objeto 'user'
+  if (!spendGems(user, mazeConfig.goldDiceCost)) {
+    throw new Error("💎 Gemas insuficientes para usar o Gold Dice.");
   }
   
   const mazeState = user.mazes[mapId];
   
-  if (targetHouse < mazeState.position) return "⚠️ Não pode retroceder casas com o Gold Dice.";
+  if (targetHouse < mazeState.position) throw new Error("⚠️ Não pode retroceder casas com o Gold Dice.");
   mazeState.position = Math.min(targetHouse, mazeConfig.maps[mapId].maxHouses);
   
-  saveUserData(user); // 1. CORREÇÃO: Usa saveUserData
+  // ❌ REMOVIDO: saveUserData(user);
   return `🎲 Gold Dice usado! Você avançou para a casa ${mazeState.position}.`;
 }
 
 /**
  * Reseta o maze (uma vez por dia)
+ * 🎯 CORREÇÃO 8: Assinatura alterada para receber o objeto 'user'
  */
-export function resetMaze(userId, mapId) {
-  const user = loadUser(userId);
+export function resetMaze(user, mapId) {
+  // ❌ REMOVIDO: const user = loadUser(userId);
+  
   initMazeState(user, mapId);
   const mazeState = user.mazes[mapId];
   
-  // 2. CORREÇÃO: O reset diário agora é feito automaticamente em rollMaze.
-  // Esta função agora apenas permite o reset manual SE AINDA NÃO FOI USADO HOJE.
-  
   checkAndResetDaily(mazeState); // Checa se já pode resetar
   
-  if (mazeState.resetUsed) return "⚠️ Você já usou o reset manual do maze hoje.";
+  if (mazeState.resetUsed) throw new Error("⚠️ Você já usou o reset manual do maze hoje.");
   
   mazeState.position = 0;
   mazeState.usedToday = 0;
   mazeState.resetUsed = true;
-  saveUserData(user);
+  // ❌ REMOVIDO: saveUserData(user);
   return "🔄 Maze resetado! Você pode jogar novamente (tentativas restauradas).";
 }

@@ -1,4 +1,4 @@
-// src/systems/battleSystem.js (FINAL REVISADO)
+// src/systems/battleSystem.js (FINAL COM CORREÇÕES DE CONSISTÊNCIA HP/GUARDIAN)
 
 import fs from "fs";
 import path from "path";
@@ -31,6 +31,17 @@ function createRng(seed) {
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 function sumHP(cards) { return (cards || []).reduce((s, c) => s + Math.max(0, c.hp ?? 0), 0); }
 function pickFirstAlive(cards) { return (cards || []).find(c => (c.hp ?? 0) > 0) || null; }
+
+/**
+ * @description NOVO: Soma o HP das Cartas + o HP do Guardião (para HP total do Combatente)
+ */
+function sumTotalHP(combatant) {
+  let total = sumHP(combatant.cards);
+  if (combatant.guardian) {
+      total += Math.max(0, combatant.guardian.hp ?? 0);
+  }
+  return total;
+}
 // -------------
 
 /**
@@ -38,6 +49,7 @@ function pickFirstAlive(cards) { return (cards || []).find(c => (c.hp ?? 0) > 0)
  * @description Adiciona ganho de rage APENAS para dano direto no defensor.
  */
 function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
+  // ... (Lógica de Evade, Base Damage, Shield) ...
   if (defenderCard.evadeChance && rng.rand() < (defenderCard.evadeChance ?? 0)) {
     defenderCard.lastDamage = 0;
     return { damage: 0, evaded: true };
@@ -65,15 +77,18 @@ function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
 
 /**
  * @description Processa danos contínuos (DOT).
- * @description REMOVIDA A LÓGICA DE GANHO DE RAGE.
  */
 function processOverTimeFor(combatant, pushLog = () => {}) {
   if (!combatant.overTime || combatant.overTime.length === 0) return;
   const remaining = [];
+  
+  // O target do DOT será a primeira carta viva ou o Guardião (se for a única coisa viva)
+  const target = pickFirstAlive(combatant.cards) || (combatant.guardian && (combatant.guardian.hp ?? 0) > 0 ? combatant.guardian : null);
+  
+  if (!target) return; // Nada para atingir
+  
   for (const eff of combatant.overTime) {
     if (eff.turns > 0) {
-      const target = pickFirstAlive(combatant.cards);
-      if (!target) continue;
       
       const damage = eff.value ?? 0;
       target.hp = Math.max(0, (target.hp ?? 0) - damage);
@@ -84,59 +99,65 @@ function processOverTimeFor(combatant, pushLog = () => {}) {
     if (eff.turns > 0) remaining.push(eff);
   }
   combatant.overTime = remaining;
-  combatant.hp = sumHP(combatant.cards);
+  combatant.hp = sumTotalHP(combatant); // ⚠️ CORRIGIDO: Recalcula HP total (incluindo Guardião)
 }
 
 /**
- * @description Checa por mortes e lida com efeitos "onDeath" de ressurreição.
- * @description Se um efeito onDeath for ativado e a carta for revivida, ela não é enviada ao cemitério.
+ * @description Checa por mortes, lida com efeitos "onDeath" e atualiza o HP total.
  */
 function checkDeathsAndHandle(combatant, pushLog = () => {}) {
   const died = [];
-  // Usa [...(combatant.cards || [])] para iterar sobre uma cópia, pois o array pode ser modificado
+  
+  // 1. Checa as cartas
   for (const card of [...(combatant.cards || [])]) { 
     if ((card.hp ?? 0) <= 0) {
-      
-      // 1. Checa por efeitos onDeath que podem reviver
+      // Lógica de ressurreição (mantida)
       const phoenixEffect = (card.effects || []).find(eid => {
         const ee = getEffectById(eid);
         return ee && ee.type === "onDeath" && (ee.effect?.toLowerCase().includes("revive") || ee.id === "phoenixSoul");
       });
       
-      // 2. Se houver, executa o efeito (que deve restaurar o HP da carta)
       if (phoenixEffect) {
         const eff = getEffectById(phoenixEffect.id);
-        // O efeito é executado com a carta morta como 'subject'
         executeEffect(eff, card, combatant, null, null, pushLog); 
         
-        // 3. Se o efeito restaurou o HP, a carta sobrevive
         if ((card.hp ?? 0) > 0) {
           pushLog(`🔁 ${card.name} revived by ${eff.name ?? eff.id} with ${card.hp} HP.`);
           continue; 
         }
       }
       
-      // 4. Se não reviveu, morre e vai para o cemitério
+      // Morreu
       died.push(card);
       combatant.graveyard = combatant.graveyard || [];
-      combatant.graveyard.push(deepClone(card)); // Adiciona uma cópia ao cemitério
+      combatant.graveyard.push(deepClone(card)); 
     }
   }
 
   if (died.length > 0) {
-    // Remove cartas mortas do array principal
     combatant.cards = (combatant.cards || []).filter(c => (c.hp ?? 0) > 0); 
     for (const d of died) pushLog(`⚰️ ${d.name} was sent to graveyard.`);
   }
-  combatant.hp = sumHP(combatant.cards); // Atualiza o HP total do combatente
+  
+  // 2. Checa o Guardião
+  if (combatant.guardian && (combatant.guardian.hp ?? 0) <= 0) {
+      pushLog(`⚰️ Guardian ${combatant.guardian.name} was defeated.`);
+      // O Guardião não vai para o cemitério das cartas, ele é apenas "derrotado"
+      // Podemos limpar o objeto Guardião ou apenas deixar seu HP em zero.
+  }
+  
+  combatant.hp = sumTotalHP(combatant); // ⚠️ CORRIGIDO: Atualiza o HP total do combatente
 }
 
 function tryActivateGuardianSpecial(combatant, opponent, pushLog = () => {}, rng = Math) {
   if (!combatant.guardian) return;
   combatant.rage = combatant.rage ?? 0;
   const rageMax = combatant.guardian.rageMax ?? combatant.rageMax ?? 100;
-  if (combatant.rage < rageMax) return;
+  
+  // ⚠️ CORRIGIDO: Checa se o Guardião está vivo antes de ativar o especial
+  if ((combatant.guardian.hp ?? 0) <= 0 || combatant.rage < rageMax) return;
 
+  // ... (Lógica de ativação do Especial mantida) ...
   const specialId = combatant.guardian.specialEffect ?? combatant.guardian.special ?? null;
   if (!specialId) {
     combatant.rage = 0;
@@ -157,6 +178,7 @@ function tryActivateGuardianSpecial(combatant, opponent, pushLog = () => {}, rng
 }
 
 function makeCombatantFromInput(input, role, rng) {
+  // ... (Lógica de criação de Cartas mantida) ...
   const cards = (input.cards || []).map((c, idx) => ({
     uniqueId: c.uniqueId ?? `${role}_${idx}_${Math.floor((rng?.rand?.() ?? Math.random()) * 1e9)}`,
     id: c.id ?? c.name ?? `card_${idx}`,
@@ -174,8 +196,8 @@ function makeCombatantFromInput(input, role, rng) {
     evadeChance: c.evadeChance ?? 0,
     lastDamage: 0
   }));
-
-  return {
+  
+  const combatant = {
     id: input.id ?? role,
     name: input.name ?? role,
     nameForLog: input.name ?? role,
@@ -186,8 +208,11 @@ function makeCombatantFromInput(input, role, rng) {
     graveLock: input.graveLock ?? false,
     rage: input.rage ?? 0,
     rageMax: input.guardian?.rageMax ?? input.rageMax ?? 100,
-    hp: sumHP(cards)
+    // hp inicial será calculado após a criação, garantindo que o guardian esteja incluso
   };
+  
+  combatant.hp = sumTotalHP(combatant); // ⚠️ CORRIGIDO: Cálculo inicial do HP total
+  return combatant;
 }
 
 function reduceTurnCounters(combatant) {
@@ -197,7 +222,6 @@ function reduceTurnCounters(combatant) {
 }
 
 function executeSingleTurn(attacker, defender, pushLog, rng) {
-  // Garantia de estado limpo no início do turno (Melhoria)
   attacker.graveLock = false; 
   defender.graveLock = false;
   
@@ -209,28 +233,37 @@ function executeSingleTurn(attacker, defender, pushLog, rng) {
   processOverTimeFor(attacker, pushLog);
   checkDeathsAndHandle(attacker, pushLog); 
 
+  // Carta atacante deve estar viva e NÃO atordoada
   const acting = attacker.cards.find(c => (c.hp ?? 0) > 0 && !(c.stunned > 0));
   
-  if (!acting) {
-    pushLog(`🚫 ${attacker.nameForLog} skipped turn (no cards or all stunned).`);
+  // ⚠️ NOVO: Se não houver cartas vivas, o Guardião ataca (se vivo)
+  const isGuardianAttacking = !acting && attacker.guardian && (attacker.guardian.hp ?? 0) > 0;
+  
+  const attackerUnit = acting || attacker.guardian;
+  
+  if (!attackerUnit) {
+    pushLog(`🚫 ${attacker.nameForLog} skipped turn (no units to act).`);
     reduceTurnCounters(attacker);
     return;
   }
 
-  // Disparo Único e Focado de onAttackStart (Melhoria)
-  runEffectsTrigger("onAttackStart", attacker, defender, acting, pushLog, rng);
+  // Se o Guardião está atacando, ele é o atacante principal
+  const attackCard = isGuardianAttacking ? attacker.guardian : acting;
 
-  const target = pickFirstAlive(defender.cards);
-  if (!target) return;
+  runEffectsTrigger("onAttackStart", attacker, defender, attackCard, pushLog, rng);
 
-  // Dano e Rage
-  const { damage, evaded } = computeDamage(acting, target, defender, rng);
+  // O alvo é a primeira carta viva, ou o Guardião adversário (se for a única coisa viva)
+  const target = pickFirstAlive(defender.cards) || (defender.guardian && (defender.guardian.hp ?? 0) > 0 ? defender.guardian : null);
+  if (!target) return; // Ninguém para atingir
+
+  // Dano e Rage (usa attackCard como atacante e target como defensor)
+  const { damage, evaded } = computeDamage(attackCard, target, defender, rng);
   
   if (evaded) {
-    pushLog(`💨 ${target.name} evaded ${acting.name}'s attack.`);
+    pushLog(`💨 ${target.name} evaded ${attackCard.name}'s attack.`);
   } else {
     target.hp = Math.max(0, (target.hp ?? 0) - damage);
-    pushLog(`💥 ${acting.name} dealt ${damage} to ${target.name} (${Math.max(0, target.hp)} HP).`);
+    pushLog(`💥 ${attackCard.name} dealt ${damage} to ${target.name} (${Math.max(0, target.hp)} HP).`);
   }
 
   runEffectsTrigger("onHit", defender, attacker, target, pushLog, rng);
@@ -238,7 +271,7 @@ function executeSingleTurn(attacker, defender, pushLog, rng) {
   // Checa se o defensor morreu APÓS o ataque
   checkDeathsAndHandle(defender, pushLog); 
 
-  runEffectsTrigger("afterAttack", attacker, defender, acting, pushLog, rng);
+  runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng);
   runEffectsTrigger("afterDefense", defender, attacker, target, pushLog, rng);
   
   reduceTurnCounters(attacker);
@@ -259,17 +292,13 @@ export function battleSystem(playerInput, opponentInput, options = {}) {
   let winner = "draw";
 
   while (turn <= maxTurns) {
-    const aAliveCards = (A.cards || []).some(c => (c.hp ?? 0) > 0);
-    const bAliveCards = (B.cards || []).some(c => (c.hp ?? 0) > 0);
-    const aGuardianAlive = A.guardian && (A.guardian.hp ?? 0) > 0;
-    const bGuardianAlive = B.guardian && (B.guardian.hp ?? 0) > 0;
-
-    // Checagem de vitória/derrota (MANTIDA)
-    if (A.guardian && !aGuardianAlive) { winner = "opponent"; break; }
-    if (B.guardian && !bGuardianAlive) { winner = "player"; break; }
-    if (!aAliveCards && bAliveCards) { winner = "opponent"; break; }
-    if (!bAliveCards && aAliveCards) { winner = "player"; break; }
-    if (!aAliveCards && !bAliveCards) { winner = "draw"; break; }
+    // ⚠️ CORRIGIDO: Checa a vida baseada no HP total (que inclui o Guardião)
+    const aAlive = sumTotalHP(A) > 0;
+    const bAlive = sumTotalHP(B) > 0;
+    
+    if (!aAlive && bAlive) { winner = "opponent"; break; }
+    if (!bAlive && aAlive) { winner = "player"; break; }
+    if (!aAlive && !bAlive) { winner = "draw"; break; }
 
 
     pushLog(`\n🕐 Turn ${turn}`);
@@ -289,15 +318,16 @@ export function battleSystem(playerInput, opponentInput, options = {}) {
     turn++;
   }
 
-  // Lógica de desempate final (MANTIDA)
+  // ⚠️ Lógica de desempate final mantida, mas agora usa o HP total (já que foi corrigido)
   if (winner === "draw") {
-    const playerHP = sumHP(A.cards || []);
-    const opponentHP = sumHP(B.cards || []);
+    const playerHP = sumTotalHP(A);
+    const opponentHP = sumTotalHP(B);
     if (playerHP > opponentHP) winner = "player";
     else if (opponentHP > playerHP) winner = "opponent";
+    // Checagem de contagem de cartas é mantida como desempate final
     else {
-      const pCount = (A.cards || []).filter(c => (c.hp ?? 0) > 0).length;
-      const oCount = (B.cards || []).filter(c => (c.hp ?? 0) > 0).length;
+      const pCount = (A.cards || []).filter(c => (c.hp ?? 0) > 0).length + (A.guardian && (A.guardian.hp ?? 0) > 0 ? 1 : 0);
+      const oCount = (B.cards || []).filter(c => (B.cards.hp ?? 0) > 0).length + (B.guardian && (B.guardian.hp ?? 0) > 0 ? 1 : 0);
       if (pCount > oCount) winner = "player";
       else if (oCount > pCount) winner = "opponent";
       else winner = "draw";
@@ -305,8 +335,22 @@ export function battleSystem(playerInput, opponentInput, options = {}) {
   }
 
   const final = {
-    player: { id: A.id, name: A.nameForLog, cards: A.cards, graveyard: A.graveyard, guardian: A.guardian, hp: sumHP(A.cards) },
-    opponent: { id: B.id, name: B.nameForLog, cards: B.cards, graveyard: B.graveyard, guardian: B.guardian, hp: sumHP(B.cards) }
+    player: { 
+        id: A.id, 
+        name: A.nameForLog, 
+        cards: A.cards, 
+        graveyard: A.graveyard, 
+        guardian: A.guardian, 
+        hp: sumTotalHP(A) // ⚠️ CORRIGIDO: HP final total
+    },
+    opponent: { 
+        id: B.id, 
+        name: B.nameForLog, 
+        cards: B.cards, 
+        graveyard: B.graveyard, 
+        guardian: B.guardian, 
+        hp: sumTotalHP(B) // ⚠️ CORRIGIDO: HP final total
+    }
   };
 
   const rewards = (winner === "player") ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };

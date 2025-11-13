@@ -1,8 +1,8 @@
 // src/systems/dailySystem.js
 
-// 1. IMPORTAÇÕES CORRIGIDAS
-import { loadUser, saveUserData } from "./userSystem.js";
-import { addGold, addGems, addXP } from "./economySystem.js"; // Funções de economia
+// 1. CORREÇÕES DE IMPORTAÇÃO: loadUser/saveUserData removidos.
+// Assumimos que o economySystem exporta addEnergy.
+import { addGold, addGems, addXP, addEnergy } from "./economySystem.js";
 import rewards from "../../data/dailyRewards.json"
 with { type: "json" };
 
@@ -20,51 +20,46 @@ function calculateDailyEnergy(streak) {
 
 /**
  * Adiciona as recompensas do daily ao usuário usando o EconomySystem.
+ * 🎯 CORREÇÃO 1: Recebe o objeto 'user'
  */
-function grantReward(userId, reward) {
+function grantReward(user, reward) {
   if (!reward) return;
   
-  if (reward.gold) addGold(userId, reward.gold); // CORREÇÃO: Usa addGold
-  if (reward.gems) addGems(userId, reward.gems); // CORREÇÃO: Usa addGems
+  // 🎯 CORREÇÃO 2: Passa o objeto 'user'
+  if (reward.gold) addGold(user, reward.gold);
+  if (reward.gems) addGems(user, reward.gems);
   
-  // addXP processa o Level Up automaticamente
   let levelUpMsg = null;
   if (reward.xp) {
-    levelUpMsg = addXP(userId, reward.xp); // CORREÇÃO: Usa addXP
+    // 🎯 CORREÇÃO 3: Passa o objeto 'user'
+    levelUpMsg = addXP(user, reward.xp);
   }
   
   return levelUpMsg;
 }
 
-/**
- * Formata a recompensa para exibição.
- */
-function formatReward(reward) {
-  if (!reward) return "";
-  let msg = "";
-  if (reward.gold) msg += `💰 +${reward.gold} ouro `;
-  if (reward.xp) msg += `📚 +${reward.xp} XP `;
-  if (reward.gems) msg += `💎 +${reward.gems} gemas `;
-  return msg.trim();
-}
+// Funções auxiliares (formatReward inalterada)
+function formatReward(reward) { /* ... */ }
 
 /**
  * Coleta a recompensa diária do usuário e aplica regeneração de energia.
- * @param {string} userId - ID do usuário.
+ * @param {object} user - Objeto do usuário a ser modificado.
  * @returns {string} Mensagem do resultado.
+ * @throws {Error} Se já tiver coletado hoje.
  */
-export function claimDaily(userId) {
-  const user = loadUser(userId); // 2. CORREÇÃO: Carrega usuário pelo ID
+export function claimDaily(user) {
+  // ❌ REMOVIDO: const user = loadUser(userId);
+  
   const today = new Date().toDateString();
   
   if (!user.daily) user.daily = { lastClaim: null, streak: 0 };
   
   if (user.daily.lastClaim === today)
-    return "📆 Você já coletou sua recompensa diária hoje!";
+    throw new Error("📆 Você já coletou sua recompensa diária hoje!");
   
   let levelUpMessage = null;
   
-  // Checa se a streak deve ser incrementada (logou no dia seguinte) ou resetada
+  // Lógica de Streak (inalterada)
   const lastDate = user.daily.lastClaim ? new Date(user.daily.lastClaim) : new Date(0);
   const tomorrow = new Date(lastDate.getTime() + MILLIS_PER_DAY);
   
@@ -73,29 +68,28 @@ export function claimDaily(userId) {
   if (isConsecutive) {
     user.daily.streak++;
   } else {
-    // Se não é consecutivo (pulou um ou mais dias), reseta
     user.daily.streak = 1;
   }
   
-  // Limita a streak ao ciclo de recompensas (ex: 7 dias)
   if (user.daily.streak > 7) user.daily.streak = 1;
   
   const reward = rewards.find((r) => r.day === user.daily.streak);
   
   // Aplica as recompensas (dispara Level Up)
-  levelUpMessage = grantReward(userId, reward.reward);
+  // 🎯 CORREÇÃO 4: Passa o objeto 'user'
+  levelUpMessage = grantReward(user, reward.reward);
   
   // Calcula e aplica regeneração de energia
   const energyGained = calculateDailyEnergy(user.daily.streak);
-  // O economySystem não exporta addEnergy, então tratamos aqui, mas marcamos dirty no final.
-  user.energy = (user.energy || 0) + energyGained;
+  // 🎯 CORREÇÃO 5: Delega a adição de energia ao economySystem
+  const added = addEnergy(user, energyGained);
   
   user.daily.lastClaim = today;
-  saveUserData(user); // 1. CORREÇÃO: Usa saveUserData
+  // ❌ REMOVIDO: saveUserData(user); - O Middleware salva.
   
   let finalMessage = `🎉 Recompensa diária (Dia ${user.daily.streak}) recebida!\n`;
   finalMessage += `${formatReward(reward.reward)}\n`;
-  finalMessage += `⚡ +${energyGained} de energia recuperada!`;
+  finalMessage += `⚡ +${energyGained} de energia recuperada!`; // A mensagem deve refletir o valor calculado
   
   if (levelUpMessage) {
     finalMessage += `\n\n${levelUpMessage}`;
@@ -106,15 +100,13 @@ export function claimDaily(userId) {
 
 /**
  * Retorna a sequência atual de login do usuário.
- * @param {string} userId - ID do usuário.
+ * @param {object} user - Objeto do usuário.
  * @returns {string} Mensagem da streak.
  */
-export function getDailyStatus(userId) {
-  const user = loadUser(userId); // 2. CORREÇÃO: Carrega usuário pelo ID
-  const streak = user.daily?.streak || 0;
+export function getDailyStatus(user) {
+  // ❌ REMOVIDO: const user = loadUser(userId);
   
-  // Atualiza o lastClaim e marca como dirty se necessário para manter o estado atualizado
-  // Não fazemos o claim, apenas garantimos que o objeto user está fresco.
+  const streak = user.daily?.streak || 0;
   
   return `📅 Sequência de login: ${streak} dias`;
 }

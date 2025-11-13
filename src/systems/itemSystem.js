@@ -2,7 +2,6 @@
 
 import { getShopCatalog } from "./shopSystem.js"; 
 import { addEnergy } from "./economySystem.js"; 
-// Assume-se que existe uma função para adicionar/remover status buffs (ex: 2x XP)
 // import { addBuff } from "./buffSystem.js"; 
 
 // ----------------------------------------------------
@@ -15,15 +14,18 @@ import { addEnergy } from "./economySystem.js";
  * @returns {string} Lista formatada.
  */
 export function listUserItems(user) {
-    if (Object.keys(user.items).length === 0) {
+    // 🎯 CORREÇÃO 1: Garante que user.items é um objeto antes de tentar acessar suas chaves.
+    const userItems = user.items || {}; 
+    
+    if (Object.keys(userItems).length === 0) {
         return "Seu inventário de itens está vazio. Compre algo na `!shop`!";
     }
 
     const allItems = getShopCatalog(); // Reutiliza o catálogo da loja para metadados
     let response = "🎒 **Seu Inventário de Itens:**\n---";
 
-    for (const itemId in user.items) {
-        const quantity = user.items[itemId];
+    for (const itemId in userItems) {
+        const quantity = userItems[itemId];
         if (quantity > 0) {
             const itemMetadata = allItems.find(i => i.id === itemId);
             const name = itemMetadata ? itemMetadata.name : itemId;
@@ -50,7 +52,7 @@ export function consumeItem(user, itemIdentifier, quantity = 1) {
     
     // 1. Encontrar o item (busca por ID ou nome)
     const itemMetadata = allItems.find(i => 
-        i.id === itemIdentifier || i.name.toLowerCase().includes(itemIdentifier)
+        i.id === itemIdentifier || i.name.toLowerCase().includes(itemIdentifier.toLowerCase())
     );
 
     if (!itemMetadata) {
@@ -58,20 +60,24 @@ export function consumeItem(user, itemIdentifier, quantity = 1) {
     }
     
     const itemId = itemMetadata.id;
+    // Garante que o inventário existe
+    if (!user.items) user.items = {}; 
     const totalOwned = user.items[itemId] || 0;
 
     // 2. Validação de Posse e Consumo
     if (totalOwned < quantity) {
         throw new Error(`Você só tem ${totalOwned} de "${itemMetadata.name}".`);
     }
+    // Permite consumo de 'consumable' e 'buff'
     if (itemMetadata.type !== 'consumable' && itemMetadata.type !== 'buff') {
-        throw new Error(`O item "${itemMetadata.name}" não é consumível.`);
+        throw new Error(`O item "${itemMetadata.name}" não é consumível (Tipo: ${itemMetadata.type}).`);
     }
 
     let successMessage = `Usou ${quantity}x **${itemMetadata.name}**.\nEfeito(s) Aplicado(s):\n`;
     
     // 3. Aplicar Efeitos e Gerar Logs
     for (let i = 0; i < quantity; i++) {
+        // Chamada para aplicar o efeito
         successMessage += applyEffect(user, itemMetadata.effect) + '\n';
     }
     
@@ -81,7 +87,7 @@ export function consumeItem(user, itemIdentifier, quantity = 1) {
         delete user.items[itemId];
     }
 
-    return successMessage;
+    return successMessage.trim();
 }
 
 /**
@@ -95,20 +101,18 @@ function applyEffect(user, effect) {
     
     switch (effect.resource) {
         case 'energy':
-            // Poção de Energia
             const added = addEnergy(user, effect.amount);
             return added ? `⚡ Energia restaurada: +${effect.amount}.` : "⚡ Energia já estava no máximo.";
         
         case 'towerAttempt':
-            // Tentativa de Torre
-            if (!user.tower) user.tower = { attempts: 0 };
+            // 🎯 CORREÇÃO 2: Remove a checagem perigosa. Apenas soma ao valor existente.
+            // Confiamos no userSystem para inicializar user.tower (e, idealmente, attempts).
             user.tower.attempts += effect.amount;
             return `🏰 Tentativa de Torre adicionada: +${effect.amount}.`;
             
         case 'xp_multiplier':
-            // Booster de XP (Implementação mock - requer um buffSystem.js)
-            // user.buffs.xpMultiplier = effect.multiplier;
-            // user.buffs.xpDuration = effect.duration;
+            // Lógica para aplicar o buff (Requer buffSystem.js)
+            // addBuff(user, 'xp', effect.multiplier, effect.duration);
             return `🔥 Booster de XP (x${effect.multiplier}) ativado por ${effect.duration} batalhas.`;
 
         default:

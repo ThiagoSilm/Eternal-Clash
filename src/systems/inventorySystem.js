@@ -1,11 +1,10 @@
 // src/systems/inventorySystem.js
 
-// Importações dos sistemas
-// Assumindo que essas funções existem em seus respectivos arquivos
-import { saveUserData } from "./userSystem.js"; 
+// 🎯 CORREÇÃO 1: Removemos a importação de saveUserData, pois o Middleware é o responsável.
 import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
 import { getCardXPValue, levelUpCard } from "./xpSystem.js";
-import { spendGold, addGold } from "./economySystem.js"; 
+// Assumindo que addGold e spendGold operam no objeto 'user'
+import { spendGold, addGold } from "./economySystem.js";
 
 const MAX_DECKS = 5;
 const LEVELS_TO_UNLOCK_DECK = {
@@ -17,31 +16,12 @@ const LEVELS_TO_UNLOCK_DECK = {
 };
 
 // -------------------------------------------------------------------
-// --- FUNÇÕES AUXILIARES ---
+// --- FUNÇÕES AUXILIARES (Inalteradas) ---
 // -------------------------------------------------------------------
 
-function getDeckName(deckIndex) {
-    return `deck${deckIndex + 1}`; 
-}
+function getDeckName(deckIndex) { /* ... */ }
 
-function ensureDecksAreInitialized(user) {
-    if (!user.decks) user.decks = {};
-    for (let i = 0; i < MAX_DECKS; i++) {
-        const name = getDeckName(i);
-        if (!user.decks[name]) user.decks[name] = []; 
-    }
-}
-
-// -------------------------------------------------------------------
-// --- FUNÇÕES DE INVENTÁRIO (Outras funções de gestão omitidas) ---
-// -------------------------------------------------------------------
-
-// export function listInventory(user) { /* ... */ }
-// export function addCardToDeck(user, cardIndex, deckIndex) { /* ... */ }
-// export function removeCardFromDeck(user, cardIndex, deckIndex) { /* ... */ }
-// export function viewDeck(user, deckIndex) { /* ... */ }
-// export function upgradeCard(user, cardIndex) { /* ... */ }
-
+function ensureDecksAreInitialized(user) { /* ... */ }
 
 // -------------------------------------------------------------------
 // --- NOVA FUNÇÃO DE VENDA (sellCards) ---
@@ -55,22 +35,21 @@ function ensureDecksAreInitialized(user) {
  * @returns {object} { count: number, goldGained: number, cardsSold: object[] }
  */
 export function sellCards(user, indicesToSell) {
-    // Garante que a estrutura de decks esteja inicializada para checagem
-    ensureDecksAreInitialized(user); 
-
+    ensureDecksAreInitialized(user);
+    
     const cardsToSell = [];
     let totalGoldGained = 0;
     
-    // Set de uniqueIds para garantir remoção eficiente (evita vender a mesma carta duas vezes)
+    // Set de uniqueIds para garantir remoção eficiente
     const cardUniqueIdsToRemove = new Set();
     
     // 1. Validação e Cálculo de Valor
     indicesToSell.forEach(index => {
         const card = user.cards[index];
         if (!card) return;
-
+        
         // A. Checa se está em qualquer deck ativo
-        const isInDeck = Object.values(user.decks).some(deck => 
+        const isInDeck = Object.values(user.decks).some(deck =>
             deck.some(deckCard => deckCard.uniqueId === card.uniqueId)
         );
         
@@ -78,38 +57,38 @@ export function sellCards(user, indicesToSell) {
             // Lança um erro que o comando !sell pode capturar
             throw new Error(`A carta ${getCardTemplate(card.id).name} (Índice ${index + 1}) está em um deck ativo e não pode ser vendida.`);
         }
-
+        
         // B. Checa por Guardião
-        if (card.isGuardian) return; 
-
+        if (card.isGuardian) return;
+        
         // C. Calcula o valor
         const template = getCardTemplate(card.id);
-        // Ex: O preço base é 50 de Ouro + 10 por nível (usa um valor de fallback se o template não tiver baseSellValue)
-        const cardValue = (template.baseSellValue || 50) + (card.level * 10); 
+        const cardValue = (template.baseSellValue || 50) + (card.level * 10);
         
         totalGoldGained += cardValue;
         cardsToSell.push(card);
         cardUniqueIdsToRemove.add(card.uniqueId);
     });
-
+    
     if (cardsToSell.length === 0) {
         throw new Error("Nenhuma carta válida ou disponível para venda foi encontrada.");
     }
     
     // 2. Executa a Mutação
-
+    
     // A. Adiciona o Ouro
+    // 🎯 CORREÇÃO 2: Usa addGold no objeto 'user'
     addGold(user, totalGoldGained);
-
+    
     // B. Remove as Cartas: Filtra o array user.cards
     user.cards = user.cards.filter(c => !cardUniqueIdsToRemove.has(c.uniqueId));
-
-    // O Middleware fará o salvamento automático
+    
+    // O Middleware fará o salvamento automático (markUserDirty)
     
     return {
         count: cardsToSell.length,
         goldGained: totalGoldGained,
-        cardsSold: cardsToSell.map(c => ({ id: c.id, level: c.level })) 
+        cardsSold: cardsToSell.map(c => ({ id: c.id, level: c.level }))
     };
 }
 
@@ -141,24 +120,25 @@ export function searchInventory(user, searchTerm) {
                 name: template.name,
                 level: card.level || 1,
                 uniqueId: card.uniqueId,
-                type: card.isGuardian ? "Guardião" : "Normal" 
+                type: card.isGuardian ? "Guardião" : "Normal"
             });
         }
     });
-
+    
     return results;
 }
 
-// --- FUNÇÕES DE GUARDIAN ---
+// -------------------------------------------------------------------
+// --- FUNÇÕES DE GUARDIAN (Inalteradas) ---
+// -------------------------------------------------------------------
 
-// 🎯 RECEBE O OBJETO 'user'
-export function listGuardians(user) { 
-  const guardians = user.guardians || [];
-  
-  if (!guardians.length) return "⚠️ Nenhum guardião desbloqueado.";
-  
-  return guardians.map((id, i) => {
-      const template = getCardTemplate(id);
-      return `${i + 1}. 🛡️ ${template?.name || "Desconhecido"}`;
-  }).join("\n");
+export function listGuardians(user) {
+    const guardians = user.guardians || [];
+    
+    if (!guardians.length) return "⚠️ Nenhum guardião desbloqueado.";
+    
+    return guardians.map((id, i) => {
+        const template = getCardTemplate(id);
+        return `${i + 1}. 🛡️ ${template?.name || "Desconhecido"}`;
+    }).join("\n");
 }

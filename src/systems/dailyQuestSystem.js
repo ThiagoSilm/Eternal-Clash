@@ -1,12 +1,12 @@
 // src/systems/dailyQuestSystem.js
 
-import { addGold, addGems } from "./economySystem.js"; // Assumindo funções para adicionar recursos
+// 1. CORREÇÃO: Importa todas as funções de recurso do economySystem para consistência
+import { addGold, addGems, addCoupons } from "./economySystem.js"; 
 
 // ----------------------------------------------------
-// 🔹 CATÁLOGO DE MISSÕES
+// 🔹 CATÁLOGO DE MISSÕES (Inalterado)
 // ----------------------------------------------------
 
-// Define o conjunto de missões diárias possíveis
 const DAILY_QUEST_TEMPLATES = [
   { id: 'battle_win', description: 'Vença 5 batalhas.', target: 5, reward: { type: 'gold', amount: 500 } },
   { id: 'spend_energy', description: 'Gaste um total de 20 de Energia.', target: 20, reward: { type: 'gem', amount: 20 } },
@@ -14,7 +14,6 @@ const DAILY_QUEST_TEMPLATES = [
   { id: 'clan_donate', description: 'Doe 1000 de Ouro ao seu clã.', target: 1000, reward: { type: 'gold', amount: 1000 } },
 ];
 
-// Recompensa bônus por completar TODAS as missões
 const DAILY_BONUS_REWARD = { type: 'gem', amount: 50 };
 
 // ----------------------------------------------------
@@ -23,7 +22,6 @@ const DAILY_BONUS_REWARD = { type: 'gem', amount: 50 };
 
 /**
  * Inicializa ou redefine as missões diárias para o usuário se a data for diferente.
- * Modifica o objeto 'user' diretamente.
  * @param {object} user O objeto usuário.
  */
 function initializeQuests(user) {
@@ -58,8 +56,8 @@ function grantReward(user, reward) {
             addGems(user, reward.amount);
             return `+${reward.amount} Gemas`;
         case 'coupon':
-            // Assume-se que o user tem um campo para cupons
-            user.coupons = (user.coupons || 0) + reward.amount; 
+            // 🎯 CORREÇÃO: Delega a adição de cupons ao economySystem
+            addCoupons(user, reward.amount); 
             return `+${reward.amount} Cupom(ns) de Invocação`;
         default:
             return "Recompensa desconhecida";
@@ -117,10 +115,10 @@ export function getQuestStatus(user) {
 
 /**
  * Atualiza o progresso de uma missão específica.
- * Deve ser chamado por outros sistemas (ex: battle.js, altar.js)
  * @param {object} user O objeto usuário.
  * @param {string} questId O ID da missão (ex: 'battle_win').
  * @param {number} amount O valor a adicionar ao progresso (default é 1).
+ * @returns {boolean} True se uma recompensa individual foi concedida.
  */
 export function updateQuestProgress(user, questId, amount = 1) {
     initializeQuests(user);
@@ -140,8 +138,7 @@ export function updateQuestProgress(user, questId, amount = 1) {
             // Concede a recompensa da missão individual
             grantReward(user, template.reward); 
             
-            // Retorna true para sinalizar que o objeto user foi modificado
-            return true; 
+            return true; // Recompensa concedida
         }
     }
     return false;

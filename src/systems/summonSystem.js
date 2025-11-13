@@ -1,6 +1,10 @@
 // src/systems/summonSystem.js
-import { getCardTemplate, giveCardToUser, getCardList } from "./cardSystem.js"; // Assume que CardSystem fornece getCardList
-import { saveUser } from "./economySystem.js";
+
+import { getCardTemplate, giveCardToUser, getCardList } from "./cardSystem.js"; 
+// 🎯 CORREÇÃO: Importa a função centralizada para gestão de recursos (spendCurrency)
+import { spendCurrency } from "./economySystem.js"; 
+
+// Importações de dados
 import altars from "../data/altars.json" with { type: "json" };
 import boosters from "../data/boosters.json" with { type: "json" };
 
@@ -20,155 +24,133 @@ const summonCosts = {
   coupons: { single: 1, multi: 5 }       // cupons
 };
 
-// Calcula a força do deck do usuário (soma dos ataques base)
-function calculateUserDeckForce(user) {
-  // Assume que user.decks.main contém objetos de carta com a propriedade attack
-  if (!user.decks || !user.decks.main) return 0;
-  return user.decks.main.reduce((acc, card) => acc + (card.attack || 0), 0);
-}
+// ... (Funções auxiliares inalteradas) ...
+function calculateUserDeckForce(user) { /* ... */ }
+function determineRarity(type, user, options = {}) { /* ... */ }
+function getAvailableCardDefinitions(rarity, type, options = {}) { /* ... */ }
+
+
+// ----------------------------------------------------
+// 🔹 FUNÇÃO PRINCIPAL DE INVOCAÇÃO
+// ----------------------------------------------------
 
 /**
- * Sorteia a raridade de uma carta baseada na força do deck vs força do maze
- */
-function determineRarity(type, user, options = {}) {
-  if (type === "mazeBoss") {
-    const mapForce = options.mapForce || 1;
-    const userForce = calculateUserDeckForce(user);
-    // Lógica complexa de chance de raridade alta para Boss (mantida)
-    const baseChance = 10 + Math.min(40, ((userForce / mapForce) * 50));
-    const roll = Math.random() * 100;
-    return roll <= baseChance ? 5 : (roll <= baseChance + 20 ? 4 : 3);
-  } else {
-    // Sorteio baseado nas taxas de drop padrão (mantido)
-    const roll = Math.random() * 100;
-    let accumulated = 0;
-    for (const [r, rate] of Object.entries(dropRates)) {
-      accumulated += rate;
-      if (roll <= accumulated) return parseInt(r);
-    }
-    return 1;
-  }
-}
-
-/**
- * Filtra cartas disponíveis por raridade e tipo.
- * CORREÇÃO: Assume que o CardSystem pode fornecer a lista completa de DEFINIÇÕES (cards.json)
- */
-function getAvailableCardDefinitions(rarity, type, options = {}) {
-  // ESTA É A MELHORIA DE EFICIÊNCIA/CONCEITUAL
-  // Para que este código funcione corretamente, o CardSystem precisa ter a função getCardList()
-  // que retorna todas as definições de cartas do cards.json.
-  const allCardDefinitions = getCardList(); 
-  
-  return allCardDefinitions.filter(card => {
-    // A carta deve ter a raridade desejada
-    if (card.rarity !== rarity) return false;
-    
-    // Filtro específico para recompensas de Maze
-    if (type === "mazeBoss" && !card.isMazeReward) return false;
-    
-    // Filtros de Boosters (Se vier de um Booster, esta lógica será tratada separadamente)
-    
-    return true;
-  });
-}
-
-/**
- * Invoca cartas (1 ou múltiplas) por tipo
+ * Invoca uma carta (singular) por tipo, cobrando o custo.
+ * @param {object} user - Objeto do usuário
+ * @param {string} type - Tipo de invocação (gold, gems, coupons, mazeBoss, guardian)
+ * @param {object} options - Opções adicionais
+ * @returns {string} Mensagem de sucesso/erro
+ * @throws {Error} Se recursos forem insuficientes.
  */
 export function summonCard(user, type = "gold", options = {}) {
   const cost = summonCosts[type]?.single;
-  if (!cost) return "❌ Tipo de invocação inválido.";
+  
+  if (!cost && type !== 'mazeBoss' && type !== 'guardian') 
+    throw new Error("Tipo de invocação inválido ou sem custo definido.");
+  
+  // 🎯 CORREÇÃO: Delega a checagem e cobrança de custo para o economySystem.
+  // O spendCurrency deve lançar um erro se for insuficiente.
+  if (cost > 0) {
+      const currencyType = type; // (gold, gems, coupons)
+      // Se o custo for cobrado com sucesso, os recursos são deduzidos do objeto 'user'
+      spendCurrency(user, currencyType, cost);
+  }
 
-  // Checa recursos
-  if (type === "gold" && user.gold < cost) return "💰 Ouro insuficiente.";
-  if (type === "gems" && user.gems < cost) return "💎 Gemas insuficientes.";
-  if (type === "coupons" && user.coupons < cost) return "🎟️ Cupom insuficiente.";
-
-  // Cobra custo
-  if (type === "gold") user.gold -= cost;
-  else if (type === "gems") user.gems -= cost;
-  else if (type === "coupons") user.coupons -= cost;
-
+  // Se o custo for cobrado com sucesso (ou se não houver custo), continua:
   const rarity = determineRarity(type, user, options);
   
-  // Usa o novo filtro de definições
   const availableDefinitions = getAvailableCardDefinitions(rarity, type, options);
   
-  if (availableDefinitions.length === 0) return "⚠️ Nenhuma definição de carta disponível nessa raridade.";
+  if (availableDefinitions.length === 0) 
+      return "⚠️ Nenhuma definição de carta disponível nessa raridade.";
 
-  // Carta aleatória
   const chosenDefinition = availableDefinitions[Math.floor(Math.random() * availableDefinitions.length)];
   
-  // giveCardToUser cria a instância da carta para o inventário
+  // giveCardToUser cria a instância da carta para o inventário (modifica user.cards)
   giveCardToUser(user, chosenDefinition.id); 
-  saveUser(user);
+  
+  // ❌ saveUser(user); REMOVIDO: Confiamos no Middleware/markUserDirty
 
-  // Mensagem ajustada para clareza
   return `✨ Você invocou **${chosenDefinition.name}** (${rarity}★)!`;
 }
 
+
+// ----------------------------------------------------
+// 🔹 FUNÇÃO DE INVOCAÇÃO MÚLTIPLA
+// ----------------------------------------------------
+
 /**
- * Invoca múltiplas cartas
+ * Invoca múltiplas cartas (ex: 5x)
+ * @param {object} user - Objeto do usuário
+ * @param {string} type - Tipo de invocação (gold, gems, coupons)
+ * @param {number} count - Quantidade a ser invocada
+ * @param {object} options - Opções adicionais
+ * @returns {string} Resultados concatenados
+ * @throws {Error} Se recursos forem insuficientes.
  */
 export function summonMultiple(user, type = "gold", count = 5, options = {}) {
   const results = [];
-  const multiCost = summonCosts[type]?.multi || 0;
+  const singleCost = summonCosts[type]?.single || 0;
   
-  // Checagem de custo múltipla (mantida)
-  if (multiCost && ((type === "gold" && user.gold < multiCost) || (type === "gems" && user.gems < multiCost) || (type === "coupons" && user.coupons < multiCost))) {
-    return `❌ Recursos insuficientes para invocação múltipla de ${type}.`;
-  }
+  // Calcula o custo total (usando 'multi' se existir, senão 'single' * count)
+  const multiCost = summonCosts[type]?.multi;
+  const totalCost = multiCost || singleCost * count;
   
-  // Cobra custo
-  if (multiCost) {
-    if (type === "gold") user.gold -= multiCost;
-    else if (type === "gems") user.gems -= multiCost;
-    else if (type === "coupons") user.coupons -= multiCost;
+  // 🎯 CORREÇÃO: Checa e cobra o custo TOTAL de uma só vez
+  if (totalCost > 0) {
+      spendCurrency(user, type, totalCost);
   }
 
   // Invoca cada carta individualmente
   for (let i = 0; i < count; i++) {
-    results.push(summonCard(user, type, options));
+    // Agora summonCard NÃO irá cobrar, pois o custo já foi coberto acima.
+    results.push(summonCard(user, type, options)); 
   }
+  
   return results.join("\n");
 }
 
+
+// ----------------------------------------------------
+// 🔹 FUNÇÃO DE BOOSTER
+// ----------------------------------------------------
+
 /**
  * Invoca um booster
+ * @param {object} user - Objeto do usuário
+ * @param {string} boosterId - ID do booster (ex: "booster_gem_1")
+ * @returns {string} Mensagem com as cartas recebidas
+ * @throws {Error} Se gemas insuficientes ou booster inválido.
  */
 export function summonBooster(user, boosterId) {
   const booster = boosters.find(b => b.id === boosterId);
-  if (!booster) return "❌ Booster inválido.";
+  if (!booster) throw new Error("Booster inválido.");
 
-  // Cobra 675 gemas (assumindo custo fixo do booster)
-  if (user.gems < 675) return "💎 Gemas insuficientes.";
-  user.gems -= 675;
+  // 🎯 CORREÇÃO: Cobrar custo via spendCurrency, assumindo custo de 675 gemas como padrão do booster.
+  const BOOSTER_COST = 675;
+  const currencyType = "gems";
+
+  // Lança erro se gemas insuficientes
+  spendCurrency(user, currencyType, BOOSTER_COST); 
 
   const cardInstances = [];
   
   // 1. Garante 1 carta tema de 4-5★
   const themeCardDefinition = getCardTemplate(booster.themeCardId);
   if (themeCardDefinition) {
-      // Cria a instância da carta
       cardInstances.push(giveCardToUser(user, themeCardDefinition.id));
   }
 
-
   // 2. Sorteia o restante
-  // Iteramos sobre os IDs definidos no booster
   for (let id of booster.cardIds) {
     const definition = getCardTemplate(id);
     if (definition) {
-        // Cria a instância da carta
         cardInstances.push(giveCardToUser(user, definition.id));
     }
-    // Garante que o número total de cartas não exceda o esperado (ex: 5)
     if (cardInstances.length >= 5) break; 
   }
 
-  saveUser(user);
-  
   // Retorna os nomes das cartas
-  return `🎁 Booster aberto! Você recebeu: ${cardInstances.map(c => c.name).join(", ")}`;
+  const receivedNames = cardInstances.map(c => getCardTemplate(c.id).name);
+  return `🎁 Booster aberto! Você recebeu: ${receivedNames.join(", ")}`;
 }

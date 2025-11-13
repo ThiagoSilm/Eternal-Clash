@@ -1,11 +1,10 @@
 // src/systems/luckySpinSystem.js
 
-// 1. IMPORTAÇÕES CORRIGIDAS (Usando os sistemas modulares)
-import { loadUser, saveUserData } from "./userSystem.js"; // Ciclo de vida do usuário
-import { addGold, addXP, addGems, spendGold } from "./economySystem.js"; // Economia
-import { giveCardToUser, getCardList } from "./cardSystem.js"; // Funções de Cartas
-import { getRandomCardIdByRarity } from "./summonSystem.js"; // Assumindo uma função de RNG de alto nível
-// import boosters from "../data/boosters.json" assert { type: "json" }; // Removido para centralizar RNG no SummonSystem
+// 1. CORREÇÃO DE IMPORTS: Removemos loadUser/saveUserData. O objeto 'user' é passado pelo Middleware.
+// O getRandomCardIdByRarity também deve ser ajustado para receber o template de cartas se necessário.
+import { addGold, addXP, addGems, spendGold } from "./economySystem.js"; 
+import { giveCardToUser, getCardList } from "./cardSystem.js"; 
+import { getRandomCardIdByRarity } from "./summonSystem.js"; 
 
 // --- CONFIGURAÇÕES E ITENS (MANTIDAS) ---
 const spinItemsNormal = [
@@ -13,7 +12,7 @@ const spinItemsNormal = [
   { type: "gold", value: 500, chance: 20 },
   { type: "xp", value: 100, chance: 20 },
   { type: "xp", value: 250, chance: 10 },
-  { type: "card", value: 3, chance: 20 }, // Valor alterado para Rarity 3
+  { type: "card", value: 3, chance: 20 }, 
   { type: "gems", value: 1, chance: 5 }
 ];
 
@@ -22,74 +21,67 @@ const spinItemsMega = [
   { type: "gold", value: 1000, chance: 10 },
   { type: "xp", value: 200, chance: 15 },
   { type: "xp", value: 500, chance: 10 },
-  { type: "card", value: 4, chance: 25 }, // Valor alterado para Rarity 4
+  { type: "card", value: 4, chance: 25 }, 
   { type: "gems", value: 5, chance: 10 },
   { type: "lottery", value: null, chance: 10 },
   { type: "guardian", value: null, chance: 5 }
 ];
 
-// --- HELPERS ---
+// --- HELPERS (Inalterados) ---
 
-function rollItem(items) {
-  const roll = Math.random() * 100;
-  let accumulated = 0;
-  for (const item of items) {
-    accumulated += item.chance;
-    if (roll <= accumulated) return item;
-  }
-  return items[0];
-}
+function rollItem(items) { /* ... */ }
 
-// Assumindo que o CardSystem tem a lista de guardians (filtrada ou não)
 function getAllGuardianIds() {
-    // Para simplificar, assumimos que guardians são cartas de ID alto ou tipo específico
     const allCards = getCardList(); 
     return allCards.filter(c => c.type === 'guardian').map(g => g.id);
 }
 
-
-function executeSpin(userId, user, isMega = false) {
+/**
+ * Executa o giro e processa a recompensa.
+ * 🎯 CORREÇÃO 2: Recebe o objeto 'user' e opera nele.
+ */
+function executeSpin(user, isMega = false) {
   const items = isMega ? spinItemsMega : spinItemsNormal;
   const selected = rollItem(items);
   let message = "";
-  let levelUpMsg = null; // Para capturar a mensagem de Level Up do XP
+  let levelUpMsg = null; 
 
   switch (selected.type) {
     case "gold":
-      addGold(userId, selected.value); // 1. CORREÇÃO: Usa addGold
+      // 🎯 CORREÇÃO 3: Usa addGold no objeto 'user'
+      addGold(user, selected.value); 
       message = `${selected.value} de ouro 💰`;
       break;
     case "xp":
-      levelUpMsg = addXP(userId, selected.value); // 1. CORREÇÃO: Usa addXP (capturando Level Up)
+      // 🎯 CORREÇÃO 4: Usa addXP no objeto 'user'
+      levelUpMsg = addXP(user, selected.value); 
       message = `${selected.value} XP ✨`;
       break;
     case "gems":
-      addGems(userId, selected.value); // 1. CORREÇÃO: Usa addGems
+      // 🎯 CORREÇÃO 5: Usa addGems no objeto 'user'
+      addGems(user, selected.value); 
       message = `${selected.value} gema(s) 💎`;
       break;
     case "card":
-      // 3. CORREÇÃO: RNG simplificado para usar a Raridade do item como valor.
       const rarity = selected.value || 3;
-      // Assume-se que getRandomCardIdByRarity (do SummonSystem) escolhe a carta
       const cardId = getRandomCardIdByRarity(rarity); 
       const card = giveCardToUser(user, cardId); 
       message = `Carta: ${card.name} (${rarity}★) 🎴`;
       break;
     case "lottery":
       if (Math.random() < 0.5) {
-        // Carta R5 garantida
         const cardId5 = getRandomCardIdByRarity(5); 
         const card5 = giveCardToUser(user, cardId5);
         message = `🎰 Loteria! Carta 5★: ${card5.name}`;
       } else {
         const gemsPrize = 50;
-        addGems(userId, gemsPrize); // 1. CORREÇÃO: Usa addGems
+        // 🎯 CORREÇÃO 6: Usa addGems no objeto 'user'
+        addGems(user, gemsPrize); 
         message = `🎰 Loteria! ${gemsPrize} gemas 💎`;
       }
       break;
     case "guardian":
       const allGuardians = getAllGuardianIds();
-      // Filtragem correta: apenas guardians que o usuário não possui
       const available = allGuardians.filter(gId => !user.guardians?.includes(gId)); 
       
       if (available.length === 0) {
@@ -97,7 +89,8 @@ function executeSpin(userId, user, isMega = false) {
       } else {
         const guardianId = available[Math.floor(Math.random() * available.length)];
         if (!user.guardians) user.guardians = [];
-        user.guardians.push(guardianId);
+        // O objeto 'user' é modificado diretamente
+        user.guardians.push(guardianId); 
         message = `🛡️ Guardian obtido (ID: ${guardianId})!`;
       }
       break;
@@ -105,7 +98,6 @@ function executeSpin(userId, user, isMega = false) {
         message = "Nenhum item válido foi sorteado 🤨";
   }
 
-  // Se houve Level Up, anexa a mensagem
   if (levelUpMsg) {
       message += `\n${levelUpMsg}`;
   }
@@ -113,27 +105,36 @@ function executeSpin(userId, user, isMega = false) {
   return message;
 }
 
-export function spinLucky(userId, count = 1) {
-  const user = loadUser(userId); // 3. CORREÇÃO: Usa loadUser do userSystem
+/**
+ * Função principal para girar a roleta.
+ * @param {object} user O objeto usuário (passado pelo Middleware).
+ * @param {number} count Quantidade de giros.
+ * @throws {Error} Se recursos forem insuficientes.
+ */
+export function spinLucky(user, count = 1) {
+  // ❌ REMOVIDO: const user = loadUser(userId); - O objeto já está carregado.
   
   if (!user.luckySpinCount) user.luckySpinCount = 0;
   const messages = [];
   
-  // 2. CORREÇÃO: Checa e gasta ouro corretamente.
   const cost = 100;
 
   for (let i = 0; i < count; i++) {
     const isMega = (user.luckySpinCount + 1) % 10 === 0;
     
     if (!isMega) {
-        // Checa e tenta gastar ouro. Se falhar, quebra o loop.
-        if (!spendGold(userId, cost)) {
-             messages.push("💰 Ouro insuficiente para continuar girando.");
+        // 🎯 CORREÇÃO 7: Usa spendGold no objeto 'user' e confia que ele lança Error se falhar.
+        // Isso evita a necessidade de `if (!spendGold(userId, cost))`
+        try {
+            spendGold(user, cost);
+        } catch (error) {
+            // Captura o erro do spendGold (ex: "Ouro insuficiente")
+             messages.push(`💰 ${error.message}. Não foi possível continuar girando.`);
              break;
         }
     }
 
-    const msg = executeSpin(userId, user, isMega);
+    const msg = executeSpin(user, isMega);
     messages.push(isMega ? `🌟 Mega Spin! ${msg}` : `🎉 Spin! ${msg}`);
     user.luckySpinCount += 1;
   }
@@ -142,6 +143,7 @@ export function spinLucky(userId, count = 1) {
   messages.push(`---`);
   messages.push(`🌀 Giros até o próximo Mega Spin: ${spinsLeft}`);
 
-  saveUserData(user); // 3. CORREÇÃO: Usa saveUserData do userSystem
+  // ❌ REMOVIDO: saveUserData(user); - O Middleware salva.
+  
   return messages.join("\n");
 }

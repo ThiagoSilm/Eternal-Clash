@@ -5,10 +5,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from 'uuid'; 
 
-// 🚨 IMPORTAÇÕES ESSENCIAIS PARA FUNCIONALIDADE
-import { loadUser, saveUserData } from "./userSystem.js";
+// 🚨 CORREÇÃO 1: Remover I/O de usuário e spendGold não alinhado.
+// ❌ REMOVIDO: import { loadUser, saveUserData } from "./userSystem.js";
+// ❌ REMOVIDO: import { levelUpCard } from "./xpSystem.js"; (Não utilizada)
 import { spendGold } from "./economySystem.js"; 
-import { levelUpCard } from "./xpSystem.js"; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,26 +18,20 @@ const CARD_DEFINITIONS_PATH = path.join(__dirname, "../../data/cards.json");
 
 // 🔹 Carrega definições de cartas (o JSON que contém todas as cartas do jogo)
 function loadCardDefinitions() {
-  // Se o arquivo não existe, ele o cria como um array vazio para evitar erros
   if (!fs.existsSync(CARD_DEFINITIONS_PATH)) fs.writeFileSync(CARD_DEFINITIONS_PATH, "[]");
-  
-  // Retorna os dados lidos
   return JSON.parse(fs.readFileSync(CARD_DEFINITIONS_PATH, "utf-8"));
 }
 
-// O CACHE: Variável global que armazena todas as cartas disponíveis no jogo.
 export const cardDefinitions = loadCardDefinitions(); 
 
 // ------------------------------------
-// 🔹 FUNÇÕES DE ACESSO A DEFINIÇÃO
+// 🔹 FUNÇÕES DE ACESSO A DEFINIÇÃO (Inalteradas)
 // ------------------------------------
 
-// 🔹 Busca a definição (template/molde) pelo ID
 export function getCardTemplate(id) {
   return cardDefinitions.find(c => c.id === id);
 }
 
-// 🔹 Retorna a lista completa de definições (para sistemas como Summon)
 export function getCardList() {
     return cardDefinitions;
 }
@@ -46,27 +40,27 @@ export function getCardList() {
 // 🔹 GESTÃO DE INSTÂNCIAS (Criação)
 // ------------------------------------
 
-// 🔹 Cria uma instância nova de carta pro usuário (cópia mutável do template)
+// 🔹 Cria uma instância nova de carta pro usuário
 export function giveCardToUser(user, cardId) {
   const base = getCardTemplate(cardId);
   if (!base) return null;
   
   const newCard = {
     // Campos Mutáveis
-    uniqueId: uuidv4(), // ID ÚNICO da CÓPIA do jogador
+    uniqueId: uuidv4(), 
     level: 1, 
     xp: 0,
     unlockedEvolution: false,
     runes: [], 
-    meldChance: 0, // Inicializa meld chance
+    meldChance: 0, 
     
     // Campos Imutáveis (do Template)
-    id: base.id, // ID da definição (para referência)
+    id: base.id, 
     name: base.name,
     rarity: base.rarity,
     hp: base.hp,
     attack: base.attack,
-    effects: [...(base.effects || [])], // Cópia dos efeitos base
+    effects: [...(base.effects || [])], 
     evolutionEffectId: base.evolutionEffectId || null, 
     image: base.image || null, 
     type: base.type || "card", 
@@ -88,9 +82,12 @@ export function calculateMeldCost(card) {
   return Math.round(5000 * rarityFactor); 
 }
 
-// 🔹 Faz a fusão de duas cartas
-export function tryMeld(userId, baseUniqueId, donorUniqueId) {
-  const user = loadUser(userId);
+/**
+ * Faz a fusão de duas cartas
+ * 🎯 CORREÇÃO 2: Aceita o objeto 'user'
+ */
+export function tryMeld(user, baseUniqueId, donorUniqueId) {
+  // ❌ REMOVIDO: const user = loadUser(userId);
   
   const cardIndex = user.cards.findIndex(c => c.uniqueId === baseUniqueId);
   const donorIndex = user.cards.findIndex(c => c.uniqueId === donorUniqueId);
@@ -107,8 +104,12 @@ export function tryMeld(userId, baseUniqueId, donorUniqueId) {
 
   const goldCost = calculateMeldCost(card);
   
-  // Usa o EconomySystem para gastar ouro de forma segura
-  if (!spendGold(userId, goldCost)) return `❌ Ouro insuficiente. Custo: ${goldCost}.`; 
+  // 🎯 CORREÇÃO 3: Usa spendGold com o objeto 'user'. Lança erro se falhar.
+  try {
+      if (!spendGold(user, goldCost)) return `❌ Ouro insuficiente. Custo: ${goldCost}.`; 
+  } catch (e) {
+      return `❌ Ouro insuficiente. Custo: ${goldCost}.`;
+  }
 
   // Chance de sucesso e acúmulo
   if (card.meldChance === undefined) card.meldChance = 0;
@@ -116,7 +117,6 @@ export function tryMeld(userId, baseUniqueId, donorUniqueId) {
   const success = Math.random() * 100 < successChance;
   
   if (success) {
-    // Adiciona o ID do efeito do doador aos efeitos da carta base
     if (!card.effects.includes(donorEffectId)) {
         card.effects.push(donorEffectId); 
     }
@@ -125,11 +125,11 @@ export function tryMeld(userId, baseUniqueId, donorUniqueId) {
     user.cards.splice(donorIndex, 1); 
     
     card.meldChance = 0;
-    saveUserData(user);
+    // ❌ REMOVIDO: saveUserData(user);
     return `🔥 Meld bem-sucedido! ${card.name} agora possui o 4º efeito (ID: ${donorEffectId})!`;
   } else {
     card.meldChance = successChance;
-    saveUserData(user);
+    // ❌ REMOVIDO: saveUserData(user);
     return `⚡ Meld falhou! Chance aumentada para ${successChance}%.`;
   }
 }
@@ -138,8 +138,12 @@ export function tryMeld(userId, baseUniqueId, donorUniqueId) {
 // 🔹 GESTÃO DE RUNAS
 // ------------------------------------
 
-export function addRune(userId, uniqueId, rune) {
-    const user = loadUser(userId);
+/**
+ * Adiciona uma runa a uma carta.
+ * 🎯 CORREÇÃO 4: Aceita o objeto 'user'
+ */
+export function addRune(user, uniqueId, rune) {
+    // ❌ REMOVIDO: const user = loadUser(userId);
     const card = user.cards.find(c => c.uniqueId === uniqueId);
     if (!card) return "❌ Carta não encontrada.";
     
@@ -147,12 +151,16 @@ export function addRune(userId, uniqueId, rune) {
     if (card.runes.length >= 3) return "❌ Limite de 3 runas por carta.";
     card.runes.push(rune);
     
-    saveUserData(user);
+    // ❌ REMOVIDO: saveUserData(user);
     return `🔮 Runa "${rune.name}" adicionada à carta ${card.name}.`;
 }
 
-export function removeRune(userId, uniqueId, runeId) {
-    const user = loadUser(userId);
+/**
+ * Remove uma runa de uma carta.
+ * 🎯 CORREÇÃO 5: Aceita o objeto 'user'
+ */
+export function removeRune(user, uniqueId, runeId) {
+    // ❌ REMOVIDO: const user = loadUser(userId);
     const card = user.cards.find(c => c.uniqueId === uniqueId);
     if (!card) return "❌ Carta não encontrada.";
 
@@ -162,15 +170,14 @@ export function removeRune(userId, uniqueId, runeId) {
     
     const removed = card.runes.splice(index, 1)[0];
     
-    saveUserData(user);
+    // ❌ REMOVIDO: saveUserData(user);
     return `💀 Runa "${removed.name}" removida da carta ${card.name}.`;
 }
 
 // ------------------------------------
-// 🔹 HELPER DE EXIBIÇÃO
+// 🔹 HELPER DE EXIBIÇÃO (Inalterado)
 // ------------------------------------
 
-// 🔹 Helper pra exibir dados da carta (pra usar em comandos ou canva)
 export function formatCardInfo(card) {
   const runesText = card.runes?.length ?
     card.runes.map(r => `🔮 ${r.name}`).join(", ") :
