@@ -1,89 +1,66 @@
 // src/systems/inventorySystem.js
 
-// 🎯 CORREÇÃO 1: Removemos a importação de saveUserData, pois o Middleware é o responsável.
 import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
 import { getCardXPValue, levelUpCard } from "./xpSystem.js";
-// Assumindo que addGold e spendGold operam no objeto 'user'
 import { spendGold, addGold } from "./economySystem.js";
 
 const MAX_DECKS = 5;
 const LEVELS_TO_UNLOCK_DECK = {
-    "deck1": 1,
-    "deck2": 5,
-    "deck3": 10,
-    "deck4": 20,
-    "deck5": 30
+    deck1: 1,
+    deck2: 5,
+    deck3: 10,
+    deck4: 20,
+    deck5: 30
 };
 
-// -------------------------------------------------------------------
-// --- FUNÇÕES AUXILIARES (Inalteradas) ---
-// -------------------------------------------------------------------
+function getDeckName(deckIndex) {
+    return `deck${deckIndex}`;
+}
 
-function getDeckName(deckIndex) { /* ... */ }
+function ensureDecksAreInitialized(user) {
+    if (!user.decks) user.decks = {};
+    for (let i = 1; i <= MAX_DECKS; i++) {
+        const deckName = getDeckName(i);
+        if (!user.decks[deckName]) user.decks[deckName] = [];
+    }
+    if (!user.cards) user.cards = [];
+    if (!user.guardians) user.guardians = [];
+}
 
-function ensureDecksAreInitialized(user) { /* ... */ }
-
-// -------------------------------------------------------------------
-// --- NOVA FUNÇÃO DE VENDA (sellCards) ---
-// -------------------------------------------------------------------
-
-/**
- * Remove cartas do inventário e adiciona ouro ao usuário.
- * Lança erro se a carta estiver em um deck ativo.
- * @param {object} user - Objeto do usuário a ser modificado.
- * @param {number[]} indicesToSell - Array de índices (0-based) das cartas no user.cards.
- * @returns {object} { count: number, goldGained: number, cardsSold: object[] }
- */
 export function sellCards(user, indicesToSell) {
     ensureDecksAreInitialized(user);
+    if (!Array.isArray(indicesToSell) || indicesToSell.length === 0)
+        throw new Error("Nenhuma carta especificada para venda.");
     
     const cardsToSell = [];
     let totalGoldGained = 0;
-    
-    // Set de uniqueIds para garantir remoção eficiente
     const cardUniqueIdsToRemove = new Set();
     
-    // 1. Validação e Cálculo de Valor
-    indicesToSell.forEach(index => {
+    for (const index of indicesToSell) {
         const card = user.cards[index];
-        if (!card) return;
+        if (!card) continue;
+        const template = getCardTemplate(card.id);
+        if (!template) continue;
         
-        // A. Checa se está em qualquer deck ativo
         const isInDeck = Object.values(user.decks).some(deck =>
             deck.some(deckCard => deckCard.uniqueId === card.uniqueId)
         );
+        if (isInDeck)
+            throw new Error(`A carta ${template.name} (índice ${index + 1}) está em um deck ativo.`);
         
-        if (isInDeck) {
-            // Lança um erro que o comando !sell pode capturar
-            throw new Error(`A carta ${getCardTemplate(card.id).name} (Índice ${index + 1}) está em um deck ativo e não pode ser vendida.`);
-        }
+        if (card.isGuardian) continue;
         
-        // B. Checa por Guardião
-        if (card.isGuardian) return;
-        
-        // C. Calcula o valor
-        const template = getCardTemplate(card.id);
         const cardValue = (template.baseSellValue || 50) + (card.level * 10);
-        
         totalGoldGained += cardValue;
         cardsToSell.push(card);
         cardUniqueIdsToRemove.add(card.uniqueId);
-    });
-    
-    if (cardsToSell.length === 0) {
-        throw new Error("Nenhuma carta válida ou disponível para venda foi encontrada.");
     }
     
-    // 2. Executa a Mutação
+    if (cardsToSell.length === 0)
+        throw new Error("Nenhuma carta válida encontrada para venda.");
     
-    // A. Adiciona o Ouro
-    // 🎯 CORREÇÃO 2: Usa addGold no objeto 'user'
     addGold(user, totalGoldGained);
-    
-    // B. Remove as Cartas: Filtra o array user.cards
     user.cards = user.cards.filter(c => !cardUniqueIdsToRemove.has(c.uniqueId));
-    
-    // O Middleware fará o salvamento automático (markUserDirty)
     
     return {
         count: cardsToSell.length,
@@ -92,53 +69,48 @@ export function sellCards(user, indicesToSell) {
     };
 }
 
-
-// -------------------------------------------------------------------
-// --- NOVA FUNÇÃO DE BUSCA (searchInventory) ---
-// -------------------------------------------------------------------
-
-/**
- * Busca cartas no inventário do usuário pelo nome.
- * @param {object} user - Objeto do usuário.
- * @param {string} searchTerm - Termo de busca (nome parcial).
- * @returns {object[]} Array de cartas encontradas com seu índice 1-based.
- */
 export function searchInventory(user, searchTerm) {
-    if (!user.cards || user.cards.length === 0) return [];
+    ensureDecksAreInitialized(user);
+    if (!searchTerm || typeof searchTerm !== "string") return [];
     
     const term = searchTerm.toLowerCase();
     const results = [];
     
-    user.cards.forEach((card, index) => {
+    for (let i = 0; i < user.cards.length; i++) {
+        const card = user.cards[i];
         const template = getCardTemplate(card.id);
-        const cardName = template?.name?.toLowerCase() || "";
+        if (!template) continue;
         
-        // A busca é feita no nome do template.
+        const cardName = template.name.toLowerCase();
         if (cardName.includes(term)) {
             results.push({
-                index: index + 1, // Retorna o índice 1-based
+                index: i + 1,
                 name: template.name,
                 level: card.level || 1,
                 uniqueId: card.uniqueId,
                 type: card.isGuardian ? "Guardião" : "Normal"
             });
         }
-    });
-    
+    }
     return results;
 }
 
-// -------------------------------------------------------------------
-// --- FUNÇÕES DE GUARDIAN (Inalteradas) ---
-// -------------------------------------------------------------------
-
 export function listGuardians(user) {
+    ensureDecksAreInitialized(user);
     const guardians = user.guardians || [];
+    const result = [];
     
-    if (!guardians.length) return "⚠️ Nenhum guardião desbloqueado.";
+    for (let i = 0; i < guardians.length; i++) {
+        const template = getCardTemplate(guardians[i]);
+        result.push(`${i + 1}. 🛡️ ${template?.name || "Desconhecido"}`);
+    }
     
-    return guardians.map((id, i) => {
-        const template = getCardTemplate(id);
-        return `${i + 1}. 🛡️ ${template?.name || "Desconhecido"}`;
-    }).join("\n");
+    const guardianCards = user.cards.filter(c => c.isGuardian);
+    for (const g of guardianCards) {
+        const template = getCardTemplate(g.id);
+        if (!guardians.includes(g.id))
+            result.push(`🛡️ ${template?.name || g.id} (não registrado em guardians[])`);
+    }
+    
+    return result.length ? result.join("\n") : "⚠️ Nenhum guardião desbloqueado.";
 }
