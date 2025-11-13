@@ -1,80 +1,117 @@
-import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../../src/systems/towerSystem.js";
+// src/commands/tower.js
+
+import {
+  spendTowerAttempt,
+  getTowerStatus,
+  getFloorEnemy,
+  getFloorReward
+} from "../../src/systems/towerSystem.js";
+
 import { battleSystem } from "../../src/systems/battleSystem.js";
 import { addXP, addGold } from "../../src/systems/economySystem.js";
 
 export default {
   name: "tower",
-  description: "Desafie a Torre Infinita para ganhar recompensas épicas!",
+  description: "Desafie a Torre Infinita para avançar andares e receber recompensas.",
   usage: "[status | challenge]",
-  
+
   async execute(message, args, user) {
-    // 🟢 GARANTIA: A inicialização da estrutura tower é melhor tratada dentro do towerSystem, 
-    // mas mantemos esta linha como fallback de segurança.
-    if (!user.tower) user.tower = { floor: 1, attempts: 3 };
-    
-    const sub = args[0]?.toLowerCase() || 'status';
-    
     try {
-      if (sub === 'status') {
-        // 1. STATUS
-        const status = getTowerStatus(user);
-        return message.reply(`🏰 **Status da Torre de Batalha:**\n${status}`);
-        
-      } else if (sub === 'challenge' || sub === 'c') {
-        // 2. DESAFIO
-        
-        // A. Verifica e gasta a tentativa (spendTowerAttempt faz a inicialização diária)
-        if (!spendTowerAttempt(user)) {
-          return message.reply("❌ Você não tem tentativas de Torre. Volte amanhã ou compre mais!");
-        }
-        
-        const currentFloor = user.tower.floor;
-        
-        // B. Prepara o inimigo (usando o andar que o usuário estava PRESTES a lutar)
-        const opponent = getFloorEnemy(currentFloor);
-        
-        // C. Simula a Batalha
-        const result = battleSystem(user, opponent);
-        
-        let response = `\n**--- ⚔️ ANDAR ${currentFloor}: ${opponent.name} ⚔️ ---**\n`;
-        // Exibe o resumo do log
-        response += result.log.slice(0, 5).join("\n") + "\n... (Batalha concluída em " + result.turns + " turnos)\n";
-        
-        // D. Recompensas e Progressão
-        if (result.winner === "player") {
-          const rewards = getFloorReward(currentFloor);
-          
-          // Adiciona recompensas
-          addXP(user, rewards.xp);
-          addGold(user, rewards.gold);
-          
-          // Avança para o próximo andar
-          user.tower.floor += 1;
-          
-          response += `\n🎉 **SUCESSO!** Andar ${currentFloor} conquistado!`;
-          response += `\n🎁 **Recompensas:** +${rewards.xp} XP, +${rewards.gold} Ouro.`;
-          response += `\nSeu próximo desafio é o **Andar ${user.tower.floor}**.`;
-          
-        } else {
-          // A tentativa já foi gasta.
-          response += "\n😓 **DERROTA.** Suas cartas não foram páreo para este andar.";
-          response += `\nVocê perdeu uma tentativa. Tentativas restantes: ${user.tower.attempts}.`;
-        }
-        
-        return message.reply(response);
-        
-      } else {
-        return message.reply(
-          "🏰 **Comandos da Torre:**\n" +
-          "`!tower status` — Ver seu andar atual e tentativas.\n" +
-          "`!tower challenge` — Iniciar o desafio do próximo andar (custo: 1 tentativa)."
-        );
+      // ----------------------------------------------------
+      // 1. Fallback – garante estrutura mínima
+      // ----------------------------------------------------
+      if (!user.tower) {
+        user.tower = { floor: 1, attempts: 3, lastAccess: 0 };
       }
-      
+
+      const sub = args[0]?.toLowerCase() || "status";
+
+      // ----------------------------------------------------
+      // 2. STATUS
+      // ----------------------------------------------------
+      if (sub === "status") {
+        const statusText = getTowerStatus(user);
+
+        return message.reply({
+          content: `🏰 **Torre Infinita — Status Atual**\n${statusText}`,
+          allowedMentions: { repliedUser: false }
+        });
+      }
+
+      // ----------------------------------------------------
+      // 3. DESAFIO (challenge)
+      // ----------------------------------------------------
+      if (sub === "challenge" || sub === "c") {
+        // A. Gasta tentativa (já faz reset diário internamente)
+        const spent = spendTowerAttempt(user);
+
+        if (!spent) {
+          return message.reply({
+            content: "❌ Você não tem tentativas de Torre restantes.",
+            allowedMentions: { repliedUser: false }
+          });
+        }
+
+        const floor = user.tower.floor;
+        const enemy = getFloorEnemy(floor);
+
+        // B. Batalha
+        const result = battleSystem(user, enemy);
+
+        let reply = `\n**--- ⚔️ ANDAR ${floor}: ${enemy.name} ⚔️ ---**\n`;
+
+        // Resumo dos primeiros logs
+        const partialLog = result.log.slice(0, 6).join("\n");
+        reply += `${partialLog}\n... (Concluído em ${result.turns} turnos)\n`;
+
+        // ----------------------------------------------------
+        // 4. VITÓRIA
+        // ----------------------------------------------------
+        if (result.winner === "player") {
+          const reward = getFloorReward(floor);
+
+          addXP(user, reward.xp);
+          addGold(user, reward.gold);
+
+          // Avança andar
+          user.tower.floor += 1;
+
+          reply += `\n🎉 **Vitória no Andar ${floor}!**`;
+          reply += `\n🎁 Recompensas: **+${reward.xp} XP**, **+${reward.gold} Ouro**.`;
+          reply += `\n➡️ Próximo Andar: **${user.tower.floor}**`;
+
+        } else {
+          // ----------------------------------------------------
+          // 5. DERROTA
+          // ----------------------------------------------------
+          reply += `\n😓 **Derrota!** Você perdeu a tentativa.`;
+          reply += `\nTentativas restantes: **${user.tower.attempts}**.`;
+        }
+
+        return message.reply({
+          content: reply,
+          allowedMentions: { repliedUser: false }
+        });
+      }
+
+      // ----------------------------------------------------
+      // 4. HELP DEFAULT
+      // ----------------------------------------------------
+      return message.reply({
+        content:
+          "🏰 **Comandos da Torre**\n" +
+          "`!tower status` — Veja seu andar, tentativas e o próximo inimigo.\n" +
+          "`!tower challenge` — Gasta 1 tentativa e luta contra o próximo andar.",
+        allowedMentions: { repliedUser: false }
+      });
+
     } catch (err) {
       console.error("❌ Erro no comando tower:", err);
-      // Incluir detalhes do erro apenas se for seguro (em produção, evite mostrar detalhes do erro)
-      await message.reply("⚠️ Ocorreu um erro interno ao processar o desafio da Torre.");
+
+      return message.reply({
+        content: "⚠️ Ocorreu um erro interno ao processar a Torre.",
+        allowedMentions: { repliedUser: false }
+      });
     }
   }
 };

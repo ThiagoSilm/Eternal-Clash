@@ -1,68 +1,101 @@
 // src/commands/setdeck.js
 
-import { saveDeck, loadDeck, listDecks } from "../../src/systems/deckSystem.js";
+import { saveDeck, loadDeck, listDecks } from "../systems/deckSystem.js";
 
 export default {
   name: "setdeck",
-  description: "Gerencie e alterne rapidamente entre seus decks salvos.",
-  usage: "[save <nome> <idx1> <idx2> <idx3>... | equip <nome> | list]",
+  description: "Gerencie seus decks: salve, equipe e liste decks personalizados.",
+  usage: "[save <nome> <idx1> <idx2>... | equip <nome> | list]",
   
   async execute(message, args, user) {
-    const sub = args[0]?.toLowerCase();
+    const sub = (args[0] || "").toLowerCase();
     
-    // Garante que o campo de decks exista no usuário
+    // Garantia de estrutura
     if (!user.decks) user.decks = {};
+    if (!user.deck) user.deck = [];
     
     try {
-      switch (sub) {
-        case "save":
-          // 1. SALVAR DECK
-          const deckName = args[1];
-          const cardIndices = args.slice(2).map(n => parseInt(n));
-
-          if (!deckName || cardIndices.length === 0) {
-            return message.reply("❌ Use: `!setdeck save <nome> <idx1> <idx2>...`");
-          }
-          
-          // A função saveDeck lida com validação de índices, limites de deck, e salva no user.decks
-          const saveResult = saveDeck(user, deckName, cardIndices);
-          
-          // O objeto 'user' foi modificado por saveDeck. O index.js fará o salvamento.
-          return message.reply(`💾 ${saveResult}`);
-
-        case "equip":
-        case "load":
-          // 2. CARREGAR/EQUIPAR DECK
-          const nameToLoad = args[1];
-          
-          if (!nameToLoad) {
-            return message.reply("❌ Use: `!setdeck equip <nome>`");
-          }
-
-          // A função loadDeck carrega a configuração salva para o deck ativo do usuário
-          const loadResult = loadDeck(user, nameToLoad);
-          
-          // O objeto 'user' foi modificado por loadDeck. O index.js fará o salvamento.
-          return message.reply(`⚔️ ${loadResult}`);
-          
-        case "list":
-          // 3. LISTAR DECKS
-          const listResult = listDecks(user);
-          return message.reply(listResult);
-          
-        default:
+      // -------------------------------------------------------
+      // SALVAR DECK
+      // -------------------------------------------------------
+      if (sub === "save" || sub === "salvar") {
+        const name = args[1];
+        const indices = args.slice(2).map(n => parseInt(n));
+        
+        if (!name || indices.length === 0) {
           return message.reply(
-            "📝 **Comandos de Deck:**\n" +
-            "`!setdeck save <nome> <idx1>...` — Salva o deck ativo com o nome dado.\n" +
-            "`!setdeck equip <nome>` — Carrega um deck salvo para uso imediato.\n" +
-            "`!setdeck list` — Lista seus decks salvos."
+            "❌ Uso correto: `!setdeck save <nome> <idx1> <idx2> ...`"
           );
+        }
+        
+        if (name.length < 2 || name.length > 20) {
+          return message.reply("❌ O nome do deck deve ter entre 2 e 20 caracteres.");
+        }
+        
+        const result = saveDeck(user, name, indices);
+        
+        return message.reply({
+          content: `💾 **${result}**`,
+          allowedMentions: { repliedUser: false }
+        });
       }
+      
+      // -------------------------------------------------------
+      // EQUIPAR DECK
+      // -------------------------------------------------------
+      if (sub === "equip" || sub === "load" || sub === "usar") {
+        const name = args[1];
+        
+        if (!name) {
+          return message.reply("❌ Uso correto: `!setdeck equip <nome>`");
+        }
+        
+        const result = loadDeck(user, name);
+        
+        return message.reply({
+          content: `⚔️ ${result}`,
+          allowedMentions: { repliedUser: false }
+        });
+      }
+      
+      // -------------------------------------------------------
+      // LISTAR DECKS
+      // -------------------------------------------------------
+      if (sub === "list" || sub === "listar" || sub === "ls") {
+        const result = listDecks(user);
+        
+        return message.reply({
+          content: result,
+          allowedMentions: { repliedUser: false }
+        });
+      }
+      
+      // -------------------------------------------------------
+      // AJUDA
+      // -------------------------------------------------------
+      const help =
+        "🗂️ **Comandos de Deck:**\n" +
+        "`!setdeck save <nome> <idx1> ...` — Salva um deck com o nome especificado.\n" +
+        "`!setdeck equip <nome>` — Equipa um deck salvo.\n" +
+        "`!setdeck list` — Lista seus decks armazenados.";
+      
+      return message.reply({
+        content: help,
+        allowedMentions: { repliedUser: false }
+      });
       
     } catch (err) {
       console.error("❌ Erro no comando setdeck:", err);
-      // O sistema deve lançar mensagens amigáveis em caso de erro.
-      await message.reply(`⚠️ Ocorreu um erro ao gerenciar seu deck. ${err.message || ''}`);
+      
+      const safeMsg =
+        err?.message && typeof err.message === "string" ?
+        err.message :
+        "Ocorreu um erro ao gerenciar seus decks.";
+      
+      return message.reply({
+        content: `⚠️ ${safeMsg}`,
+        allowedMentions: { repliedUser: false }
+      });
     }
   }
 };

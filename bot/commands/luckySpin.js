@@ -1,53 +1,93 @@
 // src/commands/luckySpin.js
 
-// 🚨 CORREÇÃO: Removemos a importação de loadUser/saveUser.
 import { spinLucky } from "../../src/systems/luckySpinSystem.js";
 
 export default {
   name: "luckyspin",
-  description: "Gira a roda da sorte por 100 de gema. Cada 10 giros, ganha um giro grátis especial.",
+  description: "Gira a roda da sorte por 100 gemas. A cada 10 giros pagos, ganha 1 giro especial grátis.",
   usage: "[spin [quantidade] | status]",
   
-  // ⚠️ ATENÇÃO: Recebe o objeto 'user' do middleware do index.js
-  async execute(message, args, user) { 
+  async execute(message, args, user) {
     
-    // Inicializa a estrutura da roleta se ela ainda não existir
-    if (!user.luckySpin) {
-        user.luckySpin = {
-            spins: 0,
-            freeSpins: 0,
-        };
+    // Blindagem total
+    if (!user.luckySpin || typeof user.luckySpin !== "object") {
+      user.luckySpin = { spins: 0, freeSpins: 0 };
     }
-
-    const subcommand = (args[0] || "spin").toLowerCase();
     
-    if (subcommand === "spin") {
-      const count = parseInt(args[1]) || 1;
+    let sub = (args[0] || "spin").toLowerCase();
+    
+    // Caso o usuário informe apenas um número → é quantidade
+    if (!isNaN(parseInt(sub))) {
+      args.unshift("spin");
+      sub = "spin";
+    }
+    
+    // ------------------------------
+    // STATUS
+    // ------------------------------
+    if (sub === "status") {
+      const { spins, freeSpins } = user.luckySpin;
+      return message.reply(
+        `🎯 **Status da Roda da Sorte**\n` +
+        `🔄 Giros pagos total: **${spins}**\n` +
+        `✨ Giros grátis acumulados: **${freeSpins}**`
+      );
+    }
+    
+    // ------------------------------
+    // SPIN
+    // ------------------------------
+    if (sub === "spin") {
       
-      if (count < 1) return message.reply("❌ Informe um número válido de giros.");
-      if (count > 10) return message.reply("⚠️ Máximo de 10 giros por comando.");
+      const count = Math.min(parseInt(args[1]) || 1, 100);
+      if (count < 1) return message.reply("❌ Informe uma quantidade válida de giros.");
       
-      let totalResult = "";
+      let res = `🎰 **Roda da Sorte — ${count} giros**\n`;
       
-      // O spinLuckyWheel(user) deve modificar o objeto 'user' (ouro e contagem de giros)
+      let paidSpins = 0;
+      
       for (let i = 0; i < count; i++) {
+        
         const result = spinLucky(user);
-        totalResult += `🎰 Giro ${i + 1}: ${result}\n`;
+        
+        // spinLucky deve lançar erro se faltar gemas
+        if (typeof result === "string" && result.startsWith("ERR:")) {
+          return message.reply("❌ " + result.replace("ERR:", "").trim());
+        }
+        
+        paidSpins++;
+        res += `\n➡️ **Giro ${i + 1}:** ${result}`;
       }
       
-      // O index.js (middleware) cuidará do salvamento automático.
-      return message.reply(totalResult.trim());
+      // GIRO ESPECIAL AUTOMÁTICO
+      let freeUsed = 0;
+      let fullFreeLog = "";
       
-    } else if (subcommand === "status") {
-      const spins = user.luckySpin.spins;
-      const free = user.luckySpin.freeSpins;
+      while (user.luckySpin.freeSpins > 0) {
+        user.luckySpin.freeSpins--;
+        freeUsed++;
+        
+        const freeResult = spinLucky(user, true);
+        fullFreeLog += `\n✨ **Giro Especial:** ${freeResult}`;
+      }
       
-      return message.reply(`🎯 Status da Roda da Sorte:\n` + 
-                           `🔄 Giros pagos usados: **${spins}**\n` +
-                           `✨ Giros grátis acumulados: **${free}**`);
-                           
-    } else {
-      return message.reply("❌ Subcomando inválido. Use: `!luckyspin spin [quantidade]` ou `!luckyspin status`.");
+      if (freeUsed > 0) {
+        res += `\n\n🎁 Você ganhou **${freeUsed} giro(s) especial(is)**!\n${fullFreeLog}`;
+      }
+      
+      return message.reply(res.trim());
     }
+    
+    // ------------------------------
+    // SUBCOMANDO INVÁLIDO
+    // ------------------------------
+    return message.reply(
+      "❌ Subcomando inválido.\n" +
+      "**Use:**\n" +
+      "`!luckyspin` — 1 giro\n" +
+      "`!luckyspin 5` — 5 giros\n" +
+      "`!luckyspin spin 10` — 10 giros\n" +
+      "`!luckyspin status` — ver status"
+    );
   }
 };

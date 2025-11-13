@@ -1,40 +1,44 @@
 // src/commands/claimEnergy.js
 
-// 🚨 CORREÇÃO: Removemos a importação de saveUser. O salvamento é delegado ao index.js.
 import { addEnergy } from "../../src/systems/economySystem.js";
 
 export default {
   name: "claimenergy",
   description: "Resgatar energia diária do jogador.",
   
-  // O objeto 'user' é passado corretamente pelo middleware
   async execute(message, args, user) {
+    
+    if (!user) {
+      return message.reply("❌ Erro interno: usuário não carregado.");
+    }
+    
     const today = new Date().toDateString();
     
-    // Inicializa a estrutura de claims se necessário
+    // Garante a estrutura interna
     if (!user.dailyClaims) user.dailyClaims = {};
     
-    // 1. Verifica se já coletou hoje
+    // Caso já tenha coletado hoje
     if (user.dailyClaims.energy === today) {
-      await message.reply("⚡ Você já coletou sua energia diária. Tente novamente amanhã!");
-      return;
+      return message.reply("⚡ Você já coletou sua energia diária hoje. Tente novamente amanhã!");
     }
     
     const energyAmount = 30;
     
-    // 2. Adiciona a energia (a função addEnergy deve modificar o objeto 'user')
+    // addEnergy deve modificar user.energy e retornar true/false
     const success = addEnergy(user, energyAmount);
     
     if (!success) {
-      // Retorno da função addEnergy indicando que o limite foi atingido, por exemplo.
-      await message.reply("⚠️ Sua energia está no máximo! Gaste um pouco para poder coletar a energia diária.");
-      return;
+      return message.reply(
+        "⚠️ Sua energia já está no máximo. Gaste um pouco antes de resgatar a energia diária."
+      );
     }
     
-    // 3. Marca a coleta de hoje
+    // Registra a coleta diária
     user.dailyClaims.energy = today;
     
-    // O index.js (middleware) fará o markUserDirty(user) automaticamente após a execução.
-    await message.reply(`⚡ Você coletou **+${energyAmount}** de energia!`);
-  }
+    // Salvamento automático feito pelo index.js
+    return message.reply(
+      `⚡ Você recebeu **+${energyAmount}** de energia!`
+    );
+  },
 };

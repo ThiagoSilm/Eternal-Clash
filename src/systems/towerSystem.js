@@ -1,171 +1,149 @@
-import { markUserDirty } from "./userCacheSystem.js";
-import { addGold, addXP } from "./economySystem.js";
+// src/systems/towerSystem.js
 
-// --- Configuração ---
+import { markUserDirty } from "./userCacheSystem.js";
+import { addGold, addXP, spendGems } from "./economySystem.js";
+
+// ----------------------------------------------
+// 🔧 CONFIG
+// ----------------------------------------------
 const MAX_FLOOR = 120;
 const DAILY_ATTEMPTS = 3;
-const REWARD_SCALING_FACTOR = 1.15; // Aumento de recompensas por andar
+const REWARD_SCALING_FACTOR = 1.15;
 
-// ----------------------------------------------------
-// 🔹 LÓGICA DE DADOS/MOCK (Para simular dados fixos da Torre)
-// ----------------------------------------------------
-
-/**
- * Retorna as especificações do inimigo para um determinado andar.
- * Em um jogo real, isso seria carregado de um arquivo JSON.
- * @param {number} floor - O andar atual.
- * @returns {object} Dados do inimigo.
- */
+// ----------------------------------------------
+// 🔥 ENEMY GENERATION
+// ----------------------------------------------
 export function getFloorEnemy(floor) {
     const seed = floor % 10;
-    const nameSuffix = (seed % 3 === 0) ? "Golem" : (seed % 3 === 1) ? "Dragão" : "Assassino";
+    const suffix = (seed % 3 === 0) ? "Golem" : (seed % 3 === 1) ? "Dragão" : "Assassino";
     
-    const baseHp = 500 + floor * 50;
-    const baseAttack = 50 + floor * 10;
+    const hp = Math.floor((500 + floor * 50) * (1 + seed * 0.05));
+    const atk = Math.floor((50 + floor * 10) * (1 + seed * 0.05));
     
-    // Define o oponente
     return {
         id: `E_TOWER_${floor}`,
-        name: `Guardião do Andar ${floor} (${nameSuffix})`,
-        hp: Math.floor(baseHp * (1 + seed * 0.05)),
-        attack: Math.floor(baseAttack * (1 + seed * 0.05)),
-        isPlayer: false, // Inimigo fixo da Torre
-        deck: [], // Oponente usa um deck fixo (não implementado aqui)
-        type: "tower_enemy"
+        name: `Guardião do Andar ${floor} (${suffix})`,
+        hp,
+        attack: atk,
+        type: "tower_enemy",
+        isPlayer: false,
+        deck: []
     };
 }
 
-/**
- * Calcula a recompensa por completar um andar.
- * @param {number} floor - O andar atual.
- * @returns {object} Recompensas de Ouro e XP.
- */
+// ----------------------------------------------
+// 🎁 REWARD SYSTEM
+// ----------------------------------------------
 export function getFloorReward(floor) {
-    const baseGold = 500;
-    const baseXP = 200;
+    const gold = Math.floor(500 * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
+    const xp = Math.floor(200 * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
     
-    // Recompensa escalada exponencialmente
-    const gold = Math.floor(baseGold * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
-    const xp = Math.floor(baseXP * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
-    
-    // 💡 Ponto de Extensão: Adicionar chance de carta ou item aqui
     return { gold, xp };
 }
 
-// ----------------------------------------------------
-// 🔹 LÓGICA DE GESTÃO DO ESTADO DO USUÁRIO
-// ----------------------------------------------------
-
-/**
- * Inicializa a estrutura da Torre do usuário e verifica a "primeira ativação do dia".
- * Se for a primeira vez no dia, concede recompensas do andar atual sem lutar.
- * @param {object} user - O objeto usuário.
- */
+// ----------------------------------------------
+// 🧱 USER STATE MANAGEMENT
+// ----------------------------------------------
 function checkDailyInit(user) {
     if (!user.tower) {
-        user.tower = { floor: 1, attempts: DAILY_ATTEMPTS, lastAccess: 0 };
+        user.tower = {
+            floor: 1,
+            attempts: DAILY_ATTEMPTS,
+            lastAccess: 0
+        };
     }
     
-    const today = new Date().toISOString().split('T')[0];
-    const lastAccessDate = new Date(user.tower.lastAccess).toISOString().split('T')[0];
+    const now = Date.now();
+    const today = new Date(now).toISOString().split("T")[0];
+    const last = new Date(user.tower.lastAccess).toISOString().split("T")[0];
+    
     let message = null;
     
-    // Reseta as tentativas e verifica a primeira ativação
-    if (lastAccessDate !== today) {
+    if (today !== last) {
         user.tower.attempts = DAILY_ATTEMPTS;
-        user.tower.lastAccess = Date.now();
+        user.tower.lastAccess = now;
         
-        // Aplica a recompensa de "primeira ativação"
         if (user.tower.floor > 1) {
-            const floorBefore = user.tower.floor - 1;
-            const reward = getFloorReward(floorBefore);
+            const prev = user.tower.floor - 1;
+            const r = getFloorReward(prev);
             
-            // Recompensas são aplicadas apenas pelos andares que ele já completou (andar anterior)
-            addGold(user, reward.gold);
-            addXP(user, reward.xp);
+            addGold(user, r.gold);
+            addXP(user, r.xp);
             
-            message = `🎉 **Bem-vindo de volta à Torre!**\n` +
-                `Suas tentativas foram resetadas para ${DAILY_ATTEMPTS}.\n` +
-                `Recompensa de Ativação do Andar ${floorBefore} concedida: +${reward.gold} Ouro, +${reward.xp} XP.`;
+            message =
+                `🎉 **Bem-vindo de volta à Torre!**\n` +
+                `Tentativas resetadas: **${DAILY_ATTEMPTS}**.\n` +
+                `Recompensa do Andar ${prev}: +${r.gold} ouro, +${r.xp} XP.`;
         } else {
-            message = `🎉 Suas tentativas de Torre foram resetadas para ${DAILY_ATTEMPTS}.`;
+            message = `🎉 Tentativas resetadas: **${DAILY_ATTEMPTS}**.`;
         }
+        
         markUserDirty(user.id);
     }
     
     return message;
 }
 
-/**
- * Gasta uma tentativa de Torre do usuário.
- * @param {object} user - O objeto usuário.
- * @returns {boolean} True se a tentativa foi gasta, False se não havia tentativas.
- */
+// ----------------------------------------------
+// 🔥 SPEND ATTEMPT
+// ----------------------------------------------
 export function spendTowerAttempt(user) {
-    // Garante a estrutura e executa a inicialização diária
     checkDailyInit(user);
     
-    if ((user.tower.attempts || 0) > 0) {
-        user.tower.attempts -= 1;
-        user.tower.lastAccess = Date.now(); // Atualiza acesso para controle de reset
+    if (user.tower.attempts > 0) {
+        user.tower.attempts--;
+        user.tower.lastAccess = Date.now();
         markUserDirty(user.id);
         return true;
     }
     return false;
 }
 
-/**
- * Retorna uma string formatada com o status atual da Torre do usuário.
- * @param {object} user - O objeto usuário.
- * @returns {string} Status formatado.
- */
+// ----------------------------------------------
+// 📊 STATUS
+// ----------------------------------------------
 export function getTowerStatus(user) {
-    // Garante que as tentativas e a recompensa diária sejam verificadas
-    const dailyMessage = checkDailyInit(user);
+    const dailyMsg = checkDailyInit(user);
     
-    const floor = user.tower.floor || 1;
-    const attempts = user.tower.attempts || 0;
-    const nextEnemy = getFloorEnemy(floor);
-    const nextReward = getFloorReward(floor);
+    const floor = user.tower.floor;
+    const attempts = user.tower.attempts;
     
-    let status = `\n**Andar Atual:** ${floor} / ${MAX_FLOOR}`;
-    status += `\n**Tentativas:** ${attempts} / ${DAILY_ATTEMPTS}`;
+    const enemy = getFloorEnemy(floor);
+    const reward = getFloorReward(floor);
+    
+    let t =
+        `**Andar Atual:** ${floor}/${MAX_FLOOR}\n` +
+        `**Tentativas:** ${attempts}/${DAILY_ATTEMPTS}\n\n`;
     
     if (floor <= MAX_FLOOR) {
-        status += `\n\n**Próximo Desafio (Andar ${floor}):**`;
-        status += `\n⚔️ Inimigo: ${nextEnemy.name} (HP: ${nextEnemy.hp}, ATK: ${nextEnemy.attack})`;
-        status += `\n🎁 Recompensa: +${nextReward.gold} Ouro, +${nextReward.xp} XP (garantido em vitória)`;
+        t +=
+            `⚔️ **Próximo Inimigo:** ${enemy.name}\n` +
+            `• HP: ${enemy.hp}\n` +
+            `• ATK: ${enemy.attack}\n\n` +
+            `🎁 **Recompensa:** +${reward.gold} Ouro, +${reward.xp} XP`;
     } else {
-        status += `\n\n🏆 **PARABÉNS!** Você concluiu todos os ${MAX_FLOOR} andares da Torre.`;
+        t += `🏆 **VOCÊ CONCLUIU OS ${MAX_FLOOR} ANDARES DA TORRE!**`;
     }
     
-    return (dailyMessage ? `${dailyMessage}\n\n` : "") + status;
+    return dailyMsg ? `${dailyMsg}\n\n${t}` : t;
 }
 
-/**
- * Simula a compra de mais tentativas (custo: 5 Gemas por tentativa).
- * @param {object} user - O objeto usuário.
- * @param {number} amount - Quantidade de tentativas a comprar.
- * @returns {string} Mensagem de resposta.
- */
+// ----------------------------------------------
+// 💎 BUY ATTEMPTS
+// ----------------------------------------------
 export function buyTowerAttempts(user, amount = 1) {
     checkDailyInit(user);
-    const costPerAttempt = 5;
-    const totalCost = amount * costPerAttempt;
     
-    if (amount <= 0) return "❌ A quantidade de tentativas deve ser positiva.";
+    if (amount <= 0) return "❌ Quantidade inválida.";
     
-    // Assumimos que spendGems está disponível no economySystem.js e retorna boolean
-    if (!spendGems(user, totalCost)) {
-        return `❌ Você precisa de ${totalCost} Gemas para comprar ${amount} tentativas.`;
+    const cost = amount * 5;
+    
+    if (!spendGems(user, cost)) {
+        return `❌ Você precisa de **${cost} Gemas**.`;
     }
     
     user.tower.attempts += amount;
     markUserDirty(user.id);
     
-    return `💎 Você comprou **${amount}** tentativas de Torre por ${totalCost} Gemas. Tentativas atuais: ${user.tower.attempts}.`;
+    return `💎 Você comprou **${amount}** tentativas. Tentativas atuais: ${user.tower.attempts}.`;
 }
-
-// ----------------------------------------------------
-// 💡 Ponto de Extensão: Adicionar lógica de Reset da Torre (Prestige)
-// ----------------------------------------------------

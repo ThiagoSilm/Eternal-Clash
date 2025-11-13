@@ -1,76 +1,88 @@
 // src/commands/shop.js
 
-import { spendCurrency } from "../../src/systems/economySystem.js";
-
-import { getShopCatalog, processPurchase } from "../../src/systems/../../src/systems/shopSystem.js"
-
+import { spendCurrency } from "../systems/economySystem.js";
+import { getShopCatalog, processPurchase } from "../systems/shopSystem.js";
 
 export default {
   name: "shop",
-  description: "Acesse a loja para comprar itens e recursos usando Ouro ou Gemas.",
+  description: "Acessa a loja para comprar itens com Ouro ou Gemas.",
   usage: "[list | buy <id> [quantidade]]",
   
   async execute(message, args, user) {
-    const sub = args[0]?.toLowerCase();
-    const subCommand = sub === 'buy' ? 'buy' : 'list';
-    
-    let response = "";
+    const sub = (args[0] || "").toLowerCase();
     
     try {
-      if (subCommand === 'list') {
-        // 1. LISTAR ITENS
-        const catalog = getShopCatalog();
-        response = "🛒 **Loja Principal:**\n---\n";
+      // --------------------------------------------------
+      // LISTAR ITENS
+      // --------------------------------------------------
+      if (sub === "" || sub === "list" || sub === "loja") {
+        const catalog = getShopCatalog() || [];
+        
+        let reply = "🛒 **Loja Principal:**\n━━━━━━━━━━━━━━\n";
         
         if (catalog.length === 0) {
-            response += "A loja está vazia no momento.";
+          reply += "A loja está vazia.";
         } else {
-            catalog.forEach(item => {
-                response += 
-                    `**[${item.id}] ${item.name}**\n` +
-                    `   Preço: ${item.cost} ${item.currency.toUpperCase()}\n` +
-                    `   Descrição: ${item.description}\n`;
-            });
+          for (const item of catalog) {
+            reply +=
+              `**[${item.id}] ${item.name}**\n` +
+              `💵 Preço: **${item.cost} ${item.currency.toUpperCase()}**\n` +
+              `📘 ${item.description}\n\n`;
+          }
         }
-
-      } else if (subCommand === 'buy') {
-        // 2. COMPRAR ITEM
+        
+        return message.reply({
+          content: reply,
+          allowedMentions: { repliedUser: false }
+        });
+      }
+      
+      // --------------------------------------------------
+      // COMPRAR ITEM
+      // --------------------------------------------------
+      if (sub === "buy" || sub === "comprar") {
         const itemId = args[1];
-        let quantity = parseInt(args[2]) || 1;
+        const quantity = Math.max(1, parseInt(args[2]) || 1);
         
         if (!itemId) {
-            return message.reply("❌ Use: `!shop buy <id> [quantidade]`");
+          return message.reply("❌ Use: `!shop buy <id> [quantidade]`");
         }
-        if (quantity < 1) quantity = 1;
-
-        // processPurchase deve lidar com:
-        // 1. Validar o item e o preço total.
-        // 2. Chamar spendCurrency(user, item.currency, totalCost).
-        // 3. Adicionar o item ao inventário do usuário.
-        // 4. Retornar uma mensagem de sucesso ou erro.
-        response = processPurchase(user, itemId, quantity);
         
-        // 🚨 O objeto 'user' foi modificado por spendCurrency e processPurchase.
-        // O index.js fará o salvamento automaticamente (markUserDirty).
+        // processPurchase retorna string → resposta final
+        const purchaseResult = await processPurchase(user, itemId, quantity);
         
-      } else {
-        // Mensagem de ajuda, caso o subcomando não seja reconhecido.
-        response = 
-            "🛍️ **Comandos da Loja:**\n" +
-            "`!shop` ou `!shop list` — Ver todos os itens à venda.\n" +
-            "`!shop buy <id> [qntd]` — Comprar um item da loja.";
+        return message.reply({
+          content: purchaseResult,
+          allowedMentions: { repliedUser: false }
+        });
       }
       
-      await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+      // --------------------------------------------------
+      // AJUDA
+      // --------------------------------------------------
+      const help =
+        "🛍️ **Comandos da Loja:**\n" +
+        "`!shop` — Ver lista de itens.\n" +
+        "`!shop list` — Ver tudo que está à venda.\n" +
+        "`!shop buy <id> [qnt]` — Comprar um item.";
+      
+      return message.reply({
+        content: help,
+        allowedMentions: { repliedUser: false }
+      });
       
     } catch (err) {
-      console.error("❌ Erro no comando da loja:", err);
-      // Se o erro for uma string (ex: "Recursos insuficientes"), exibe a mensagem amigável
-      if (typeof err === 'string') {
-          await message.reply(`⚠️ ${err}`);
-      } else {
-          await message.reply("⚠️ Ocorreu um erro ao processar a loja.");
-      }
+      console.error("❌ Erro no comando shop:", err);
+      
+      const msg =
+        typeof err === "string" ?
+        `⚠️ ${err}` :
+        "⚠️ Ocorreu um erro ao processar a Loja.";
+      
+      return message.reply({
+        content: msg,
+        allowedMentions: { repliedUser: false }
+      });
     }
   }
 };

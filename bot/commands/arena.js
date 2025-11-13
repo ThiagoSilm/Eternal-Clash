@@ -12,12 +12,16 @@ export default {
   usage: "[status | lutar <1-5> | recompensa]",
   
   async execute(message, args, user) {
+    if (!user) {
+      return message.reply("⚠️ Usuário não encontrado no sistema. Tente novamente.");
+    }
+    
     const sub = (args[0] || "").toLowerCase();
-    const num = parseInt(args[1]);
+    const num = Number(args[1]);
     
     try {
       // Sempre checa reset diário antes de qualquer ação
-      await arenaStatus(user, { checkReset: true });
+      await arenaStatus(user, { checkReset: true }).catch(() => {});
       
       let reply;
       
@@ -25,15 +29,16 @@ export default {
         // ----------------------------------------------------
         // STATUS
         // ----------------------------------------------------
-        case "status":
+        case "status": {
           reply = await arenaStatus(user);
           break;
-          
-          // ----------------------------------------------------
-          // LUTAR
-          // ----------------------------------------------------
-        case "lutar":
-          if (isNaN(num) || num < 1 || num > 5) {
+        }
+        
+        // ----------------------------------------------------
+        // LUTAR
+        // ----------------------------------------------------
+        case "lutar": {
+          if (!Number.isInteger(num) || num < 1 || num > 5) {
             return message.reply(
               "❌ Escolha inválida.\nUse: `!arena lutar <1-5>` para selecionar o oponente pelo índice."
             );
@@ -41,40 +46,43 @@ export default {
           
           reply = await arenaChallenge(user, num);
           break;
-          
-          // ----------------------------------------------------
-          // RECOMPENSA
-          // ----------------------------------------------------
-        case "recompensa":
+        }
+        
+        // ----------------------------------------------------
+        // RECOMPENSA
+        // ----------------------------------------------------
+        case "recompensa": {
           reply = await arenaReward(user);
           break;
-          
-          // ----------------------------------------------------
-          // AJUDA (DEFAULT)
-          // ----------------------------------------------------
-        default:
+        }
+        
+        // ----------------------------------------------------
+        // DEFAULT / AJUDA
+        // ----------------------------------------------------
+        default: {
           reply =
             "🏆 **Comandos da Arena**\n" +
             "━━━━━━━━━━━━━━\n" +
             "`!arena status` — Ver tentativas, cooldown e lista de oponentes.\n" +
             "`!arena lutar <1-5>` — Desafiar um oponente da sua lista.\n" +
             "`!arena recompensa` — Resgatar recompensas diárias/semanal.\n";
+        }
       }
       
-      await message.reply({
+      return message.reply({
         content: reply,
         allowedMentions: { repliedUser: false }
       });
       
     } catch (err) {
-      console.error(`❌ Erro no comando !arena (${sub}):`, err);
+      console.error(`❌ Erro no comando !arena (${sub})`, err);
       
       const msg =
         err instanceof Error ?
         `⚠️ ${err.message}` :
         "⚠️ Erro interno ao processar a Arena.";
       
-      await message.reply({
+      return message.reply({
         content: msg,
         allowedMentions: { repliedUser: false }
       });

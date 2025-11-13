@@ -1,14 +1,20 @@
+// src/systems/shopSystem.js
+
 import { spendCurrency, addEnergy } from "./economySystem.js";
 import { addItemToInventory } from "./inventorySystem.js";
-import { initializeTower } from "./towerSystem.js";
+import { getTowerStatus } from "./towerSystem.js"; // substitui initializeTower inexistente
+
+// --------------------------------------------------------
+// 🛒 CATÁLOGO DA LOJA
+// --------------------------------------------------------
 
 const SHOP_CATALOG = [
   {
     id: "xp_booster_small",
     name: "Booster de XP (Pequeno)",
     description: "Ganha 2x XP por 3 batalhas.",
-    currency: "gold",
-    price: 5000,
+    currency: "gem",
+    price: 675, // 🔥 alterado conforme pedido
     type: "buff",
     effect: { duration: 3, multiplier: 2.0 },
   },
@@ -41,46 +47,62 @@ const SHOP_CATALOG = [
   },
 ];
 
+// --------------------------------------------------------
+// 🔎 RETORNA A LOJA
+// --------------------------------------------------------
 export function getShopCatalog() {
-  // Mock de exemplo
   return SHOP_CATALOG;
 }
 
+// --------------------------------------------------------
+// 🛍️ PROCESSAR COMPRA
+// --------------------------------------------------------
 export function processPurchase(user, itemId, quantity = 1) {
   const item = SHOP_CATALOG.find(i => i.id === itemId);
   if (!item) throw new Error(`Item com ID \`${itemId}\` não encontrado na loja.`);
 
-  const totalCost = item.cost * quantity;
+  const totalCost = item.price * quantity; // 🔥 FIXADO
   spendCurrency(user, item.currency, totalCost);
 
-  let logMessage = `Compra realizada: **${item.name}** (x${quantity}). ${totalCost} ${item.currency.toUpperCase()} gasto(s).\n`;
+  let logMessage =
+    `Compra realizada: **${item.name}** (x${quantity}).\n` +
+    `💸 Gasto: ${totalCost} ${item.currency.toUpperCase()}\n`;
 
-  if (item.type === 'consumable' || item.type === 'buff') {
+  if (item.type === "consumable" || item.type === "buff") {
     logMessage += deliverConsumable(user, item.effect, quantity);
   } else {
     addItemToInventory(user, itemId, quantity);
-    logMessage += `Adicionado ao inventário de itens.`;
+    logMessage += `📦 Item adicionado ao inventário.`;
   }
 
   return logMessage.trim();
 }
 
+// --------------------------------------------------------
+// 🎁 ENTREGA DO ITEM
+// --------------------------------------------------------
 function deliverConsumable(user, effect, quantity = 1) {
-  switch (effect.resource) {
-    case 'energy':
-      const addedEnergy = addEnergy(user, effect.amount * quantity);
-      return addedEnergy ? `⚡ Energia restaurada: +${effect.amount * quantity}.` : `⚡ Energia no máximo.`;
-
-    case 'towerAttempt':
-      initializeTower(user);
-      user.tower.attempts += effect.amount * quantity;
-      return `🏰 Tentativa de Torre restaurada: +${effect.amount * quantity}.`;
-
-    case 'coupon':
-      addItemToInventory(user, effect.summonType + "_coupon", quantity);
-      return `🎟️ Cupom de Invocação (${effect.summonType}) adicionado ao inventário.`;
-
-    default:
-      return `Item consumível ${effect.resource} entregue (${quantity}x).`;
+  // Energia
+  if (effect.resource === "energy") {
+    const amount = effect.amount * quantity;
+    const added = addEnergy(user, amount);
+    return added
+      ? `⚡ Energia restaurada: +${amount}.`
+      : `⚡ Sua energia já está no máximo.`;
   }
+
+  // Tentativa de Torre
+  if (effect.resource === "towerAttempt") {
+    if (!user.tower) user.tower = { floor: 1, attempts: 3, lastAccess: 0 };
+    user.tower.attempts += effect.amount * quantity;
+    return `🏰 Tentativa de Torre restaurada: +${effect.amount * quantity}.`;
+  }
+
+  // Cupom
+  if (effect.type === "coupon") {
+    addItemToInventory(user, `${effect.summonType}_coupon`, quantity);
+    return `🎟️ Cupom de Invocação (${effect.summonType}) adicionado ao inventário.`;
+  }
+
+  return `Item consumível entregue (${quantity}x).`;
 }

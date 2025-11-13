@@ -1,6 +1,9 @@
 // src/commands/dailyquest.js
 
-import { getQuestStatus, claimDailyQuestReward } from "../../src/systems/dailyQuestSystem.js";
+import {
+  getQuestStatus,
+  claimDailyQuestReward
+} from "../../src/systems/dailyQuestSystem.js";
 
 export default {
   name: "dailyquest",
@@ -8,41 +11,49 @@ export default {
   usage: "[status | claim]",
   
   async execute(message, args, user) {
-    const sub = args[0]?.toLowerCase() || 'status';
+    
+    // Garantia absoluta contra erros do middleware
+    if (!user) {
+      return message.reply("❌ Erro interno: usuário não carregado.");
+    }
+    
+    const sub = args[0]?.toLowerCase() || "status";
     let response = "";
     
     try {
       switch (sub) {
+        
         case "status":
-          // getQuestStatus deve retornar uma string formatada com todas as missões e progresso
+          // Apenas leitura — não modifica o user
           response = getQuestStatus(user);
           break;
           
         case "claim":
-          // claimDailyQuestReward deve verificar se todas as missões estão concluídas
-          // e, se estiverem, conceder a recompensa bônus e marcar como reivindicada.
-          // Esta função modifica o objeto 'user'.
+          // Esta função modifica user (recompensa + marcar claim)
           response = claimDailyQuestReward(user);
           break;
           
         default:
           response =
             "📋 **Comandos de Missões Diárias:**\n" +
-            "`!dailyquest` ou `!dailyquest status` — Ver o progresso das missões.\n" +
-            "`!dailyquest claim` — Reivindicar a recompensa final do dia.";
+            "• `!dailyquest` ou `!dailyquest status` — Ver o progresso das missões.\n" +
+            "• `!dailyquest claim` — Reivindicar a recompensa final do dia.";
       }
       
-      // O index.js fará o salvamento automático se o objeto 'user' foi modificado (no caso 'claim').
-      await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+      await message.reply({
+        content: response,
+        allowedMentions: { repliedUser: false }
+      });
       
     } catch (err) {
       console.error("❌ Erro no comando dailyquest:", err);
-      // Assume-se que o sistema pode retornar uma string de erro amigável
-      if (typeof err === 'string') {
-          await message.reply(`⚠️ ${err}`);
-      } else {
-          await message.reply("⚠️ Ocorreu um erro ao processar as missões diárias.");
+      
+      // Sistema aceita erros em forma de string → retornar direto
+      if (typeof err === "string") {
+        return message.reply(`⚠️ ${err}`);
       }
+      
+      return message.reply("⚠️ Ocorreu um erro ao processar suas missões diárias.");
     }
-  }
+  },
 };

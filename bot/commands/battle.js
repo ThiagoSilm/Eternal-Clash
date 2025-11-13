@@ -1,64 +1,96 @@
 // src/commands/battle.js
 
-import { battleSystem } from "../../src/systems/battleSystem.js"; // ⚠️ Assumindo battleSystem é o nome correto
+import { runBattle } from "../../src/systems/battleSystem.js";
 import { spendEnergy, addXP, addGold, regenerateEnergy } from "../../src/systems/economySystem.js";
-// 🚨 CORREÇÃO: Removemos a importação de saveUser, pois o salvamento é delegado ao index.js.
 
 export default {
   name: "battle",
   description: "Batalhe contra inimigos e ganhe XP e ouro.",
   
-  // O objeto 'user' é passado corretamente pelo middleware
   async execute(message, args, user) {
-    // Referência o objeto 'user' para clareza no contexto da batalha
-    const player = user;
-    
-    // 1. Configuração do Oponente (Simplificado)
-    const opponent = {
-      name: "CPU - Oponente Sombrio",
-      cards: [
-        { name: "Monstro das Sombras", hp: 120, attack: 35 },
-        { name: "Demônio Menor", hp: 90, attack: 25 }
-      ],
-      guardianId: 2 // Usado se houver lógica de Guardião no sistema de batalha
-    };
-    
-    // 2. Gerenciamento de Energia
-    const regenMsg = regenerateEnergy(player); // Tenta regenerar se o cooldown tiver passado
-    let response = regenMsg ? `⚡ ${regenMsg}\n` : "";
-    
-    const energyCost = 4;
-    if (!spendEnergy(player, energyCost)) {
-      await message.reply(response + `❌ Você não tem energia suficiente (precisa de ${energyCost}).`);
-      return;
+    if (!user) {
+      return message.reply("⚠️ Usuário não carregado. Reinicie o comando.");
     }
     
-    // 3. Simulação da Batalha
-    // ⚠️ ATENÇÃO: Corrigido para usar battleSystem
-    const result = battleSystem(player, opponent); 
+    let reply = "";
     
-    // O log de batalha pode ser muito longo; é melhor enviá-lo separadamente ou resumido
-    const battleLogSummary = result.log.slice(0, 5).join("\n") + "\n... (Finalizado em " + result.turns + " turnos)\n";
-    response += `\n**--- ⚔️ INÍCIO DA BATALHA ⚔️ ---**\n${battleLogSummary}\n`;
+    // ----------------------------------------------------
+    // 1. Regeneração automática de energia
+    // ----------------------------------------------------
+    const regenMsg = regenerateEnergy(user);
+    if (regenMsg) reply += `⚡ ${regenMsg}\n`;
     
-    // 4. Recompensas
-    if (result.winner === "player") {
+    const energyCost = 4;
+    if (!spendEnergy(user, energyCost)) {
+      return message.reply(
+        reply + `❌ Energia insuficiente. Você precisa de **${energyCost}** de energia.`
+      );
+    }
+    
+    // ----------------------------------------------------
+    // 2. Oponente padrão (placeholder temporário)
+    // ----------------------------------------------------
+    const opponent = {
+      id: "cpu_shadow",
+      name: "CPU - Oponente Sombrio",
+      cards: [
+        { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, attack: 35 },
+        { id: "lesser_demon", name: "Demônio Menor", hp: 90, attack: 25 }
+      ],
+      guardianId: "G02"
+    };
+    
+    // ----------------------------------------------------
+    // 3. BATALHA REAL
+    // ----------------------------------------------------
+    let battle;
+    try {
+      battle = runBattle(user, opponent); // novo nome mais adequado
+    } catch (err) {
+      console.error("❌ Erro no runBattle:", err);
+      return message.reply("⚠️ Erro interno ao processar a batalha.");
+    }
+    
+    // ----------------------------------------------------
+    // 4. Resumo do LOG (para não explodir o Discord)
+    // ----------------------------------------------------
+    const maxLines = 8;
+    const summary =
+      battle.log.length > maxLines ?
+      battle.log.slice(0, maxLines).join("\n") +
+      `\n... (${battle.log.length} eventos totais)` :
+      battle.log.join("\n");
+    
+    reply +=
+      `\n**⚔️ INÍCIO DA BATALHA**\n` +
+      "━━━━━━━━━━━━━━\n" +
+      summary +
+      `\n\n🕒 **Turnos:** ${battle.turns}\n`;
+    
+    // ----------------------------------------------------
+    // 5. Recompensas
+    // ----------------------------------------------------
+    if (battle.winner === "player") {
       const xpGain = 1500;
       const goldGain = 800;
       
-      // Funções modificam o objeto 'player' (que é 'user')
-      addXP(player, xpGain);
-      addGold(player, goldGain);
+      addXP(user, xpGain);
+      addGold(user, goldGain);
       
-      response += `🏆 **Vitória!** Você ganhou **${xpGain} XP** e **${goldGain} ouro**!`;
+      reply +=
+        `\n🏆 **Você venceu!**\n` +
+        `✨ XP ganho: **${xpGain}**\n` +
+        `💰 Ouro ganho: **${goldGain}**\n`;
     } else {
-      response += "😓 Derrota — nenhuma recompensa significativa recebida.";
+      reply += "\n😓 **Derrota!** Nenhuma recompensa recebida.";
     }
     
-    // 🚨 CORREÇÃO: A chamada saveUser(player) foi removida.
-    // O index.js fará o markUserDirty(user) e salvará automaticamente.
-    
-    // 5. Responde ao jogador
-    await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+    // ----------------------------------------------------
+    // 6. Resposta final
+    // ----------------------------------------------------
+    return message.reply({
+      content: reply,
+      allowedMentions: { repliedUser: false }
+    });
   }
 };
