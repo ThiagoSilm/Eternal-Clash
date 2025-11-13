@@ -237,3 +237,15 @@ export function removeCardFromDeck(user, deckIndex, deckName = "main") {
     const template = getCardTemplate(removed.id);
     return `🗑️ ${template?.name || "Carta"} removida do deck "${deckName}".`;
 }
+
+export function filterCards(cards, filters = {}) {
+    if (!Array.isArray(cards)) return [];
+    
+    return cards.filter(card => {
+        if (filters.type && card.type !== filters.type) return false;
+        if (filters.rarity && card.rarity !== filters.rarity) return false;
+        if (filters.faction && card.faction !== filters.faction) return false;
+        if (filters.id && card.id !== filters.id) return false;
+        return true;
+    });
+}
