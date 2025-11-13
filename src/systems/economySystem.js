@@ -1,64 +1,84 @@
 // src/systems/economySystem.js
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { loadUserCached, markUserDirty } from "./userCacheSystem.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const userDataPath = path.join(__dirname, "../../users");
-
-export function loadUser(userid) {
-  const file = path.join(userDataPath, `${userid}.json`);
-  if (!fs.existsSync(file)) {
-    const data = createNewUser(userid);
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-    return data;
-  }
-  return JSON.parse(fs.readFileSync(file));
+/**
+ * Adiciona ouro ao usuário
+ */
+export function addGold(userId, amount) {
+  const user = loadUserCached(userId);
+  user.gold += amount;
+  markUserDirty(userId);
 }
 
-export function saveUser(user) {
-  const file = path.join(userDataPath, `${user.id}.json`);
-  fs.writeFileSync(file, JSON.stringify(user, null, 2));
-}
-
-export function getXpNeeded(level) {
-  // XP cresce exponencialmente
-  return Math.floor(1000 * Math.pow(level, 2.2));
-}
-
-export function addXp(user, amount) {
-  user.xp += amount;
-  const needed = getXpNeeded(user.level);
-  if (user.xp >= needed) {
-    user.xp -= needed;
-    user.level++;
-    user.energy += 10; // recompensa ao subir de nível
-    return `✨ Subiu para o nível ${user.level}!`;
-  }
-  return null;
-}
-
-export function spendEnergy(user, amount = 4) {
-  if (user.energy < amount) return false;
-  user.energy -= amount;
+/**
+ * Gasta ouro do usuário
+ */
+export function spendGold(userId, amount) {
+  const user = loadUserCached(userId);
+  if (user.gold < amount) return false;
+  user.gold -= amount;
+  markUserDirty(userId);
   return true;
 }
 
-export function regenerateEnergy(user) {
-  const now = Date.now();
-  const claimPeriod = 1000 * 60 * 60; // 1 hora
-  const hours = new Date().getHours();
-  
-  if (hours >= 10 && hours <= 15 && now - user.lastEnergyClaim > claimPeriod) {
-    user.energy += 30;
-    user.lastEnergyClaim = now;
-    return `⚡ Recebeu +30 de energia pelo login entre 10h e 15h!`;
-  }
-  return null;
+/**
+ * Adiciona gemas ao usuário
+ */
+export function addGems(userId, amount) {
+  const user = loadUserCached(userId);
+  user.gems += amount;
+  markUserDirty(userId);
 }
 
-export function addGold(user, amount) {
-  user.gold += amount;
+/**
+ * Gasta gemas
+ */
+export function spendGems(userId, amount) {
+  const user = loadUserCached(userId);
+  if (user.gems < amount) return false;
+  user.gems -= amount;
+  markUserDirty(userId);
+  return true;
+}
+
+/**
+ * Adiciona cupom ao usuário
+ */
+export function addCoupons(userId, amount) {
+  const user = loadUserCached(userId);
+  user.coupons += amount;
+  markUserDirty(userId);
+}
+
+/**
+ * Gasta cupom
+ */
+export function spendCoupons(userId, amount) {
+  const user = loadUserCached(userId);
+  if (user.coupons < amount) return false;
+  user.coupons -= amount;
+  markUserDirty(userId);
+  return true;
+}
+
+/**
+ * Adiciona XP de jogador e sobe nível
+ */
+export function addXP(userId, amount) {
+  const user = loadUserCached(userId);
+  if (!user.level) user.level = 1;
+  if (!user.xp) user.xp = 0;
+  
+  user.xp += amount;
+  
+  const xpForNext = Math.floor(1000 * Math.pow(user.level, 2.2));
+  if (user.xp >= xpForNext) {
+    user.xp -= xpForNext;
+    user.level++;
+    markUserDirty(userId);
+    return `✨ Subiu para o nível ${user.level}!`;
+  }
+  
+  markUserDirty(userId);
+  return null;
 }

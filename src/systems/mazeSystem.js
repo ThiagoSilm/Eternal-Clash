@@ -1,107 +1,139 @@
 // src/systems/mazeSystem.js
-import events from "../../data/mazeEvents.json" with {type: 'json'};
 import { loadUser, saveUser } from "./economySystem.js";
-import { spendEnergy } from "./energySystem.js";
+import { summonCard, summonMultiple } from "./summonSystem.js";
+import { spendEnergy, addGold, addXp } from "./economySystem.js";
+import { battle } from "./battleSystem.js";
 
-export function rollDice() {
-  return Math.floor(Math.random() * 6) + 1;
-}
+// Configurações de maze
+const mazeConfig = {
+  maps: {
+    2: { maxHouses: 40, unlocked: true, baseForce: 7500 },
+    3: { maxHouses: 40, unlocked: true, baseForce: 8000 },
+    4: { maxHouses: 40, unlocked: true, baseForce: 8500 },
+    5: { maxHouses: 60, unlocked: false, baseForce: 9000 },
+    6: { maxHouses: 60, unlocked: false, baseForce: 9500 },
+    7: { maxHouses: 60, unlocked: false, baseForce: 10000 },
+    8: { maxHouses: 60, unlocked: false, baseForce: 10500 },
+    9: { maxHouses: 60, unlocked: false, baseForce: 11000 },
+    10: { maxHouses: 60, unlocked: false, baseForce: 11500 },
+    11: { maxHouses: 60, unlocked: false, baseForce: 12000 },
+    12: { maxHouses: 100, unlocked: false, baseForce: 13000 },
+    13: { maxHouses: 100, unlocked: false, baseForce: 13500 },
+    14: { maxHouses: 100, unlocked: false, baseForce: 14000 },
+    15: { maxHouses: 100, unlocked: false, baseForce: 14500 },
+    16: { maxHouses: 100, unlocked: false, baseForce: 15000 },
+    17: { maxHouses: 100, unlocked: false, baseForce: 15500 },
+  },
+  energyCost: 4,
+  goldDiceCost: 20 // gemas
+};
 
-export function enterMaze(username) {
-  const user = loadUser(username);
-  if (!user.maze) user.maze = { position: 0, floor: 1, completed: false };
-
-  if (!spendEnergy(username, 3))
-    return "⚡ Energia insuficiente para explorar o Maze.";
-
-  const dice = rollDice();
-  user.maze.position += dice;
-
-  const event = getRandomEvent();
-  const result = handleEvent(user, event);
-
-  saveUser(user);
-
-  return `🎲 Você rolou **${dice}** e avançou para a casa **${user.maze.position}**!\n${result}`;
-}
-
-function getRandomEvent() {
-  const index = Math.floor(Math.random() * events.length);
-  return events[index];
-}
-
-function handleEvent(user, event) {
-  let result = `🌀 Evento: **${event.name}**\n`;
-
-  switch (event.type) {
-    case "enemy":
-      result += battleEvent(user, event);
-      break;
-    case "chest":
-      result += gainRewards(user, event.reward);
-      break;
-    case "heal":
-      result += healUser(user, event.reward.heal);
-      break;
-    case "boss":
-      result += bossEvent(user, event);
-      break;
-    case "empty":
-      result += "Nada aconteceu...";
-      break;
+/**
+ * Inicializa o estado do maze para o usuário
+ */
+function initMazeState(user, mapId) {
+  if (!user.mazes) user.mazes = {};
+  if (!user.mazes[mapId]) {
+    user.mazes[mapId] = {
+      position: 0,
+      usedToday: 0,
+      resetUsed: false
+    };
   }
-
-  return result;
 }
 
-function battleEvent(user, event) {
-  const winChance = 70;
-  const roll = Math.random() * 100;
-
-  if (roll <= winChance) {
-    gainRewards(user, event.reward);
-    return `⚔️ Você derrotou o ${event.name}!\n${formatRewards(event.reward)}`;
+/**
+ * Rola o dado e avança no maze
+ */
+export function rollMaze(user, mapId) {
+  const map = mazeConfig.maps[mapId];
+  if (!map || !map.unlocked) return "❌ Mapa não desbloqueado.";
+  
+  initMazeState(user, mapId);
+  
+  const mazeState = user.mazes[mapId];
+  
+  if (mazeState.usedToday >= 2) return "⚠️ Você já usou suas 2 tentativas diárias neste mapa.";
+  
+  if (!spendEnergy(user, mazeConfig.energyCost)) return "⚡ Energia insuficiente.";
+  
+  // Rola dado (1 a 6)
+  const roll = Math.floor(Math.random() * 6) + 1;
+  mazeState.position += roll;
+  
+  if (mazeState.position > map.maxHouses) mazeState.position = map.maxHouses;
+  
+  // Recompensa de casa
+  let message = `🎲 Você rolou ${roll} e está na casa ${mazeState.position}/${map.maxHouses}.\n`;
+  
+  const rewardRoll = Math.random();
+  if (rewardRoll < 0.4) {
+    const goldReward = 500 + Math.floor(Math.random() * 1000);
+    addGold(user, goldReward);
+    message += `💰 Você encontrou ${goldReward} de ouro!\n`;
+  } else if (rewardRoll < 0.7) {
+    const xpReward = 50 + Math.floor(Math.random() * 200);
+    addXp(user, xpReward);
+    message += `✨ Você ganhou ${xpReward} XP!\n`;
   } else {
-    return `💀 O ${event.name} te derrotou... mas você poderá tentar novamente.`;
+    // Luta
+    const battleResult = battle(user, { type: "mazeEnemy", mapForce: map.baseForce });
+    if (battleResult.win) {
+      message += `⚔️ Você venceu a batalha! Avance normalmente.\n`;
+    } else {
+      mazeState.position = Math.max(mazeState.position - roll, 0);
+      message += `❌ Você perdeu a batalha e voltou algumas casas.\n`;
+    }
   }
-}
-
-function bossEvent(user, event) {
-  const winChance = 55;
-  const roll = Math.random() * 100;
-
-  if (roll <= winChance) {
-    gainRewards(user, event.reward);
-    user.maze.completed = true;
-    return `🔥 Você venceu o **${event.name}**!\n🏆 Maze do andar ${user.maze.floor} completo!\n${formatRewards(event.reward)}`;
-  } else {
-    return `💀 O **${event.name}** acabou com você. Volte mais forte.`;
-  }
-}
-
-function gainRewards(user, reward) {
-  user.gold += reward.gold || 0;
-  user.xp = (user.xp || 0) + (reward.xp || 0);
-  user.gems += reward.gems || 0;
-  return "";
-}
-
-function healUser(user, amount) {
-  user.hp = Math.min(100, (user.hp || 100) + amount);
-  return `❤️ Recuperou ${amount} de HP!`;
-}
-
-function formatRewards(reward) {
-  let msg = "";
-  if (reward.gold) msg += `💰 +${reward.gold} ouro\n`;
-  if (reward.xp) msg += `📚 +${reward.xp} XP\n`;
-  if (reward.gems) msg += `💎 +${reward.gems} gemas\n`;
-  return msg.trim();
-}
-
-export function resetMaze(username) {
-  const user = loadUser(username);
-  user.maze = { position: 0, floor: 1, completed: false };
+  
+  mazeState.usedToday++;
   saveUser(user);
-  return "🔄 Maze resetado. Você voltou ao início!";
+  
+  // Checagem de chefão
+  if (mazeState.position === map.maxHouses) {
+    message += `👑 Você alcançou o chefão do mapa ${mapId}!\n`;
+    const bossReward = summonMultiple(user, "mazeBoss", 3, { mapForce: map.baseForce });
+    const goldFinal = 5000 + Math.floor(Math.random() * 5000);
+    const xpFinal = 500 + Math.floor(Math.random() * 500);
+    addGold(user, goldFinal);
+    addXp(user, xpFinal);
+    message += `🏆 Recompensas do chefão: 3 cartas + ${goldFinal} de ouro + ${xpFinal} XP.\n`;
+    message += bossReward;
+  }
+  
+  return message;
+}
+
+/**
+ * Usa o Gold Dice para escolher casa
+ */
+export function useGoldDice(user, mapId, targetHouse) {
+  if (!user.mazes || !user.mazes[mapId]) return "❌ Maze não iniciado.";
+  
+  if (user.gems < mazeConfig.goldDiceCost) return "💎 Gemas insuficientes para usar o Gold Dice.";
+  
+  user.gems -= mazeConfig.goldDiceCost;
+  const mazeState = user.mazes[mapId];
+  
+  if (targetHouse < mazeState.position) return "⚠️ Não pode retroceder casas com o Gold Dice.";
+  mazeState.position = Math.min(targetHouse, mazeConfig.maps[mapId].maxHouses);
+  
+  saveUser(user);
+  return `🎲 Gold Dice usado! Você avançou para a casa ${mazeState.position}.`;
+}
+
+/**
+ * Reseta o maze (uma vez por dia)
+ */
+export function resetMaze(user, mapId) {
+  initMazeState(user, mapId);
+  const mazeState = user.mazes[mapId];
+  
+  if (mazeState.resetUsed) return "⚠️ Você já usou o reset do maze hoje.";
+  
+  mazeState.position = 0;
+  mazeState.usedToday = 0;
+  mazeState.resetUsed = true;
+  saveUser(user);
+  return "🔄 Maze resetado! Você pode jogar novamente.";
 }

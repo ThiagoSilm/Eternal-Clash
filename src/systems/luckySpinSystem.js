@@ -1,60 +1,116 @@
-import { loadUser, saveUser } from "./economySystem.js";
-import rewards from "../../data/luckySpinRewards.json" with {type: 'json'};
-import cards from "../../data/cards.json" with {type: 'json'};
-import boosters from "../../data/boosters.json" with {type: 'json'};
+// src/systems/luckySpinSystem.js
+import { loadUser, saveUser } from "./userCacheSystem.js";
+import { giveCardToUser, getAllGuardians } from "./cardSystem.js";
+import boosters from "../data/boosters.json" assert { type: "json" };
 
-export function spinLucky(username) {
-  const user = loadUser(username);
+// Probabilidades base (em %)
+const spinItemsNormal = [
+  { type: "gold", value: 200, chance: 25 },
+  { type: "gold", value: 500, chance: 20 },
+  { type: "xp", value: 100, chance: 20 },
+  { type: "xp", value: 250, chance: 10 },
+  { type: "card", value: null, chance: 20 },
+  { type: "gems", value: 1, chance: 5 }
+];
 
-  const spinCost = 100; // gemas
-  if (user.gems < spinCost) return "💎 Gemas insuficientes para girar o Lucky Spin.";
+const spinItemsMega = [
+  { type: "gold", value: 500, chance: 15 },
+  { type: "gold", value: 1000, chance: 10 },
+  { type: "xp", value: 200, chance: 15 },
+  { type: "xp", value: 500, chance: 10 },
+  { type: "card", value: null, chance: 25 },
+  { type: "gems", value: 5, chance: 10 },
+  { type: "lottery", value: null, chance: 10 },
+  { type: "guardian", value: null, chance: 5 }
+];
 
-  user.gems -= spinCost;
+function rollItem(items) {
+  const roll = Math.random() * 100;
+  let accumulated = 0;
+  for (const item of items) {
+    accumulated += item.chance;
+    if (roll <= accumulated) return item;
+  }
+  return items[0];
+}
 
-  const reward = randomReward();
-  applyReward(user, reward);
+function executeSpin(user, isMega = false) {
+  const items = isMega ? spinItemsMega : spinItemsNormal;
+  const selected = rollItem(items);
+  let message = "";
+
+  switch (selected.type) {
+    case "gold":
+      user.gold += selected.value;
+      message = `${selected.value} de ouro 💰`;
+      break;
+    case "xp":
+      user.xp += selected.value;
+      message = `${selected.value} XP ✨`;
+      break;
+    case "gems":
+      user.gems = (user.gems || 0) + selected.value;
+      message = `${selected.value} gema(s) 💎`;
+      break;
+    case "card":
+      let cardId;
+      if (Math.random() < 0.2 && boosters.length > 0) {
+        const booster = boosters[Math.floor(Math.random() * boosters.length)];
+        cardId = booster.cards[Math.floor(Math.random() * booster.cards.length)];
+      } else {
+        cardId = Math.floor(Math.random() * 200) + 1;
+      }
+      const card = giveCardToUser(user, cardId);
+      message = `Carta: ${card.name} 🎴`;
+      break;
+    case "lottery":
+      if (Math.random() < 0.5) {
+        const cardId5 = Math.floor(Math.random() * 10) + 1;
+        const card5 = giveCardToUser(user, cardId5);
+        message = `🎰 Loteria! Carta 5★: ${card5.name}`;
+      } else {
+        const gemsPrize = 50;
+        user.gems += gemsPrize;
+        message = `🎰 Loteria! ${gemsPrize} gemas 💎`;
+      }
+      break;
+    case "guardian":
+      const allGuardians = getAllGuardians();
+      const available = allGuardians.filter(g => !user.guardians?.includes(g.id));
+      if (available.length === 0) {
+        message = "Nenhum guardian disponível para receber 😅";
+      } else {
+        const guardian = available[Math.floor(Math.random() * available.length)];
+        if (!user.guardians) user.guardians = [];
+        user.guardians.push(guardian.id);
+        message = `🛡️ Guardian obtido: ${guardian.name}!`;
+      }
+      break;
+  }
+
+  return message;
+}
+
+export function spinLucky(user, count = 1) {
+  if (!user.luckySpinCount) user.luckySpinCount = 0;
+  const messages = [];
+
+  for (let i = 0; i < count; i++) {
+    const isMega = (user.luckySpinCount + 1) % 10 === 0;
+    if (!isMega && user.gold < 100) {
+      messages.push("💰 Ouro insuficiente para continuar girando.");
+      break;
+    }
+    if (!isMega) user.gold -= 100;
+
+    const msg = executeSpin(user, isMega);
+    messages.push(isMega ? `🌟 Mega Spin! ${msg}` : `🎉 Spin! ${msg}`);
+    user.luckySpinCount += 1;
+  }
+
+  const spinsLeft = 10 - (user.luckySpinCount % 10);
+  messages.push(`🌀 Giros até o próximo Mega Spin: ${spinsLeft}`);
 
   saveUser(user);
-  return formatResult(reward);
-}
-
-function randomReward() {
-  const roll = Math.random() * 100;
-  let sum = 0;
-  for (const r of rewards) {
-    sum += r.chance;
-    if (roll <= sum) return r;
-  }
-  return rewards[0];
-}
-
-function applyReward(user, reward) {
-  switch (reward.type) {
-    case "gold": user.gold += reward.amount; break;
-    case "gems": user.gems += reward.amount; break;
-    case "xp": user.xp = (user.xp || 0) + reward.amount; break;
-    case "energy": user.energy = (user.energy || 0) + reward.amount; break;
-    case "card":
-      if (!user.cards) user.cards = [];
-      const possible = cards.filter(c => c.rarity === reward.rarity);
-      const card = possible[Math.floor(Math.random() * possible.length)];
-      user.cards.push(card);
-      break;
-    case "booster":
-      if (!user.boosters) user.boosters = [];
-      const booster = boosters.find(b => b.name === reward.name);
-      if (booster) user.boosters.push(booster);
-      break;
-  }
-}
-
-function formatResult(reward) {
-  switch (reward.type) {
-    case "gold": return `🎰 Lucky Spin: 💰 +${reward.amount} ouro!`;
-    case "gems": return `🎰 Lucky Spin: 💎 +${reward.amount} gemas!`;
-    case "xp": return `🎰 Lucky Spin: 📚 +${reward.amount} XP!`;
-    case "energy": return `🎰 Lucky Spin: ⚡ +${reward.amount} energia!`;
-    case "card": return `🎰 Lucky Spin: 🎴 Você tirou uma carta ${reward.rarity} estrelas!`;
-    case "booster": return `🎰 Lucky Spin: 🎁 Você recebeu o booster "${reward.name}"!`;
-  }
+  return messages.join("\n");
 }

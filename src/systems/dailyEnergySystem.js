@@ -1,33 +1,81 @@
 // src/systems/dailyEnergySystem.js
-import { loadUser, saveUser } from "./economySystem.js";
+import { loadUserCached, markUserDirty } from "./userCacheSystem.js";
 
-const PERIODS = [
-  { start: 10, end: 15, bonus: 30 },
-  { start: 18, end: 21, bonus: 30 }
+/**
+ * Define os horários de bônus de energia e quantidade.
+ * Pode ser ajustado conforme desejado.
+ */
+const bonusPeriods = [
+  { startHour: 10, endHour: 15, energy: 30 }, // Ex: 10h às 15h
+  { startHour: 20, endHour: 22, energy: 20 } // Ex: 20h às 22h
 ];
 
-export function claimDailyEnergy(username) {
-  const user = loadUser(username);
-  const now = new Date();
-  const hour = now.getHours();
+/**
+ * Recompensa diária de login
+ */
+export function claimDailyEnergy(userId) {
+  const user = loadUserCached(userId);
+  const now = Date.now();
   
-  const availablePeriod = PERIODS.find(p => hour >= p.start && hour < p.end);
-  if (!availablePeriod) return "⏰ Nenhum período ativo para resgate de energia agora.";
+  if (!user.lastDailyClaim) user.lastDailyClaim = 0;
   
-  const lastClaim = user.lastEnergyClaim ? new Date(user.lastEnergyClaim) : null;
-  if (lastClaim && samePeriod(lastClaim, now, availablePeriod))
-    return "⚠️ Você já resgatou energia neste período.";
+  // 24h desde o último claim
+  if (now - user.lastDailyClaim < 1000 * 60 * 60 * 24) {
+    return "⚠️ Você já recebeu sua energia diária hoje.";
+  }
   
-  user.energy = Math.min(user.energy + availablePeriod.bonus, user.maxEnergy);
-  user.lastEnergyClaim = now.toISOString();
-  saveUser(user);
-  return `⚡ Você resgatou ${availablePeriod.bonus} de energia! Agora tem ${user.energy}/${user.maxEnergy}.`;
+  // Energia padrão diária
+  const baseEnergy = 50;
+  user.energy += baseEnergy;
+  
+  // Aplica bônus por horário
+  const currentHour = new Date().getHours();
+  bonusPeriods.forEach(period => {
+    if (currentHour >= period.startHour && currentHour <= period.endHour) {
+      user.energy += period.energy;
+    }
+  });
+  
+  user.lastDailyClaim = now;
+  markUserDirty(userId);
+  
+  return `⚡ Você recebeu sua energia diária de ${baseEnergy} + bônus de horário! Total atual: ${user.energy} de energia.`;
 }
 
-function samePeriod(last, now, period) {
-  return (
-    last.getHours() >= period.start &&
-    last.getHours() < period.end &&
-    last.getDate() === now.getDate()
-  );
+/**
+ * Recupera energia baseada em tempo de jogo (opcional)
+ */
+export function regenEnergyOverTime(userId) {
+  const user = loadUserCached(userId);
+  const now = Date.now();
+  
+  if (!user.lastEnergyRegen) user.lastEnergyRegen = now;
+  
+  const delta = now - user.lastEnergyRegen;
+  const regenRate = 1; // 1 energia a cada minuto
+  const regenAmount = Math.floor(delta / (1000 * 60) * regenRate);
+  
+  if (regenAmount > 0) {
+    user.energy += regenAmount;
+    user.lastEnergyRegen = now;
+    markUserDirty(userId);
+  }
+  
+  return regenAmount;
+}
+
+/**
+ * Permite comprar energia usando gemas
+ */
+export function buyEnergy(userId, gemsSpent = 1) {
+  const user = loadUserCached(userId);
+  
+  if (user.gems < gemsSpent) return "💎 Gemas insuficientes.";
+  
+  const energyPerGem = 40;
+  user.gems -= gemsSpent;
+  user.energy += energyPerGem;
+  markUserDirty(userId);
+  
+  return `⚡ Você comprou ${energyPerGem} de energia usando ${gemsSpent} gemas. Total atual: ${user.energy} de energia.`;
 }

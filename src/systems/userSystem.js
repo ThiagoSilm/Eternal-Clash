@@ -1,82 +1,85 @@
 // src/systems/userSystem.js
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { loadUserCached, markUserDirty, saveUser } from "./userCacheSystem.js";
+import { getNextLevelXP } from "./xpSystem.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const usersPath = path.join(__dirname, "./users/");
-
-// Garante que a pasta de usuários existe
-if (!fs.existsSync(usersPath)) {
-  fs.mkdirSync(usersPath, { recursive: true });
+export function createUser(userId) {
+  const user = loadUserCached(userId);
+  markUserDirty(userId);
+  return user;
 }
 
-/**
- * Carrega um usuário existente ou cria um novo se não existir.
- * @param {string} userId - ID único do jogador
- * @returns {Object} Dados do usuário
- */
-export function getOrCreateUser(userId) {
-  const userFile = path.join(usersPath, `${userId}.json`);
-  
-  // Se o arquivo não existe, cria um novo usuário
-  if (!fs.existsSync(userFile)) {
-    const newUser = {
-      id: userId,
-      level: 1,
-      xp: 0,
-      gold: 1000000,
-      gems: 50,
-      energy: 30,
-      maxEnergy: 100,
-      cards: [],
-      decks: { main: [], tower: [], pvp: [] },
-      guardian: null,
-      daily: { lastClaim: null, streak: 0 },
-      clan: null,
-      tower: { floor: 1, progress: [] },
-    };
-    
-    fs.writeFileSync(userFile, JSON.stringify(newUser, null, 2));
-    console.log(`🆕 Novo usuário criado: ${userId}`);
-    return newUser;
-  }
-  
-  // Se já existe, tenta carregar
-  try {
-    const userData = JSON.parse(fs.readFileSync(userFile, "utf-8"));
-    return userData;
-  } catch (err) {
-    console.error(`❌ Erro ao ler dados do usuário ${userId}:`, err);
-    // Recupera criando novo perfil
-    const backupUser = {
-      id: userId,
-      gold: 100000,
-      gems: 50,
-      coupons: 10,
-      energy: 30,
-      maxEnergy: 100,
-      lastEnergyClaim: null,
-      lastEnergyTick: Date.now(),
-      cards: [],
-      clan: [],
-      decks: {
-      main: [],
-      tower: [],
-      pvp: []},
-      guardian: null                                                                 
-    };
-    fs.writeFileSync(userFile, JSON.stringify(backupUser, null, 2));
-    return backupUser;
-  }
+export function addResource(user, type, amount) {
+  if (!["gold", "gems", "coupons", "energy", "xp"].includes(type)) return false;
+  user[type] = (user[type] || 0) + amount;
+  markUserDirty(user.userId);
+  return true;
 }
 
-/**
- * Salva os dados atualizados do usuário.
- * @param {Object} user - Objeto de dados do jogador
- */
-export function saveUser(user) {
-  const userFile = path.join(usersPath, `${user.id}.json`);
-  fs.writeFileSync(userFile, JSON.stringify(user, null, 2));
+export function spendResource(user, type, amount) {
+  if (!["gold", "gems", "coupons", "energy"].includes(type)) return false;
+  if ((user[type] || 0) < amount) return false;
+  user[type] -= amount;
+  markUserDirty(user.userId);
+  return true;
+}
+
+export function addXp(user, amount) {
+  user.xp += amount;
+  let leveledUp = false;
+  while (user.xp >= getNextLevelXP(user.level)) {
+    user.xp -= getNextLevelXP(user.level);
+    user.level++;
+    user.energy += 10;
+    leveledUp = true;
+  }
+  markUserDirty(user.userId);
+  return leveledUp ? `✨ Subiu para o nível ${user.level}!` : null;
+}
+
+// Deck management
+export function getUnlockedDecks(user) {
+  const maxDeck = Math.min(5, Math.ceil(user.level / 8)); // 5 decks liberados até level 40
+  return Object.keys(user.decks).slice(0, maxDeck);
+}
+
+export function addCardToDeck(user, card, deckName) {
+  const unlocked = getUnlockedDecks(user);
+  if (!unlocked.includes(deckName)) return "⚠️ Deck não desbloqueado ainda.";
+  if (!user.decks[deckName]) user.decks[deckName] = [];
+  if (user.decks[deckName].length >= 10) return "⚠️ Deck cheio.";
+  user.decks[deckName].push(card);
+  markUserDirty(user.userId);
+  return `✅ ${card.id} adicionada ao ${deckName}`;
+}
+
+export function removeCardFromDeck(user, deckName, index) {
+  const deck = user.decks[deckName];
+  if (!deck || deck.length === 0) return "⚠️ Deck vazio.";
+  const removed = deck.splice(index, 1)[0];
+  markUserDirty(user.userId);
+  return `🗑️ ${removed.id} removida do ${deckName}`;
+}
+
+export function removeAllCardsFromDeck(user, deckName, keepCardId = null) {
+  const deck = user.decks[deckName];
+  if (!deck) return;
+  user.decks[deckName] = deck.filter((c) => c.id === keepCardId);
+  markUserDirty(user.userId);
+}
+
+export function listCards(user, filter = {}) {
+  // filter: { rarity, minLevel, maxLevel, type: 'guardian'|'card' }
+  return user.cards.filter((c) => {
+    if (filter.rarity && c.rarity !== filter.rarity) return false;
+    if (filter.type === "guardian" && !c.id.startsWith("G")) return false;
+    if (filter.type === "card" && c.id.startsWith("G")) return false;
+    if (filter.minLevel && c.level < filter.minLevel) return false;
+    if (filter.maxLevel && c.level > filter.maxLevel) return false;
+    return true;
+  });
+}
+
+// Save user at end
+export function saveUserData(user) {
+  saveUser(user);
 }

@@ -1,67 +1,58 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { fuseCards, levelUpCard } from "../../src/systems/xpSystem.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const usersPath = path.join(__dirname, "../../users/");
+// src/commands/upgrade.js
+import { loadUser, saveUser } from "../../src/systems/economySystem.js";
+import { getCardTemplate } from "../../src/systems/cardSystem.js";
+import { levelUpCard, burnCardForXP } from "../../src/systems/xpSystem.js";
+import {
+  filterCards,
+} from "../../src/systems/inventorySystem.js";
 
 export default {
   name: "upgrade",
-  description: "Funde ou evolui cartas do jogador.",
-  async execute(message, args = []) {
+  description: "Upa cartas usando outras cartas e ouro.",
+  async execute(message, args) {
     const userId = message.author.id;
-    const userFile = path.join(usersPath, `${userId}.json`);
+    const user = loadUser(userId);
     
-    if (!fs.existsSync(userFile)) {
-      await message.reply("❌ Usuário não encontrado.");
-      return;
+    if (!args[0]) return message.reply("❌ Informe o número da carta que deseja upar.");
+    
+    const mainIndex = parseInt(args[0]);
+    const mainCard = user.cards[mainIndex - 1];
+    if (!mainCard) return message.reply("❌ Carta principal inválida.");
+    
+    if (mainCard.isGuardian) return message.reply("⚠️ Guardiões não podem ser upados.");
+    
+    // Cartas para sacrificar
+    const sacrificeIndexes = args.slice(1).map(n => parseInt(n) - 1);
+    if (sacrificeIndexes.includes(mainIndex - 1)) return message.reply("⚠️ Não pode usar a própria carta para upgrade.");
+    
+    const sacrifices = sacrificeIndexes
+      .map(i => user.cards[i])
+      .filter(c => c && !c.isGuardian);
+    
+    if (sacrifices.length === 0) return message.reply("⚠️ Nenhuma carta válida para usar como XP.");
+    
+    let totalXP = 0;
+    let totalGold = 0;
+    
+    // Calcula XP e ouro
+    for (const card of sacrifices) {
+      totalXP += burnCardForXP(card);
+      totalGold += Math.floor(card.level * 100); // custo gradual, exemplo: 100 ouro por nível da carta sacrificada
     }
     
-    const user = JSON.parse(fs.readFileSync(userFile, "utf-8"));
-    const [action, baseIdRaw, sacrificeIdRaw] = args;
+    if (user.gold < totalGold) return message.reply(`💰 Ouro insuficiente. Precisa de ${totalGold} ouro.`);
     
-    if (!action) {
-      await message.reply("❌ Uso inválido. Use `!upgrade fuse <cartaBaseId> <cartaSacrifícioId>` ou `!upgrade levelup <cartaId>`.");
-      return;
-    }
+    // Remove ouro e cartas sacrificadas
+    user.gold -= totalGold;
+    user.cards = user.cards.filter(c => !sacrifices.includes(c));
     
-    let response = "";
-    let updated = false;
+    // Adiciona XP à carta principal
+    mainCard.xp = (mainCard.xp || 0) + totalXP;
     
-    switch (action.toLowerCase()) {
-      case "fuse": {
-        if (!baseIdRaw || !sacrificeIdRaw) {
-          response = "❌ Use: `!upgrade fuse <cartaBaseId> <cartaSacrifícioId>`";
-          break;
-        }
-        const result = fuseCards(user, baseIdRaw, sacrificeIdRaw);
-        response = result.message;
-        updated = result.success;
-        break;
-      }
-      
-      case "levelup": {
-        if (!baseIdRaw) {
-          response = "❌ Use: `!upgrade levelup <cartaId>`";
-          break;
-        }
-        const result = levelUpCard(user, baseIdRaw);
-        response = result.message;
-        updated = result.success;
-        break;
-      }
-      
-      default:
-        response = "❌ Comando inválido. Use `!upgrade fuse <cartaBaseId> <cartaSacrifícioId>` ou `!upgrade levelup <cartaId>`";
-    }
+    // Tenta upar a carta
+    const result = levelUpCard(user, mainCard.uniqueId);
     
-    if (updated) {
-      fs.writeFileSync(userFile, JSON.stringify(user, null, 2));
-      response = "✅ " + response;
-    }
-    
-    await message.reply(response);
+    saveUser(user);
+    return message.reply(`✨ Upgrade concluído! ${result.message}\n💰 Ouro gasto: ${totalGold}`);
   }
 };

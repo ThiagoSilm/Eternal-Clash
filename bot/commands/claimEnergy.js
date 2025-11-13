@@ -1,17 +1,31 @@
-import { claimDailyEnergy } from "../../src/systems/dailyEnergySystem.js";
-import { saveUser } from "../../src/systems/userSystem.js"; // ou userCacheSystem se for o caso
+// src/commands/claimEnergy.js
+import { saveUser } from "../../src/systems/userSystem.js";
+import { addEnergy } from "../../src/systems/economySystem.js";
 
 export default {
   name: "claimenergy",
   description: "Resgatar energia diária do jogador.",
   
   async execute(message, args, user) {
-    // `user` já vem carregado pelo index.js via getOrCreateUser()
-    const result = claimDailyEnergy(user);
+    const today = new Date().toDateString();
     
-    // caso o sistema altere o estado do jogador (energia, último resgate etc.)
+    if (!user.dailyClaims) user.dailyClaims = {};
+    
+    if (user.dailyClaims.energy === today) {
+      await message.reply("⚡ Você já coletou sua energia hoje. Tente novamente amanhã!");
+      return;
+    }
+    
+    const energyAmount = 30;
+    
+    if (!addEnergy(user, energyAmount)) {
+      await message.reply("⚠️ Não foi possível adicionar energia. Verifique se há limite máximo.");
+      return;
+    }
+    
+    user.dailyClaims.energy = today;
     saveUser(user);
     
-    await message.reply(result);
+    await message.reply(`⚡ Você coletou +${energyAmount} de energia!`);
   }
 };

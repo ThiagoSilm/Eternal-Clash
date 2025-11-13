@@ -1,73 +1,66 @@
+// src/systems/userCacheSystem.js
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
-import { getOrCreateUser } from "./userSystem.js"; // tua função de criação padrão
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const usersPath = path.join(__dirname, "../../users/");
+const dataPath = path.join(process.cwd(), "data/users.json");
+const cache = new Map();
+const dirty = new Set();
 
-// Cache na memória
-const userCache = new Map();
-
-// Controla modificações
-const dirtyUsers = new Set();
-
-// Carrega usuário (do cache ou arquivo)
 export function loadUserCached(userId) {
-  if (userCache.has(userId)) {
-    return userCache.get(userId);
+  if (cache.has(userId)) return cache.get(userId);
+  
+  let userData = {};
+  if (fs.existsSync(dataPath)) {
+    const allData = JSON.parse(fs.readFileSync(dataPath, "utf-8"));
+    userData = allData[userId] || {};
   }
   
-  const userFile = path.join(usersPath, `${userId}.json`);
-  let user;
+  // Inicializa campos padrão
+  const defaultUser = {
+    userId,
+    level: 1,
+    xp: 0,
+    energy: 10,
+    gold: 0,
+    gems: 0,
+    coupons: 0,
+    cards: [],
+    decks: { deck1: [], deck2: [], deck3: [], deck4: [], deck5: [] },
+    seed: Math.floor(Math.random() * 999999),
+    lastEnergyClaim: 0,
+  };
   
-  if (fs.existsSync(userFile)) {
-    user = JSON.parse(fs.readFileSync(userFile, "utf-8"));
-  } else {
-    user = getOrCreateUser(userId);
-    fs.writeFileSync(userFile, JSON.stringify(user, null, 2));
-  }
-  
-  userCache.set(userId, user);
+  const user = { ...defaultUser, ...userData };
+  cache.set(userId, user);
   return user;
 }
 
-// Marca usuário como modificado (pra salvar depois)
 export function markUserDirty(userId) {
-  dirtyUsers.add(userId);
+  dirty.add(userId);
 }
 
-// Salva usuário específico
-export function saveUserCached(userId) {
-  if (!userCache.has(userId)) return;
-  const user = userCache.get(userId);
-  const userFile = path.join(usersPath, `${userId}.json`);
-  fs.writeFileSync(userFile, JSON.stringify(user, null, 2));
-  dirtyUsers.delete(userId);
+export function saveUser(user) {
+  const userId = user.userId;
+  const allData = fs.existsSync(dataPath) ?
+    JSON.parse(fs.readFileSync(dataPath, "utf-8")) :
+    {};
+  allData[userId] = user;
+  fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
+  dirty.delete(userId);
 }
 
-// Salva todos os usuários modificados periodicamente
-export function autoSaveUsers() {
-  for (const userId of dirtyUsers) {
-    saveUserCached(userId);
-  }
+// Salva todos os usuários sujos
+export function flushCache() {
+  if (dirty.size === 0) return;
+  const allData = fs.existsSync(dataPath) ?
+    JSON.parse(fs.readFileSync(dataPath, "utf-8")) :
+    {};
+  
+  dirty.forEach((userId) => {
+    const user = cache.get(userId);
+    if (user) allData[userId] = user;
+  });
+  
+  fs.writeFileSync(dataPath, JSON.stringify(allData, null, 2));
+  dirty.clear();
 }
-
-// Remove usuários inativos do cache (opcional)
-export function cleanupCache(maxInactiveMinutes = 10) {
-  const now = Date.now();
-  for (const [userId, user] of userCache.entries()) {
-    if (!user.lastActive) user.lastActive = now;
-    if (now - user.lastActive > maxInactiveMinutes * 60 * 1000) {
-      saveUserCached(userId);
-      userCache.delete(userId);
-    }
-  }
-}
-
-// Atualiza última atividade do usuário
-export function touchUser(userId) {
-  const user = userCache.get(userId);
-  if (user) user.lastActive = Date.now();
-} 

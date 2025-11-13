@@ -1,56 +1,153 @@
-// src/systems/inventorySystem.js
-import { loadUser, saveUser } from "./economySystem.js";
-import { getCardTemplate } from "./cardSystem.js";
+// src/systems/summonSystem.js
+import { getCardTemplate, giveCardToUser } from "./cardSystem.js";
+import { saveUserCached, loadUserCached } from "./economySystem.js";
+import cards from "../data/cards.json" with { type: "json" };
+import boosters from "../data/boosters.json" with { type: "json" };
 
-export function listInventory(username) {
-  const user = loadUser(username);
-  if (!user.cards || user.cards.length === 0) return "📦 Você ainda não tem cartas.";
+// Drop rates por raridade
+const dropRates = { 1: 45, 2: 30, 3: 15, 4: 7, 5: 3 };
 
-  const lines = user.cards.map((card, i) => {
-    const template = getCardTemplate(card.id);
-    return `${i + 1}. ${template.name} (${template.rarity}★) — Lv.${card.level}`;
-  });
+// Custos
+const summonCosts = {
+  card: { unit: 150, multi5: 675 },
+  guardian: { unit: 300, multi5: 675 },
+  booster: { multi5: 675 }
+};
 
-  return `📜 Suas Cartas:\n${lines.join("\n")}`;
+// Helper aleatório
+function randomChoice(array) {
+  return array[Math.floor(Math.random() * array.length)];
 }
 
-export function addCardToDeck(username, cardIndex, deckName = "main") {
-  const user = loadUser(username);
-  const card = user.cards[cardIndex - 1];
-  if (!card) return "❌ Carta inexistente.";
+/**
+ * Invoca cartas normais
+ */
+export function summonCards(userId, multi = false) {
+  const user = loadUserCached(userId);
+  const cost = multi ? summonCosts.card.multi5 : summonCosts.card.unit;
+  if (user.gems < cost) return "💎 Gemas insuficientes.";
+  user.gems -= cost;
 
-  if (!user.decks[deckName]) user.decks[deckName] = [];
+  const results = [];
+  const alreadyDrawn = new Set();
 
-  if (user.decks[deckName].length >= 10)
-    return "⚠️ O deck já tem o máximo de 10 cartas.";
+  const drawCount = multi ? 5 : 1;
+  let guaranteed5StarDone = false;
 
-  // Checar se carta está disponível
-  if (card.locked) return "🔒 Essa carta está em uso em outro evento.";
+  for (let i = 0; i < drawCount; i++) {
+    let rarity;
+    if (multi && !guaranteed5StarDone) {
+      rarity = 5;
+      guaranteed5StarDone = true;
+    } else {
+      const roll = Math.random() * 100;
+      let accumulated = 0;
+      rarity = 1;
+      for (const [r, rate] of Object.entries(dropRates)) {
+        accumulated += rate;
+        if (roll <= accumulated) {
+          rarity = parseInt(r);
+          break;
+        }
+      }
+    }
 
-  user.decks[deckName].push(card);
-  saveUser(user);
-  return `✅ ${getCardTemplate(card.id).name} adicionada ao deck ${deckName}!`;
+    const pool = cards.filter(c => c.rarity === rarity && !alreadyDrawn.has(c.id) && !c.id.startsWith("G"));
+    if (!pool.length) continue;
+
+    const chosen = randomChoice(pool);
+    giveCardToUser(user, chosen.id);
+    alreadyDrawn.add(chosen.id);
+    results.push(`${chosen.name} (${chosen.rarity}★)`);
+  }
+
+  saveUserCached(userId);
+  return `✨ Você recebeu:\n${results.join("\n")}`;
 }
 
-export function removeCardFromDeck(username, cardIndex, deckName = "main") {
-  const user = loadUser(username);
-  const deck = user.decks[deckName] || [];
-  if (deck.length === 0) return "⚠️ O deck está vazio.";
+/**
+ * Invoca guardiões
+ */
+export function summonGuardians(userId, multi = false) {
+  const user = loadUserCached(userId);
+  const cost = multi ? summonCosts.guardian.multi5 : summonCosts.guardian.unit;
+  if (user.gems < cost) return "💎 Gemas insuficientes.";
+  user.gems -= cost;
 
-  const removed = deck.splice(cardIndex - 1, 1)[0];
-  saveUser(user);
-  return `🗑️ ${getCardTemplate(removed.id).name} foi removida do deck ${deckName}.`;
+  const results = [];
+  const alreadyDrawn = new Set();
+
+  const drawCount = multi ? 5 : 1;
+  let guaranteed4or5StarDone = false;
+
+  for (let i = 0; i < drawCount; i++) {
+    let rarity;
+    if (multi && !guaranteed4or5StarDone) {
+      rarity = 4 + Math.floor(Math.random() * 2); // 4★ ou 5★ garantido
+      guaranteed4or5StarDone = true;
+    } else {
+      const roll = Math.random() * 100;
+      let accumulated = 0;
+      rarity = 1;
+      for (const [r, rate] of Object.entries(dropRates)) {
+        accumulated += rate;
+        if (roll <= accumulated) {
+          rarity = parseInt(r);
+          break;
+        }
+      }
+    }
+
+    // Pool de guardiões (IDs que começam com G) que o usuário ainda não possui
+    const pool = cards.filter(c => c.rarity === rarity && c.id.startsWith("G") && !user.cards.some(uc => uc.id === c.id) && !alreadyDrawn.has(c.id));
+    if (!pool.length) continue;
+
+    const chosen = randomChoice(pool);
+    giveCardToUser(user, chosen.id);
+    alreadyDrawn.add(chosen.id);
+    results.push(`${chosen.name} (${chosen.rarity}★)`);
+  }
+
+  saveUserCached(userId);
+  return `🛡️ Você recebeu guardiões:\n${results.join("\n")}`;
 }
 
-export function viewDeck(username, deckName = "main") {
-  const user = loadUser(username);
-  const deck = user.decks[deckName] || [];
+/**
+ * Invoca booster
+ */
+export function summonBooster(userId, boosterId) {
+  const user = loadUserCached(userId);
+  const booster = boosters.find(b => b.id === boosterId);
+  if (!booster) return "⚠️ Booster inválido.";
+  const cost = summonCosts.booster.multi5;
+  if (user.gems < cost) return "💎 Gemas insuficientes.";
+  user.gems -= cost;
 
-  if (deck.length === 0) return `⚠️ O deck ${deckName} está vazio.`;
+  const results = [];
+  const alreadyDrawn = new Set();
 
-  const lines = deck.map(
-    (card, i) => `${i + 1}. ${getCardTemplate(card.id).name} (${card.level}⭐)`
-  );
+  // Sorteia 5 cartas do booster, garantindo 1 carta temática
+  const drawCount = 5;
+  let guaranteedThemeDone = false;
 
-  return `⚔️ Deck ${deckName}:\n${lines.join("\n")}`;
+  for (let i = 0; i < drawCount; i++) {
+    let pool = booster.cards.filter(cId => !alreadyDrawn.has(cId)).map(id => getCardTemplate(id));
+
+    if (!pool.length) continue;
+
+    let chosen;
+    if (!guaranteedThemeDone) {
+      chosen = getCardTemplate(booster.theme);
+      guaranteedThemeDone = true;
+    } else {
+      chosen = randomChoice(pool);
+    }
+
+    giveCardToUser(user, chosen.id);
+    alreadyDrawn.add(chosen.id);
+    results.push(`${chosen.name} (${chosen.rarity}★)`);
+  }
+
+  saveUserCached(userId);
+  return `🎁 Você recebeu do booster **${booster.name}**:\n${results.join("\n")}`;
 }

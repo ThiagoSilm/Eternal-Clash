@@ -1,18 +1,19 @@
 // src/systems/arenaSystem.js
-import { loadUser, saveUser } from "./economySystem.js";
-import { simulateBattle } from "./battleSimulator.js";
+import { loadUserCached, markUserDirty } from "./userCacheSystem.js";
+import { battleSystem } from "./battleSystem.js"; // usa o sistema de batalha real
+import { getTimestampDay } from "../utils/timeUtils.js"; // helper simples para reset diário
 
-// ✅ Tabela de ranks
+// 🏅 Configuração de ranks
 const RANKS = [
   { name: "Bronze", min: 0, reward: { gold: 500 } },
   { name: "Prata", min: 100, reward: { gold: 1000, gems: 2 } },
   { name: "Ouro", min: 300, reward: { gold: 2000, gems: 5 } },
   { name: "Platina", min: 700, reward: { gold: 4000, gems: 10 } },
-  { name: "Diamante", min: 1500, reward: { gold: 8000, gems: 20 } }
+  { name: "Diamante", min: 1500, reward: { gold: 8000, gems: 20 } },
 ];
 
-// 📊 Determina o rank do jogador com base nos pontos
-export function getRank(points) {
+// 🎯 Retorna o rank atual do jogador
+function getRank(points) {
   let current = RANKS[0];
   for (const r of RANKS) {
     if (points >= r.min) current = r;
@@ -21,82 +22,99 @@ export function getRank(points) {
   return current;
 }
 
-// 🏆 Ver status do jogador na Arena
-export function arenaStatus(userId) {
-  const user = loadUser(userId);
-  const rank = getRank(user.arenaPoints || 0);
+// 🧠 Gera cinco oponentes diários (aleatórios entre jogadores salvos)
+export function generateArenaOpponents(userId, allUsers) {
+  const user = loadUserCached(userId);
+  const today = getTimestampDay(Date.now());
   
-  return `🏆 **Arena — ${rank.name}**\n` +
-    `⭐ Pontos: ${user.arenaPoints || 0}\n` +
-    `✅ Vitórias: ${user.arenaWins || 0}\n` +
-    `❌ Derrotas: ${user.arenaLosses || 0}`;
+  if (user.lastArenaReset === today && user.arenaOpponents?.length === 5)
+    return user.arenaOpponents; // já tem oponentes de hoje
+  
+  const candidates = allUsers
+    .filter(u => u.id !== userId && u.deck && u.deck.length > 0)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 5)
+    .map(u => ({ id: u.id, name: u.name, power: u.power || 0 }));
+  
+  user.arenaOpponents = candidates;
+  user.arenaTries = 5; // reseta tentativas
+  user.lastArenaReset = today;
+  markUserDirty(userId);
+  return candidates;
 }
 
-// ⚔️ Desafiar outro jogador
+// 📊 Mostra o status do jogador
+export function arenaStatus(userId) {
+  const user = loadUserCached(userId);
+  const rank = getRank(user.arenaPoints || 0);
+  return (
+    `🏆 **Arena — ${rank.name}**\n` +
+    `⭐ Pontos: ${user.arenaPoints || 0}\n` +
+    `✅ Vitórias: ${user.arenaWins || 0}\n` +
+    `❌ Derrotas: ${user.arenaLosses || 0}\n` +
+    `🎯 Tentativas restantes: ${user.arenaTries || 0}/5`
+  );
+}
+
+// ⚔️ Desafiar um dos oponentes diários
 export function arenaChallenge(attackerId, defenderId) {
-  if (attackerId === defenderId)
-    return "❌ Você não pode lutar contra si mesmo.";
+  const attacker = loadUserCached(attackerId);
+  const defender = loadUserCached(defenderId);
   
-  const attacker = loadUser(attackerId);
-  const defender = loadUser(defenderId);
+  if (!attacker.arenaTries || attacker.arenaTries <= 0)
+    return "⚠️ Você usou todas as 5 tentativas de hoje.";
   
-  if (!defender || !defender.deck || defender.deck.length === 0)
-    return "⚠️ O oponente não tem um deck configurado.";
+  if (!defender || !defender.deck?.length)
+    return "⚠️ O oponente não tem deck configurado.";
   
-  const now = Date.now();
+  attacker.arenaTries--;
   
-  // Evita flood (60 segundos entre batalhas)
-  if (attacker.lastArenaBattle && now - attacker.lastArenaBattle < 60000)
-    return "⏳ Espere 1 minuto antes do próximo desafio na Arena.";
+  const result = battleSystem(attacker, defender); // ✅ batalha real
+  let message = "";
   
-  attacker.lastArenaBattle = now;
-  
-  const result = simulateBattle(attacker, defender);
-  
-  let message;
-  
-  if (result === "attacker") {
+  if (result.winner === "attacker") {
     attacker.arenaPoints = (attacker.arenaPoints || 0) + 50;
     attacker.arenaWins = (attacker.arenaWins || 0) + 1;
     defender.arenaPoints = Math.max((defender.arenaPoints || 0) - 30, 0);
     defender.arenaLosses = (defender.arenaLosses || 0) + 1;
-    message = `⚔️ ${attacker.name || "Jogador"} venceu ${defender.name || "Oponente"}!\n🏅 +50 pontos Arena`;
+    attacker.gems = (attacker.gems || 0) + 3; // recompensa instantânea
+    message = `⚔️ ${attacker.name} venceu ${defender.name}!\n🏅 +50 pontos Arena\n💎 +3 gemas`;
   } else {
     attacker.arenaPoints = Math.max((attacker.arenaPoints || 0) - 20, 0);
     attacker.arenaLosses = (attacker.arenaLosses || 0) + 1;
     defender.arenaPoints = (defender.arenaPoints || 0) + 40;
     defender.arenaWins = (defender.arenaWins || 0) + 1;
-    message = `💀 ${attacker.name || "Jogador"} perdeu para ${defender.name || "Oponente"}!\n❌ -20 pontos Arena`;
+    message = `💀 ${attacker.name} perdeu para ${defender.name}!\n❌ -20 pontos Arena`;
   }
   
-  saveUser(attacker);
-  saveUser(defender);
-  
+  markUserDirty(attackerId);
+  markUserDirty(defenderId);
   return message;
 }
 
-// 🎁 Coletar recompensa do rank
+// 🎁 Coletar recompensa diária
 export function arenaReward(userId) {
-  const user = loadUser(userId);
+  const user = loadUserCached(userId);
   const now = Date.now();
   
-  // Recompensa só 1x por dia
   if (user.lastArenaReward && now - user.lastArenaReward < 86400000) {
-    const hoursLeft = Math.ceil((86400000 - (now - user.lastArenaReward)) / 3600000);
+    const hoursLeft = Math.ceil(
+      (86400000 - (now - user.lastArenaReward)) / 3600000
+    );
     return `⏰ Você já coletou sua recompensa hoje. Tente novamente em ${hoursLeft}h.`;
   }
   
   const rank = getRank(user.arenaPoints || 0);
-  const reward = rank.reward;
-  
-  if (!reward) return "⚠️ Nenhuma recompensa disponível.";
+  const reward = rank.reward || {};
   
   user.gold += reward.gold || 0;
   user.gems += reward.gems || 0;
   user.lastArenaReward = now;
   
-  saveUser(user);
+  markUserDirty(userId);
   
-  return `🎁 **Recompensa do rank ${rank.name} recebida!**\n` +
-    `💰 +${reward.gold || 0} ouro ${reward.gems ? `💎 +${reward.gems} gemas` : ""}`;
+  return (
+    `🎁 **Recompensa do rank ${rank.name} recebida!**\n` +
+    `💰 +${reward.gold || 0} ouro ${reward.gems ? `💎 +${reward.gems} gemas` : ""}`
+  );
 }

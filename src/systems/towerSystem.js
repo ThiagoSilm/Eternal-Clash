@@ -1,66 +1,101 @@
-import { loadUser, saveUser } from "./economySystem.js";
-import floors from "../../data/towerFloors.json" with {type: 'json'};
-import { spendEnergy } from "./energySystem.js";
-import { simulateBattle } from "./battleSimulator.js";
+// src/systems/towerSystem.js
+import { loadUser, saveUser } from "./userCacheSystem.js";
+import { battle } from "./battleSystem.js";
+import { giveCardToUser } from "./cardSystem.js";
 
-export function enterTower(username) {
-  const user = loadUser(username);
-  const today = new Date().toDateString();
-
-  if (!user.tower) user.tower = { floor: 1, bestFloor: 0, lastReset: today };
-
-  // Reset diário
-  if (user.tower.lastReset !== today) {
-    user.tower.floor = 1;
-    user.tower.lastReset = today;
+/**
+ * Inicializa ou reseta a torre do jogador
+ */
+export function initTower(user) {
+  if (!user.tower) {
+    user.tower = {
+      currentFloor: 1,
+      attemptsLeft: 3,
+      rewardsCollected: [],
+    };
+    saveUser(user);
   }
+  return user.tower;
+}
 
-  if (!spendEnergy(username, 4))
-    return "⚡ Energia insuficiente para desafiar a Tower.";
-
-  const currentFloor = floors.find(f => f.floor === user.tower.floor);
-  if (!currentFloor) return "🏁 Você completou todos os andares disponíveis!";
-
-  const victory = runBattle(user, currentFloor);
-
-  let result = `🗼 **Andar ${currentFloor.floor}** — Inimigo: ${currentFloor.enemy}\n`;
-
-  if (victory) {
-    result += `🏆 Vitória! ${formatRewards(currentFloor.reward)}\n`;
-    gainRewards(user, currentFloor.reward);
-    user.tower.bestFloor = Math.max(user.tower.bestFloor, user.tower.floor);
-    user.tower.floor++;
-  } else {
-    result += `💀 Derrota... O ${currentFloor.enemy} te venceu.\n`;
-  }
-
+/**
+ * Reseta as tentativas diárias da torre
+ */
+export function resetTowerAttempts(user) {
+  if (!user.tower) initTower(user);
+  user.tower.attemptsLeft = 3;
   saveUser(user);
-  return result;
 }
 
-function runBattle(user, floor) {
-  const playerPower = user.deckPower || 300;
-  const enemyPower = floor.deckPower;
-  const chance = Math.min(Math.max((playerPower / enemyPower) * 60, 25), 95);
-  return Math.random() * 100 <= chance;
+/**
+ * Avança uma tentativa na torre
+ * @param {Object} user 
+ * @param {Number} floorsToAdvance 
+ */
+export function attemptTower(user, floorsToAdvance = 1) {
+  if (!user.tower) initTower(user);
+  
+  if (user.tower.attemptsLeft <= 0)
+    return "⚠️ Você não tem tentativas restantes para hoje.";
+  
+  const startFloor = user.tower.currentFloor;
+  const maxFloor = 120;
+  const floors = Math.min(floorsToAdvance, maxFloor - startFloor + 1);
+  
+  let totalXP = 0;
+  let totalGold = 0;
+  let cardsWon = [];
+  
+  for (let i = 0; i < floors; i++) {
+    const floorNum = startFloor + i;
+    
+    // Calcula força do inimigo (força aumenta gradualmente)
+    const enemyForce = 500 + floorNum * 50; // exemplo
+    const playerForce = user.decks.main.reduce((acc, card) => acc + card.attack, 0);
+    
+    // Chama battleSystem para simular batalha
+    const battleResult = battle(user.decks.main, { force: enemyForce });
+    
+    if (battleResult.win) {
+      // Recompensas por casa
+      const xp = 50 + floorNum * 5;
+      const gold = 100 + floorNum * 10;
+      
+      totalXP += xp;
+      totalGold += gold;
+      
+      // A cada 5 casas, recompensa extra
+      if (floorNum % 5 === 0) {
+        totalGold += 200;
+        totalXP += 100;
+        
+        // Chance de carta e gema
+        if (Math.random() < 0.5) {
+          const card = giveCardToUser(user, Math.floor(Math.random() * 200) + 1); // exemplo
+          cardsWon.push(card.name);
+        }
+        if (Math.random() < 0.3) {
+          user.gems = (user.gems || 0) + 1;
+        }
+      }
+      
+      user.tower.currentFloor++;
+    } else {
+      // Se perder, para no último piso vencido
+      break;
+    }
+  }
+  
+  user.tower.attemptsLeft--;
+  saveUser(user);
+  
+  return `🏯 Torre: Avançou da casa ${startFloor} para ${user.tower.currentFloor - 1}.\n💰 Ouro ganho: ${totalGold}\n✨ XP ganho: ${totalXP}\n🎴 Cartas: ${cardsWon.join(", ") || "Nenhuma"}\n🟢 Tentativas restantes: ${user.tower.attemptsLeft}`;
 }
 
-function gainRewards(user, reward) {
-  user.gold += reward.gold || 0;
-  user.xp = (user.xp || 0) + (reward.xp || 0);
-  user.gems += reward.gems || 0;
-}
-
-function formatRewards(reward) {
-  let msg = "";
-  if (reward.gold) msg += `💰 +${reward.gold} ouro `;
-  if (reward.xp) msg += `📚 +${reward.xp} XP `;
-  if (reward.gems) msg += `💎 +${reward.gems} gemas `;
-  return msg.trim();
-}
-
-export function getTowerStatus(username) {
-  const user = loadUser(username);
-  if (!user.tower) return "🗼 Você ainda não começou a Tower.";
-  return `🗼 Tower — Andar atual: ${user.tower.floor}\n🏆 Melhor andar: ${user.tower.bestFloor}`;
+/**
+ * Visualiza progresso da torre
+ */
+export function viewTower(user) {
+  if (!user.tower) initTower(user);
+  return `🏯 Torre - Casa atual: ${user.tower.currentFloor}\n🟢 Tentativas restantes: ${user.tower.attemptsLeft}`;
 }

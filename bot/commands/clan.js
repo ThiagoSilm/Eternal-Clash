@@ -3,17 +3,18 @@ import {
   joinClan,
   leaveClan,
   donateToClan,
-  getClanInfo
+  getClanInfo,
+  getClanRankings
 } from "../../src/systems/clanSystem.js";
 
-import { saveUser } from "../../src/systems/userSystem.js"; // garante persistência
+import { saveUser } from "../../src/systems/userSystem.js";
 
 export default {
   name: "clan",
   description: "Gerencie ou participe de um clã.",
   
   async execute(message, args, user) {
-    const sub = args[0];
+    const sub = args[0]?.toLowerCase();
     let response = "";
     
     switch (sub) {
@@ -30,11 +31,24 @@ export default {
         break;
         
       case "doar":
-        response = donateToClan(user, parseInt(args[1]));
+        const amount = parseInt(args[1]);
+        if (!amount || amount <= 0) {
+          response = "❌ Informe um valor válido para doar.";
+        } else {
+          response = donateToClan(user, amount);
+        }
         break;
         
       case "info":
         response = getClanInfo(args.slice(1).join(" "));
+        break;
+        
+      case "ranking":
+        const top = getClanRankings();
+        response = "🏆 **Ranking Global de Clãs:**\n";
+        top.forEach((clan, i) => {
+          response += `${i + 1}. ${clan.name} — Nível ${clan.level}, XP: ${clan.xp}, Membros: ${clan.members.length}\n`;
+        });
         break;
         
       default:
@@ -44,12 +58,11 @@ export default {
           "`!clan entrar <nome>` — Entra em um clã\n" +
           "`!clan sair` — Sai do seu clã\n" +
           "`!clan doar <quantia>` — Doe recursos para o clã\n" +
-          "`!clan info <nome>` — Informações do clã";
+          "`!clan info <nome>` — Informações do clã\n" +
+          "`!clan ranking` — Ranking global dos clãs";
     }
     
-    // Garante que as alterações no jogador (ouro, XP, status do clã etc.) sejam salvas
     saveUser(user);
-    
     await message.reply(response);
   }
 };

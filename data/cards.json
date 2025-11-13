@@ -1,22 +1,562 @@
 [
   {
-    "id": "C001",
-    "name": "Fada Curandeira",
+    "id": "c001",
+    "name": "Emberling",
+    "faction": "Faen",
     "rarity": 2,
-    "race": "Fada",
-    "hp": 400,
-    "attack": 80,
-    "effects": ["cura_aliado", "buff_hp", "resistencia_magia"],
-    "evolutionEffect": "renascer"
+    "effects": ["eff007", "eff017", "eff042"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
-    "id": "C002",
-    "name": "Monstro Rochoso",
+    "id": "c002",
+    "name": "Stoneclaw",
+    "faction": "Gorath",
     "rarity": 3,
-    "race": "Monstro",
-    "hp": 900,
-    "attack": 120,
-    "effects": ["defesa_pedregosa", "reflexao", "contra_ataque"],
-    "evolutionEffect": "armadura_de_pedra"
+    "effects": ["eff038", "eff035", "eff050"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c003",
+    "name": "Ironhart",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff003", "eff048", "eff024"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c004",
+    "name": "Shadowfiend",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff009", "eff029"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c005",
+    "name": "Pyrestone",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff007", "eff004", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c006",
+    "name": "Thunderhoof",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff032", "eff039"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c007",
+    "name": "Lumina",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff005", "eff053"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c008",
+    "name": "Dreadmaw",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff013", "eff046", "eff037"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c009",
+    "name": "Vinewhisper",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c010",
+    "name": "Ironjaw",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c011",
+    "name": "Blazefang",
+    "faction": "Faen",
+    "rarity": 2,
+    "effects": ["eff007", "eff042", "eff017"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c012",
+    "name": "Rockhide",
+    "faction": "Gorath",
+    "rarity": 3,
+    "effects": ["eff035", "eff038", "eff050"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c013",
+    "name": "Brightshield",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff024", "eff003", "eff048"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c014",
+    "name": "Nightwraith",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff009", "eff029"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c015",
+    "name": "Ashvine",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff004", "eff007", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c016",
+    "name": "Stormhoof",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff032", "eff039"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c017",
+    "name": "Solaris",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff005", "eff053"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c018",
+    "name": "Voidmaw",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff013", "eff046", "eff037"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c019",
+    "name": "Leafwhisper",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c020",
+    "name": "Ironfang",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c021",
+    "name": "Emberhorn",
+    "faction": "Faen",
+    "rarity": 2,
+    "effects": ["eff007", "eff017", "eff042"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c022",
+    "name": "Gravelock",
+    "faction": "Gorath",
+    "rarity": 3,
+    "effects": ["eff035", "eff050", "eff038"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c023",
+    "name": "Aurashield",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff024", "eff048", "eff003"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c024",
+    "name": "Nightfang",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff029", "eff009"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c025",
+    "name": "Cinderbloom",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff004", "eff007", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c026",
+    "name": "Thunderback",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff039", "eff032"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c027",
+    "name": "Lightbringer",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff053", "eff005"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c028",
+    "name": "Doommaw",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff046", "eff037", "eff013"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c029",
+    "name": "Greenwhisper",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c030",
+    "name": "Rockjaw",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c031",
+    "name": "Flamepaw",
+    "faction": "Faen",
+    "rarity": 2,
+    "effects": ["eff007", "eff042", "eff017"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c032",
+    "name": "Stonehoof",
+    "faction": "Gorath",
+    "rarity": 3,
+    "effects": ["eff035", "eff038", "eff050"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c033",
+    "name": "Sunwarden",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff024", "eff003", "eff048"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c034",
+    "name": "Shadowfang",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff009", "eff029"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c035",
+    "name": "Ashpetal",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff004", "eff007", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c036",
+    "name": "Stormback",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff032", "eff039"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c037",
+    "name": "Radiant",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff005", "eff053"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c038",
+    "name": "Voidfang",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff013", "eff046", "eff037"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c039",
+    "name": "Leafshadow",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c040",
+    "name": "Ironclaw",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c041",
+    "name": "Firehorn",
+    "faction": "Faen",
+    "rarity": 2,
+    "effects": ["eff007", "eff017", "eff042"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c042",
+    "name": "Graniteback",
+    "faction": "Gorath",
+    "rarity": 3,
+    "effects": ["eff035", "eff038", "eff050"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c043",
+    "name": "Brightward",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff024", "eff048", "eff003"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c044",
+    "name": "Dreadfang",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff029", "eff009"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c045",
+    "name": "Cinderleaf",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff004", "eff007", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c046",
+    "name": "Thunderjaw",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff039", "eff032"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c047",
+    "name": "Luminary",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff053", "eff005"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c048",
+    "name": "Doomfang",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff046", "eff037", "eff013"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c049",
+    "name": "Greenshadow",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c050",
+    "name": "Stonefang",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c051",
+    "name": "Emberpaw",
+    "faction": "Faen",
+    "rarity": 2,
+    "effects": ["eff007", "eff042", "eff017"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c052",
+    "name": "Granitehoof",
+    "faction": "Gorath",
+    "rarity": 3,
+    "effects": ["eff035", "eff038", "eff050"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c053",
+    "name": "Solarward",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff024", "eff003", "eff048"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c054",
+    "name": "Shadowmaw",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff009", "eff029"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c055",
+    "name": "Ashwhisper",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff004", "eff007", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c056",
+    "name": "Stormfang",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff032", "eff039"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c057",
+    "name": "Radiantlight",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff005", "eff053"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c058",
+    "name": "Voidclaw",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff013", "eff046", "eff037"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c059",
+    "name": "Leaffang",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c060",
+    "name": "Ironback",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c061",
+    "name": "Flameclaw",
+    "faction": "Faen",
+    "rarity": 2,
+    "effects": ["eff007", "eff017", "eff042"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c062",
+    "name": "Granitefang",
+    "faction": "Gorath",
+    "rarity": 3,
+    "effects": ["eff035", "eff038", "eff050"],
+    "sources": ["Booster", "Arena", "AltarCupom"]
+  },
+  {
+    "id": "c063",
+    "name": "Brightwarder",
+    "faction": "Human",
+    "rarity": 4,
+    "effects": ["eff024", "eff048", "eff003"],
+    "sources": ["Booster", "Maze", "AltarGema"]
+  },
+  {
+    "id": "c064",
+    "name": "Dreadclaw",
+    "faction": "Morrath",
+    "rarity": 5,
+    "effects": ["eff008", "eff029", "eff009"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c065",
+    "name": "Cinderleafy",
+    "faction": "Faen",
+    "rarity": 1,
+    "effects": ["eff004", "eff007", "eff019"],
+    "sources": ["Booster", "Maze", "AltarOuro"]
+  },
+  {
+    "id": "c066",
+    "name": "Thunderclaw",
+    "faction": "Gorath",
+    "rarity": 2,
+    "effects": ["eff038", "eff039", "eff032"],
+    "sources": ["Booster", "Arena", "AltarOuro"]
+  },
+  {
+    "id": "c067",
+    "name": "Luminara",
+    "faction": "Human",
+    "rarity": 3,
+    "effects": ["eff026", "eff053", "eff005"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c068",
+    "name": "Doomclaw",
+    "faction": "Morrath",
+    "rarity": 4,
+    "effects": ["eff046", "eff037", "eff013"],
+    "sources": ["Booster", "Arena", "AltarGema"]
+  },
+  {
+    "id": "c069",
+    "name": "Greenshadow",
+    "faction": "Faen",
+    "rarity": 3,
+    "effects": ["eff026", "eff004", "eff048"],
+    "sources": ["Booster", "Maze", "AltarCupom"]
+  },
+  {
+    "id": "c070",
+    "name": "Stonefang",
+    "faction": "Gorath",
+    "rarity": 5,
+    "effects": ["eff039", "eff034", "eff027"],
+    "sources": ["Booster", "Arena", "AltarGema"]
   }
 ]
