@@ -2,7 +2,7 @@
 
 import { spendGems, spendEnergy, addGold, addXP } from "./economySystem.js";
 import { summonMultiple } from "./summonSystem.js";
-import { battle } from "./battleSystem.js";
+import { battleSystem } from "./battleSystem.js";
 
 const mazeConfig = {
   energyCost: 4,
@@ -63,7 +63,7 @@ export function rollMaze(user, mapId) {
     message += `✨ Você ganhou ${xpReward} XP!\n`;
   } else {
     const deck = user.decks?.main || [];
-    const battleResult = battle(deck, { type: "mazeEnemy", mapForce: map.baseForce });
+    const battleResult = battleSystem(deck, { type: "mazeEnemy", mapForce: map.baseForce });
     if (battleResult.win) {
       message += `⚔️ Você venceu a batalha! Avance normalmente.\n`;
     } else {

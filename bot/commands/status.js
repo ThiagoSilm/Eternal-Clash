@@ -10,6 +10,7 @@ import { getDailyStatus } from "../../src/systems/dailySystem.js";
 export default {
   name: "status",
   description: "Mostra o status completo do jogador.",
+  usage: "[status]",
   
   // ⚠️ ATENÇÃO: O objeto 'user' é recebido aqui, já carregado e em cache.
   async execute(message, args, user) {
