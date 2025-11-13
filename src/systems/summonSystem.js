@@ -14,6 +14,13 @@ const summonCosts = {
 function determineRarity(type, user, options = {}) { /* lógica existente */ }
 function getAvailableCardDefinitions(rarity, type, options = {}) { /* lógica existente */ }
 
+export function getRandomCardIdByRarity(rarity) {
+  const cards = getCardList().filter(card => card.rarity === rarity);
+  if (!cards.length) throw new Error(`Nenhuma carta encontrada para raridade ${rarity}`);
+  const chosen = cards[Math.floor(Math.random() * cards.length)];
+  return chosen.id;
+}
+
 export function summonCard(user, type = "gold", options = {}) {
   const cost = summonCosts[type]?.single;
   if (!cost && type !== "mazeBoss" && type !== "guardian") throw new Error("Tipo de invocação inválido ou sem custo definido.");
