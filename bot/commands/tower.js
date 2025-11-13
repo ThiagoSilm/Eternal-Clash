@@ -1,7 +1,7 @@
 // src/commands/tower.js
 
 // 🟢 CORREÇÃO 1: Caminho de importação
-import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../../systems/towerSystem.js";
+import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../../src/systems/towerSystem.js";
 import { battleSystem } from "../../src/systems/battleSystem.js";
 import { addXP, addGold } from "../../src/systems/economySystem.js";
 
