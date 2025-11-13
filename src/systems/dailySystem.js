@@ -35,10 +35,17 @@ function executeRewardScript(user, reward) {
   if (!reward || !reward.script) return;
   
   try {
-    const ctx = { user, addGold, addGems, addXP, addEnergy };
-    with(ctx) {
-      eval(reward.script);
-    }
+    const context = { user, addGold, addGems, addXP, addEnergy };
+    
+    // Cria uma função com variáveis do contexto
+    const func = new Function(
+      "user", "addGold", "addGems", "addXP", "addEnergy",
+      reward.script
+    );
+    
+    // Executa passando os valores do contexto
+    func(context.user, context.addGold, context.addGems, context.addXP, context.addEnergy);
+    
   } catch (err) {
     console.error("Erro ao executar script de recompensa diária:", err.message);
   }
