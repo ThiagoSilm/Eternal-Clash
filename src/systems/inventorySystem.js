@@ -172,20 +172,26 @@ export function viewCardDetails(user, identifier) {
 
 
 // Retorna uma string formatada do deck (para o comando !inventory deck)
-export function viewDeck(user, deckName = "main") {
-    ensureDecksAreInitialized(user);
-    const deck = user.decks[deckName];
-    if (!deck || deck.length === 0) return `⚠️ O deck "${deckName}" está vazio.`;
+export function viewDeck(user, deckId) {
+    const deck = user.cards || [];
     
-    const lines = deck.map((card, i) => {
-        const template = getCardTemplate(card.id);
-        const name = template?.name || card.id;
-        const rarity = template?.rarity ? `${template.rarity}★` : "";
-        return `${i + 1}. ${name} ${rarity} — Lv.${card.level || 1} (uid:${card.uniqueId})`;
-    });
+    if (deck.length === 0) {
+        return "Vazio. Adicione cartas com `!gacha`!";
+    }
     
-    return `🃏 Deck "${deckName}" — ${deck.length} cartas:\n` + lines.join("\n");
+    // Contagem de cartas únicas (simulação)
+    const cardNames = deck.map(c => c.name || `Carta #${c.id || "???"}`);
+    
+    // Retorna as 5 primeiras cartas e a contagem total.
+    const preview = cardNames.slice(0, 5).join(", ");
+    
+    if (deck.length > 5) {
+        return `${preview}, ... e mais ${deck.length - 5} cartas. (Total: ${deck.length})`;
+    }
+    
+    return `${preview}. (Total: ${deck.length})`;
 }
+
 
 // Remove todas as cartas de um deck (mantém as cartas no inventário)
 export function removeAllFromDeck(user, deckName = "main") {
@@ -193,6 +199,13 @@ export function removeAllFromDeck(user, deckName = "main") {
     if (!user.decks[deckName] || user.decks[deckName].length === 0) return `⚠️ O deck "${deckName}" já está vazio.`;
     user.decks[deckName] = [];
     return `🗑️ Todas as cartas foram removidas do deck "${deckName}".`;
+}
+
+export function addCardToInventory(user, cardData) {
+    if (!user.cards) user.cards = [];
+    user.cards.push(cardData);
+    // Nota: O sistema de cache (markUserDirty) deve ser chamado pelo sistema que decide 
+    // a alteração (ex: gachaSystem), mas esta função é o ponto de alteração.
 }
 
 // Reforçada: recebe inventoryIndex 1-based; verifica duplicata, tamanho máximo e se carta existe

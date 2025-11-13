@@ -1,6 +1,3 @@
-// src/commands/tower.js
-
-// 🟢 CORREÇÃO 1: Caminho de importação
 import { spendTowerAttempt, getTowerStatus, getFloorEnemy, getFloorReward } from "../../src/systems/towerSystem.js";
 import { battleSystem } from "../../src/systems/battleSystem.js";
 import { addXP, addGold } from "../../src/systems/economySystem.js";
@@ -11,62 +8,57 @@ export default {
   usage: "[status | challenge]",
   
   async execute(message, args, user) {
-    // 🟢 MELHORIA 1: Garante que a estrutura tower exista logo no início
-    if (!user.tower) user.tower = { floor: 1, attempts: 3 }; 
+    // 🟢 GARANTIA: A inicialização da estrutura tower é melhor tratada dentro do towerSystem, 
+    // mas mantemos esta linha como fallback de segurança.
+    if (!user.tower) user.tower = { floor: 1, attempts: 3 };
     
     const sub = args[0]?.toLowerCase() || 'status';
-
+    
     try {
       if (sub === 'status') {
         // 1. STATUS
-        // Nota: Assumimos que getTowerStatus(user) retorna uma string formatada.
         const status = getTowerStatus(user);
         return message.reply(`🏰 **Status da Torre de Batalha:**\n${status}`);
         
       } else if (sub === 'challenge' || sub === 'c') {
         // 2. DESAFIO
         
-        // A. Verifica tentativas
-        if (user.tower.attempts <= 0) {
+        // A. Verifica e gasta a tentativa (spendTowerAttempt faz a inicialização diária)
+        if (!spendTowerAttempt(user)) {
           return message.reply("❌ Você não tem tentativas de Torre. Volte amanhã ou compre mais!");
         }
         
         const currentFloor = user.tower.floor;
         
-        // B. Prepara o inimigo e gasta a tentativa
+        // B. Prepara o inimigo (usando o andar que o usuário estava PRESTES a lutar)
         const opponent = getFloorEnemy(currentFloor);
         
-        // 🟢 GARANTIA: Gasta a tentativa ANTES da batalha
-        spendTowerAttempt(user); 
-
-        // C. Simula a Batalha (reutilizando battleSystem)
-        // Nota: Assumimos que user.cards é o deck que o usuário usa na batalha.
+        // C. Simula a Batalha
         const result = battleSystem(user, opponent);
         
-        let response = `\n**--- ⚔️ ANDAR ${currentFloor}: ${opponent.name} (PvP: ${opponent.isPlayer ? 'Sim' : 'Não'}) ⚔️ ---**\n`;
+        let response = `\n**--- ⚔️ ANDAR ${currentFloor}: ${opponent.name} ⚔️ ---**\n`;
         // Exibe o resumo do log
         response += result.log.slice(0, 5).join("\n") + "\n... (Batalha concluída em " + result.turns + " turnos)\n";
-
-        // D. Recompensas
+        
+        // D. Recompensas e Progressão
         if (result.winner === "player") {
           const rewards = getFloorReward(currentFloor);
           
-          // Adiciona recompensas (modifica o objeto 'user' e funções devem marcar dirty)
+          // Adiciona recompensas
           addXP(user, rewards.xp);
           addGold(user, rewards.gold);
-          // 💡 Ponto de Extensão: Adicionar logicamente recompensas de cartas/itens aqui.
           
-          // Avança para o próximo andar (Modificação direta no user, que será salvo)
-          user.tower.floor += 1; 
-
+          // Avança para o próximo andar
+          user.tower.floor += 1;
+          
           response += `\n🎉 **SUCESSO!** Andar ${currentFloor} conquistado!`;
           response += `\n🎁 **Recompensas:** +${rewards.xp} XP, +${rewards.gold} Ouro.`;
           response += `\nSeu próximo desafio é o **Andar ${user.tower.floor}**.`;
           
         } else {
-          // A tentativa já foi gasta acima, não precisa de lógica extra aqui.
+          // A tentativa já foi gasta.
           response += "\n😓 **DERROTA.** Suas cartas não foram páreo para este andar.";
-          response += "\nVocê perdeu uma tentativa. Tente novamente ou melhore suas cartas!";
+          response += `\nVocê perdeu uma tentativa. Tentativas restantes: ${user.tower.attempts}.`;
         }
         
         return message.reply(response);

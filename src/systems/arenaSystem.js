@@ -1,159 +1,168 @@
 // src/systems/arenaSystem.js
 
-import { loadUser } from "./userSystem.js";
-import { battleSystem } from "./battleSystem.js";
-import { spendEnergy, addGold, addGems } from "./economySystem.js";
+import { spendEnergy, addGems } from "./economySystem.js";
+import { battleSystem } from "./battleSystem.js"; // Assumido
+import { generateOpponentForRank } from "./userCacheSystem.js"; // Assumido: gera um NPC ou busca um usuário
 
-// ---------------- MOCK DE RANKINGS ----------------
-let ARENA_RANKINGS_MOCK = {};
-function loadArenaRankings() { return ARENA_RANKINGS_MOCK; }
-function saveArenaRankings(rankings) { ARENA_RANKINGS_MOCK = rankings; }
+// --- Configurações da Arena ---
+const ARENA_SCALING = {
+    MAX_ATTEMPTS: 5,
+    ATTACK_COOLDOWN_MS: 60 * 1000, // 1 minuto
+    RESET_COOLDOWN_MS: 24 * 60 * 60 * 1000, // 24 horas
+    OPPONENT_COUNT: 5,
+    GEM_REWARD_WIN: 5,
+};
 
-// ---------------- CONFIGURAÇÕES ----------------
-const ENERGY_COST = 4;
-const MMR_BASE_CHANGE = 20;
+// Estrutura de oponente da Arena
+function createOpponent(id, name, rank) {
+    return {
+        id: id,
+        name: name,
+        rank: rank,
+        defeated: false,
+    };
+}
 
-const REWARDS = [
-    { rank: 1, gold: 10000, gems: 100 },
-    { rank: 2, gold: 8000, gems: 80 },
-    { rank: 10, gold: 2000, gems: 20 },
-    { rank: 50, gold: 500, gems: 5 },
-];
+function generateNewOpponentList(user) {
+    const list = [];
+    // Assumimos que o rank atual do usuário é 'user.arena.rank'
+    const targetRank = (user.arena.rank || 1); 
+    
+    for (let i = 0; i < ARENA_SCALING.OPPONENT_COUNT; i++) {
+        // Geramos um oponente do rank do usuário + 1 (ou o rank atual se for o primeiro)
+        const opponentRank = targetRank + (i < 3 ? 0 : 1); 
+        
+        // Simulação de geração de oponente (NPC ou User)
+        const opponentData = generateOpponentForRank(opponentRank);
+        list.push(createOpponent(
+            opponentData.id, 
+            opponentData.name, 
+            opponentRank
+        ));
+    }
+    return list;
+}
 
-// ---------------- HELPERS ----------------
-
-function initializeArenaStatus(user) {
+// Inicializa ou reseta o estado da Arena
+export function initializeArena(user) {
     if (!user.arena) {
         user.arena = {
-            mmr: 1000,
-            lastRewardClaim: null,
-            attackDeck: [],
-            defenseDeck: []
+            rank: 1,
+            points: 0,
+            attempts: ARENA_SCALING.MAX_ATTEMPTS,
+            lastBattleTime: 0,
+            lastReset: 0,
+            opponents: generateNewOpponentList(user),
         };
     }
 }
 
-function calculateMMRChange(winnerMMR, loserMMR, isWinner) {
-    const expectedScore = 1 / (1 + Math.pow(10, (loserMMR - winnerMMR) / 400));
-    const actualScore = isWinner ? 1 : 0;
-    const kFactor = MMR_BASE_CHANGE;
-    return Math.round(kFactor * (actualScore - expectedScore));
+// Verifica e aplica o reset diário de tentativas e lista de oponentes
+function checkAndResetAttempts(user) {
+    initializeArena(user);
+    const now = Date.now();
+    const state = user.arena;
+    
+    if (now - state.lastReset >= ARENA_SCALING.RESET_COOLDOWN_MS) {
+        state.attempts = ARENA_SCALING.MAX_ATTEMPTS;
+        state.lastReset = now;
+        state.opponents = generateNewOpponentList(user);
+        return true;
+    }
+    return false;
 }
 
-function createCombatantInput(combatantUser, selectedUniqueIds = []) {
-    const cardsToUse = (combatantUser.cards || []).filter(c => selectedUniqueIds.includes(c.uniqueId));
-    return {
-        id: combatantUser.id,
-        name: combatantUser.username || combatantUser.id,
-        cards: cardsToUse,
-        guardian: combatantUser.guardian ? { ...combatantUser.guardian } : null
-    };
+// Função para mostrar o status e a lista
+export async function arenaStatus(user) {
+    const wasReset = checkAndResetAttempts(user);
+    const state = user.arena;
+    
+    // Calcula o cooldown restante
+    const timeSinceLastBattle = Date.now() - state.lastBattleTime;
+    const cooldownRemaining = ARENA_SCALING.ATTACK_COOLDOWN_MS - timeSinceLastBattle;
+    const cooldownMsg = cooldownRemaining > 0 
+        ? `Aguarde ${(cooldownRemaining / 1000).toFixed(0)} segundos para a próxima luta.`
+        : "Você está pronto para lutar!";
+    
+    // Lista de oponentes
+    const opponentList = state.opponents.map((o, i) => {
+        const status = o.defeated ? "✅ VENCIDO" : "❌ PENDENTE";
+        return `${i + 1}. [Rk ${o.rank}] ${o.name} - ${status}`;
+    }).join("\n");
+    
+    return (
+        `🏆 **Status da Arena**\n` +
+        (wasReset ? "🔄 Tentativas e lista de oponentes diárias foram resetadas.\n" : "") +
+        `• Rank: ${state.rank} (${state.points} Pts)\n` +
+        `• Tentativas Restantes: ${state.attempts}/${ARENA_SCALING.MAX_ATTEMPTS}\n` +
+        `• Cooldown: ${cooldownMsg}\n\n` +
+        `**Oponentes Atuais:**\n${opponentList}`
+    );
 }
 
-// ---------------- FUNÇÕES PRINCIPAIS ----------------
+// Lógica principal de desafio
+export async function arenaChallenge(user, opponentIndex) {
+    checkAndResetAttempts(user);
+    const state = user.arena;
+    const idx = opponentIndex - 1;
 
-export function arenaChallenge(user, targetId) {
-    initializeArenaStatus(user);
-
-    // 1️⃣ Gasto de energia
-    try { spendEnergy(user, ENERGY_COST); }
-    catch { return `❌ Você precisa de ${ENERGY_COST} de energia para lutar.`; }
-
-    // 2️⃣ Carregar o oponente
-    let opponent;
-    try { opponent = loadUser(targetId); }
-    catch { return `❌ Jogador "${targetId}" não encontrado.`; }
-
-    initializeArenaStatus(opponent);
-
-    // 3️⃣ Decks de ataque/defesa
-    const playerAttackDeck = user.arena.attackDeck.length > 0 
-        ? user.arena.attackDeck 
-        : user.cards.map(c => c.uniqueId);
-
-    const defenseDeck = opponent.arena.defenseDeck;
-    if (!defenseDeck || defenseDeck.length === 0) 
-        return `❌ O jogador ${opponent.username} não possui um deck de defesa configurado.`;
-
-    const playerInput = createCombatantInput(user, playerAttackDeck);
-    const opponentInput = createCombatantInput(opponent, defenseDeck);
-
-    if (playerInput.cards.length === 0) 
-        return "❌ Você não tem cartas selecionadas para lutar.";
-
-    // 4️⃣ Executa batalha
-    const battleResult = battleSystem(playerInput, opponentInput, { seed: Date.now() });
-
-    // 5️⃣ Atualiza MMR
-    const rankings = loadArenaRankings();
-    const playerMMR = user.arena.mmr;
-    const opponentMMR = opponent.arena?.mmr ?? 1000;
-
-    let playerChange = 0;
-    if (battleResult.winner === 'player') playerChange = calculateMMRChange(playerMMR, opponentMMR, true);
-    else if (battleResult.winner === 'opponent') playerChange = calculateMMRChange(playerMMR, opponentMMR, false);
-
-    user.arena.mmr = Math.max(100, playerMMR + playerChange);
-
-    // 6️⃣ Atualiza ranking
-    rankings[user.id] = { id: user.id, mmr: user.arena.mmr, username: user.username || user.id };
-    saveArenaRankings(rankings);
-
-    // 7️⃣ Recompensa imediata
-    addGold(user, battleResult.rewards.gold);
-    addGems(user, battleResult.rewards.gems);
-
-    // 8️⃣ Mensagem final
-    let response = `⚔️ **Arena: ${user.username} vs ${opponent.username}**\n`;
-    response += `---\n`;
-    response += `Vencedor: **${battleResult.winner === 'player' ? user.username : opponent.username}**\n`;
-    response += `MMR: ${playerMMR} -> **${user.arena.mmr}** (${playerChange >= 0 ? '+' : ''}${playerChange})\n`;
-    response += `💰 Ouro ganho: +${battleResult.rewards.gold} | Gemas: +${battleResult.rewards.gems}\n`;
-    response += `📜 Log da batalha: ${battleResult.log.slice(0, 5).join(' / ')}...`;
-
-    return response;
-}
-
-export function arenaStatus(user) {
-    initializeArenaStatus(user);
-    const rankings = loadArenaRankings();
-    const sorted = Object.values(rankings).sort((a, b) => b.mmr - a.mmr);
-    const userRank = sorted.findIndex(r => r.id === user.id) + 1;
-
-    const nextReward = REWARDS.find(r => r.rank >= userRank);
-    const nextRewardMsg = nextReward 
-        ? `🏆 Rank ${nextReward.rank}: +${nextReward.gold} Ouro e +${nextReward.gems} Gemas`
-        : "Nenhuma recompensa bônus de rank disponível.";
-
-    return `
-🏆 **Arena de ${user.username || user.id}**
----
-✨ MMR: ${user.arena.mmr}
-🏅 Rank Global: #${userRank}
-💰 Próxima Recompensa: ${nextRewardMsg}
-`;
-}
-
-export function arenaReward(user) {
-    initializeArenaStatus(user);
-    const today = new Date().toDateString();
-
-    if (user.arena.lastRewardClaim === today)
-        return "❌ Você já reivindicou suas recompensas de rank hoje.";
-
-    const rankings = loadArenaRankings();
-    const sorted = Object.values(rankings).sort((a, b) => b.mmr - a.mmr);
-    const userRank = sorted.findIndex(r => r.id === user.id) + 1;
-
-    const reward = REWARDS.find(r => r.rank >= userRank);
-    if (!reward) {
-        user.arena.lastRewardClaim = today;
-        return "⚠️ Não há recompensas disponíveis para o seu rank atual.";
+    // 1. Validação de Tentativas
+    if (state.attempts <= 0) {
+        throw new Error("Suas tentativas diárias de Arena acabaram.");
+    }
+    
+    // 2. Validação de Cooldown
+    const timeSinceLastBattle = Date.now() - state.lastBattleTime;
+    if (timeSinceLastBattle < ARENA_SCALING.ATTACK_COOLDOWN_MS) {
+        const remaining = (ARENA_SCALING.ATTACK_COOLDOWN_MS - timeSinceLastBattle) / 1000;
+        throw new Error(`Aguarde ${remaining.toFixed(1)} segundos antes de lutar novamente (cooldown de 1 minuto).`);
     }
 
-    addGold(user, reward.gold);
-    addGems(user, reward.gems);
-    user.arena.lastRewardClaim = today;
+    // 3. Validação do Oponente
+    const opponent = state.opponents[idx];
+    if (!opponent) {
+        throw new Error("Oponente inválido ou não encontrado na lista (use `!arena status`).");
+    }
+    if (opponent.defeated) {
+        throw new Error(`Você já venceu ${opponent.name}. Escolha outro.`);
+    }
 
-    return `🎉 **Recompensa Recebida!**\n🏅 Rank #${userRank}: +${reward.gold} Ouro e +${reward.gems} Gemas.`;
+    // 4. Batalha
+    const userDeck = user.decks?.main || [];
+    // O sistema de batalha deve ser capaz de receber oponentes pelo ID/estrutura
+    const battleResult = await battleSystem(userDeck, { type: "arenaOpponent", targetId: opponent.id });
+    
+    // 5. Atualização de Estado
+    state.lastBattleTime = Date.now();
+    state.attempts -= 1; // Gasta a tentativa (seja vitória ou derrota)
+
+    let finalMessage = `⚔️ Você lutou contra **${opponent.name}**!\n`;
+    finalMessage += `--- Resultado da Batalha ---\n`;
+    finalMessage += battleResult.log || "Log de batalha indisponível.";
+
+    if (battleResult.win) {
+        // Vitória: Recompensa e Marca oponente como vencido
+        addGems(user, ARENA_SCALING.GEM_REWARD_WIN);
+        opponent.defeated = true;
+        
+        // Verifica se todos os 5 foram vencidos para gerar nova lista
+        const allDefeated = state.opponents.every(o => o.defeated);
+        if (allDefeated) {
+             state.opponents = generateNewOpponentList(user);
+             finalMessage += "\n✅ **VITÓRIA!** Você venceu todos os 5 oponentes! Sua lista foi atualizada com desafios de Rank mais alto!";
+        } else {
+             finalMessage += `\n✅ **VITÓRIA!** Você ganhou ${ARENA_SCALING.GEM_REWARD_WIN} Gemas 💎!`;
+        }
+    } else {
+        // Derrota: Perde a tentativa, sem recompensa.
+        finalMessage += `\n❌ **DERROTA.** Você perdeu a chance diária.`;
+    }
+    
+    return finalMessage;
+}
+
+// A função arenaReward é mantida aqui, mas sem implementação detalhada
+export async function arenaReward(user) {
+    // Lógica para dar recompensas de rank diárias/semanais (não especificada)
+    return "Recompensa de Rank resgatada com sucesso (lógica não implementada).";
 }

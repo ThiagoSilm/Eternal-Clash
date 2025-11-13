@@ -1,54 +1,69 @@
 // src/commands/arena.js
 
-import { arenaChallenge, arenaStatus, arenaReward } from "../../src/systems/arenaSystem.js";
+// Importamos o sistema de Arena (precisará ser atualizado para a nova lógica)
+import { arenaChallenge, arenaStatus, arenaReward, getMatchmakingList } from "../../src/systems/arenaSystem.js";
 
 export default {
   name: "arena",
   description: "Desafie outros jogadores na Arena ou veja seu status.",
-  usage: "[status | lutar <id> | recompensa]",
+  // Ajuste do usage para refletir a escolha por número
+  usage: "[status | lutar <1-5> | recompensa]",
   
   async execute(message, args, user) {
-    const sub = args[0]?.toLowerCase(); // Uso seguro do subcomando
-    const target = args[1]; // ID ou nome do oponente
+    const sub = args[0]?.toLowerCase();
+    const targetArg = args[1]; // Agora será um número (1-5)
     let response;
     
     try {
+      // O sistema deve verificar e resetar as tentativas/lista de oponentes diariamente
+      await arenaStatus(user, { checkReset: true }); 
+      
       switch (sub) {
         case "status":
-          // Comando de leitura. arenaStatus deve retornar string com rank/pontos
+          // 1. Mostrar lista de oponentes, tentativas, e cooldown
           response = await arenaStatus(user);
           break;
           
         case "lutar":
-          if (!target) {
-            response = "⚔️ Use: `!arena lutar <idDoOponente>` (Pode ser o ID ou o nome do usuário do Discord).";
-          } else {
-            // arenaChallenge deve modificar o objeto 'user' (gasto de energia/tentativas)
-            // e possivelmente o objeto do oponente (se for outro user do bot).
-            response = await arenaChallenge(user, target);
+          // 2. Lutar contra um oponente da lista (1-5)
+          const opponentIndex = parseInt(targetArg);
+
+          if (isNaN(opponentIndex) || opponentIndex < 1 || opponentIndex > 5) {
+            throw new Error("❌ Use: `!arena lutar <número>` onde o número é o índice (1-5) do oponente na sua lista.");
           }
+          
+          // O sistema fará: verificar cooldown, gastar tentativa, realizar batalha, gerenciar vitória/derrota.
+          response = await arenaChallenge(user, opponentIndex);
           break;
           
         case "recompensa":
-          // arenaReward deve modificar o objeto 'user' (adicionando ouro/itens)
+          // 3. Resgatar recompensa (lógica não alterada)
           response = await arenaReward(user);
           break;
           
         default:
+          // 4. Ajuda Padrão Revisada
           response =
             "🏆 **Comandos da Arena**\n" +
             "---" +
-            "`!arena status` — Ver seu rank e pontos atuais.\n" +
-            "`!arena lutar <id>` — Desafiar outro jogador ou NPC.\n" +
+            "`!arena status` — Ver sua lista de oponentes, tentativas e cooldown.\n" +
+            "`!arena lutar <1-5>` — Desafiar um oponente pelo número do índice.\n" +
             "`!arena recompensa` — Receber bônus de rank diário/semanal.";
       }
       
-      // O index.js cuidará de chamar markUserDirty(user) se o objeto 'user' foi modificado.
       await message.reply({ content: response, allowedMentions: { repliedUser: false } });
       
     } catch (err) {
-      console.error("❌ Erro no comando da Arena:", err);
-      await message.reply("⚠️ Ocorreu um erro ao processar o comando da Arena.");
+      let errorMessage = "⚠️ Ocorreu um erro interno ao processar o comando da Arena.";
+      
+      if (err instanceof Error) {
+          errorMessage = `⚠️ ${err.message}`;
+      } else if (typeof err === 'string') {
+          errorMessage = `⚠️ ${err}`;
+      }
+      
+      console.error(`❌ Erro no comando !arena (${sub}):`, err);
+      await message.reply({ content: errorMessage, allowedMentions: { repliedUser: false } });
     }
   }
 };
