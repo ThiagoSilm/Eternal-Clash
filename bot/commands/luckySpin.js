@@ -1,11 +1,11 @@
 // src/commands/luckySpin.js
 
 // 🚨 CORREÇÃO: Removemos a importação de loadUser/saveUser.
-import { spinLuckyWheel } from "../../src/systems/luckySpinSystem.js";
+import { spinLucky } from "../../src/systems/luckySpinSystem.js";
 
 export default {
   name: "luckyspin",
-  description: "Gira a roda da sorte por 100 de ouro. Cada 10 giros, ganha um giro grátis especial.",
+  description: "Gira a roda da sorte por 100 de gema. Cada 10 giros, ganha um giro grátis especial.",
   usage: "[spin [quantidade] | status]",
   
   // ⚠️ ATENÇÃO: Recebe o objeto 'user' do middleware do index.js
@@ -31,7 +31,7 @@ export default {
       
       // O spinLuckyWheel(user) deve modificar o objeto 'user' (ouro e contagem de giros)
       for (let i = 0; i < count; i++) {
-        const result = spinLuckyWheel(user);
+        const result = spinLucky(user);
         totalResult += `🎰 Giro ${i + 1}: ${result}\n`;
       }
       
