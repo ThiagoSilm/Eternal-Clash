@@ -20,6 +20,20 @@ try {
   EFFECTS = [];
 }
 
+// --- Limpeza de "export function ..." ---
+function cleanEffectAction(actionStr) {
+  if (!actionStr || typeof actionStr !== "string") return actionStr;
+  return actionStr
+    .replace(/export\s+function\s+\w+\s*\([^)]*\)\s*{/, "")
+    .replace(/}$/, "")
+    .trim();
+}
+
+// Aplica a limpeza a todos os efeitos carregados
+EFFECTS.forEach(eff => {
+  eff.action = cleanEffectAction(eff.action);
+});
+
 export function getEffectById(id) {
   if (!id) return null;
   return EFFECTS.find(e => e && e.id === id) || null;
