@@ -1,6 +1,9 @@
-// src/systems/userSystem.js (RESTRUTURADO PARA GERENCIAR O OBJETO CENTRAL)
+// src/systems/userSystem.js
 
-import { loadUserCached, markUserDirty, saveUser as saveUserToCache } from "./userCacheSystem.js";
+// 🎯 CORREÇÃO: Removemos a importação 'saveUser as saveUserToCache',
+// pois 'saveUser' não é exportado pelo userCacheSystem.js.
+// Apenas as funções necessárias para load e dirty marking são mantidas.
+import { loadUserCached, markUserDirty } from "./userCacheSystem.js";
 
 // --- FUNÇÃO DE INICIALIZAÇÃO DE DADOS BÁSICOS ---
 
@@ -17,7 +20,7 @@ function initializeNewUser(userId) {
         coupons: 0,
         // Inventário
         cards: [],
-        decks: {}, // Ex: { "main": [c1, c2], "arena": [c3, c4] }
+        decks: {}, 
         graveyard: []
         // Adicionar outros campos iniciais, como tutorialStatus, etc.
     };
@@ -27,7 +30,6 @@ function initializeNewUser(userId) {
 
 /**
  * Carrega o usuário do cache. Se não existir, inicializa um novo.
- * Este é o ponto de entrada canônico para obter o objeto do usuário.
  */
 export function loadUser(userId) {
   let user = loadUserCached(userId);
@@ -43,9 +45,7 @@ export function loadUser(userId) {
 }
 
 /**
- * Salva o estado atual do usuário no cache/disco.
- * (Envolve a função saveUserToCache ou markUserDirty do userCacheSystem)
- * Outros módulos devem usar esta função se modificarem o objeto 'user' diretamente.
+ * Salva o estado atual do usuário, marcando-o como modificado no cache.
  */
 export function saveUserData(user) {
     const userId = user.id;
