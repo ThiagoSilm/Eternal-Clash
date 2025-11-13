@@ -99,3 +99,64 @@ export function getDailyStatus(user) {
   const streak = user.daily?.streak || 0;
   return `📅 Sequência de login: ${streak} dias`;
 }
+
+export function dailyDraw(user) {
+  const now = Date.now();
+  const cooldown = 24 * 60 * 60 * 1000; // 24 horas
+  if (!user.dailyDraw) user.dailyDraw = { lastDraw: 0 };
+  
+  const timeSince = now - user.dailyDraw.lastDraw;
+  if (timeSince < cooldown) {
+    const remaining = Math.ceil((cooldown - timeSince) / (60 * 60 * 1000));
+    return `⏳ Você já participou do sorteio hoje. Tente novamente em **${remaining}h**.`;
+  }
+  
+  user.dailyDraw.lastDraw = now;
+  
+  // 🎁 Possíveis recompensas
+  const rewards = [
+    { type: "gold", amount: 2500, chance: 40 },
+    { type: "gems", amount: 50, chance: 25 },
+    { type: "coupon", amount: 1, chance: 10 },
+    { type: "card", rarity: 3, chance: 15 },
+    { type: "card", rarity: 4, chance: 7 },
+    { type: "card", rarity: 5, chance: 3 },
+  ];
+  
+  // Sorteia a recompensa com base nas chances
+  const roll = Math.random() * 100;
+  let cumulative = 0;
+  let reward = rewards[0];
+  
+  for (const r of rewards) {
+    cumulative += r.chance;
+    if (roll <= cumulative) {
+      reward = r;
+      break;
+    }
+  }
+  
+  // Aplica a recompensa
+  let resultMsg = "";
+  switch (reward.type) {
+    case "gold":
+      addGold(user, reward.amount);
+      resultMsg = `💰 Você ganhou **${reward.amount} ouro!**`;
+      break;
+    case "gems":
+      addGems(user, reward.amount);
+      resultMsg = `💎 Você ganhou **${reward.amount} gemas!**`;
+      break;
+    case "coupon":
+      addCoupons(user, reward.amount);
+      resultMsg = `🎟️ Você ganhou **${reward.amount} cupom!**`;
+      break;
+    case "card":
+      const cardId = getRandomCardIdByRarity(reward.rarity);
+      giveCardToUser(user, cardId);
+      resultMsg = `✨ Você recebeu uma carta **${reward.rarity}★** no sorteio diário!`;
+      break;
+  }
+  
+  return `🎰 **Sorteio Diário**\n${resultMsg}`;
+}

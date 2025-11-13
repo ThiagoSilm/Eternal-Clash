@@ -36,8 +36,11 @@ export function sellCards(user, indicesToSell) {
     let totalGoldGained = 0;
     const cardUniqueIdsToRemove = new Set();
     
-    for (const index of indicesToSell) {
-        const card = user.cards[index];
+    for (const rawIndex of indicesToSell) {
+        const index = Number(rawIndex);
+        if (!Number.isFinite(index)) continue;
+        const i = index - 1; // converte 1-based -> 0-based
+        const card = user.cards[i];
         if (!card) continue;
         const template = getCardTemplate(card.id);
         if (!template) continue;
@@ -46,11 +49,11 @@ export function sellCards(user, indicesToSell) {
             deck.some(deckCard => deckCard.uniqueId === card.uniqueId)
         );
         if (isInDeck)
-            throw new Error(`A carta ${template.name} (índice ${index + 1}) está em um deck ativo.`);
+            throw new Error(`A carta ${template.name} (índice ${index}) está em um deck ativo.`);
         
         if (card.isGuardian) continue;
         
-        const cardValue = (template.baseSellValue || 50) + (card.level * 10);
+        const cardValue = (template.baseSellValue || 50) + ((card.level || 1) * 10);
         totalGoldGained += cardValue;
         cardsToSell.push(card);
         cardUniqueIdsToRemove.add(card.uniqueId);
@@ -165,4 +168,72 @@ export function viewCardDetails(user, identifier) {
     // ⚠️ Usamos formatCardInfo se existir para padronizar a saída
     const info = formatCardInfo(card, template);
     return info;
+}
+
+
+// Retorna uma string formatada do deck (para o comando !inventory deck)
+export function viewDeck(user, deckName = "main") {
+    ensureDecksAreInitialized(user);
+    const deck = user.decks[deckName];
+    if (!deck || deck.length === 0) return `⚠️ O deck "${deckName}" está vazio.`;
+    
+    const lines = deck.map((card, i) => {
+        const template = getCardTemplate(card.id);
+        const name = template?.name || card.id;
+        const rarity = template?.rarity ? `${template.rarity}★` : "";
+        return `${i + 1}. ${name} ${rarity} — Lv.${card.level || 1} (uid:${card.uniqueId})`;
+    });
+    
+    return `🃏 Deck "${deckName}" — ${deck.length} cartas:\n` + lines.join("\n");
+}
+
+// Remove todas as cartas de um deck (mantém as cartas no inventário)
+export function removeAllFromDeck(user, deckName = "main") {
+    ensureDecksAreInitialized(user);
+    if (!user.decks[deckName] || user.decks[deckName].length === 0) return `⚠️ O deck "${deckName}" já está vazio.`;
+    user.decks[deckName] = [];
+    return `🗑️ Todas as cartas foram removidas do deck "${deckName}".`;
+}
+
+// Reforçada: recebe inventoryIndex 1-based; verifica duplicata, tamanho máximo e se carta existe
+export function addCardToDeck(user, inventoryIndex, deckName = "main") {
+    ensureDecksAreInitialized(user);
+    
+    const idx = Number(inventoryIndex);
+    if (!Number.isFinite(idx) || idx < 1) return "❌ Índice inválido.";
+    
+    const card = user.cards[idx - 1]; // 1-based -> 0-based
+    if (!card) return "❌ Carta não encontrada no inventário.";
+    
+    if (!user.decks[deckName]) user.decks[deckName] = [];
+    const deck = user.decks[deckName];
+    
+    // Impede colocar a mesma carta mais de uma vez no mesmo deck
+    if (deck.find(c => c.uniqueId === card.uniqueId)) return "⚠️ Essa carta já está no deck.";
+    
+    // Limite padrão (ajuste se necessário)
+    const MAX_DECK_SIZE = 5;
+    if (deck.length >= MAX_DECK_SIZE) return `⚠️ O deck já está cheio (máx. ${MAX_DECK_SIZE} cartas).`;
+    
+    deck.push(card);
+    const template = getCardTemplate(card.id);
+    return `✅ ${template?.name || "Carta"} adicionada ao deck "${deckName}".`;
+}
+
+// Remove carta do deck por índice 1-based no deck
+export function removeCardFromDeck(user, deckIndex, deckName = "main") {
+    ensureDecksAreInitialized(user);
+    
+    const deck = user.decks[deckName];
+    if (!deck || deck.length === 0) return `⚠️ O deck "${deckName}" está vazio.`;
+    
+    const idx = Number(deckIndex);
+    if (!Number.isFinite(idx) || idx < 1) return "❌ Índice inválido.";
+    
+    const card = deck[idx - 1];
+    if (!card) return "❌ Carta não encontrada no deck.";
+    
+    const removed = deck.splice(idx - 1, 1)[0];
+    const template = getCardTemplate(removed.id);
+    return `🗑️ ${template?.name || "Carta"} removida do deck "${deckName}".`;
 }

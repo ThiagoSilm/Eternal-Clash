@@ -1,6 +1,6 @@
 // src/systems/clanSystem.js
 
-import { spendCurrency, addXp } from "./economySystem.js";
+import { spendCurrency, addXP } from "./economySystem.js";
 // Usaremos um 'mock' para o sistema de dados de clã, que deve ser persistente (como um arquivo clans.json ou um banco de dados)
 import { CLAN_DATA_MOCK } from "../data/clanDataMock.js"; // Novo arquivo mock
 
