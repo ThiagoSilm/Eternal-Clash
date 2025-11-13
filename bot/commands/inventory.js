@@ -9,7 +9,7 @@ import {
   removeCardFromDeck,
   removeAllFromDeck,
   // upgradeCard, // Usar o comando !upgrade dedicado é melhor
-} from "../src/systems/inventorySystem.js";
+} from "../../src/systems/inventorySystem.js";
 import { getCardTemplate } from "../../src/systems/cardSystem.js";
 // Importa o comando de upgrade dedicado (se você quiser chamá-lo de dentro)
 import upgradeCommand from "./upgrade.js"; 

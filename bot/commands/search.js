@@ -1,7 +1,7 @@
 // src/commands/search.js
 
 // Importa a função de sistema para busca
-import { searchInventory } from "../src/systems/inventorySystem.js";
+import { searchInventory } from "../../src/systems/inventorySystem.js";
 
 export default {
   name: "search",

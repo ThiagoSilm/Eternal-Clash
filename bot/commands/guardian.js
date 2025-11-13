@@ -5,9 +5,9 @@ import {
   filterCards,
   addCardToDeck,
   removeCardFromDeck
-} from "../src/systems/inventorySystem.js";
-import { getCardTemplate } from "../src/systems/cardSystem.js";
-import { getCardByUniqueId } from "../src/systems/userSystem.js"; // Supondo que esta função exista para buscar a carta
+} from "../../src/systems/inventorySystem.js";
+import { getCardTemplate } from "../../src/systems/cardSystem.js";
+import { getCardByUniqueId } from "../../src/systems/userSystem.js"; // Supondo que esta função exista para buscar a carta
 
 export default {
   name: "guardian",

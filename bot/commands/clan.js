@@ -7,7 +7,7 @@ import {
   donateToClan,
   getClanInfo,
   getClanRankings
-} from "../src/systems/clanSystem.js";
+} from "../../src/systems/clanSystem.js";
 
 export default {
   name: "clan",

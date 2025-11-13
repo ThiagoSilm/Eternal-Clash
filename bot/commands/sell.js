@@ -1,7 +1,7 @@
 // src/commands/sell.js
 
 // Importa a função de sistema para vender
-import { sellCards } from "../src/systems/inventorySystem.js";
+import { sellCards } from "../../src/systems/inventorySystem.js";
 
 export default {
   name: "sell",

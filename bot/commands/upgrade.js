@@ -1,10 +1,10 @@
 // src/commands/upgrade.js
 
 // Importações dos sistemas
-import { getCardTemplate } from "../systems/cardSystem.js"; 
+import { getCardTemplate } from "../../src/systems/cardSystem.js"; 
 // 🟢 Corrigido o caminho: do 'src/commands' para 'src/systems' é '../systems'
-import { levelUpCard, burnCardForXp } from "../systems/xpSystem.js"; 
-import { spendGold } from "../systems/economySystem.js"; 
+import { levelUpCard, burnCardForXp } from "../../src/systems/xpSystem.js"; 
+import { spendGold } from "../../src/systems/economySystem.js"; 
 
 export default {
   name: "upgrade",

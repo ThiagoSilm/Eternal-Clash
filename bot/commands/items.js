@@ -1,7 +1,7 @@
 // src/commands/items.js
 
-import { listUserItems, consumeItem } from "../src/systems/itemSystem.js";
-import { getShopCatalog } from "../src/systems/shopSystem.js"; // Para obter metadados
+import { listUserItems, consumeItem } from "../../src/systems/itemSystem.js";
+import { getShopCatalog } from "../../src/systems/shopSystem.js"; // Para obter metadados
 
 export default {
   name: "items",

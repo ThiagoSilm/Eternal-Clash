@@ -1,6 +1,6 @@
 // src/commands/energy.js
 
-import { getEnergyStatus } from "../src/systems/energySystem.js";
+import { getEnergyStatus } from "../../src/systems/energySystem.js";
 // 🚨 CORREÇÃO: Removemos a importação de getOrCreateUser, pois o usuário já é garantido pelo index.js.
 
 export default {

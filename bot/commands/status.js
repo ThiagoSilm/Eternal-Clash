@@ -3,9 +3,9 @@
 // 🚨 CORREÇÃO: Removemos loadUser, pois o objeto 'user' será recebido como argumento.
 // Certifique-se de que os sistemas abaixo não dependem de loadUser internamente,
 // e sim do objeto 'user' ou do 'userId' passado.
-import { getEnergyStatus } from "../src/systems/energySystem.js";
-import { viewDeck } from "../src/systems/inventorySystem.js";
-import { getDailyStatus } from "../src/systems/dailySystem.js";
+import { getEnergyStatus } from "../../src/systems/energySystem.js";
+import { viewDeck } from "../../src/systems/inventorySystem.js";
+import { getDailyStatus } from "../../src/systems/dailySystem.js";
 
 export default {
   name: "status",
