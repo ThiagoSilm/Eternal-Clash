@@ -144,3 +144,25 @@ export function addItemToInventory(user, type, itemData) {
             throw new Error(`Tipo inválido para inventário: ${type}`);
     }
 }
+
+export function viewCardDetails(user, identifier) {
+    ensureInventory(user);
+    
+    let card;
+    if (typeof identifier === "number") {
+        // índice baseado em 1
+        card = user.cards[identifier - 1];
+    } else if (typeof identifier === "string") {
+        // uniqueId
+        card = user.cards.find(c => c.uniqueId === identifier);
+    }
+    
+    if (!card) return "⚠️ Carta não encontrada.";
+    
+    const template = getCardTemplate(card.id);
+    if (!template) return "⚠️ Template da carta não encontrado.";
+    
+    // ⚠️ Usamos formatCardInfo se existir para padronizar a saída
+    const info = formatCardInfo(card, template);
+    return info;
+}

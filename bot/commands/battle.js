@@ -1,7 +1,7 @@
 // src/commands/battle.js
 
 import { battleSystem } from "../../src/systems/battleSystem.js"; // ⚠️ Assumindo battleSystem é o nome correto
-import { spendEnergy, addXp, addGold, regenerateEnergy } from "../../src/systems/economySystem.js";
+import { spendEnergy, addXP, addGold, regenerateEnergy } from "../../src/systems/economySystem.js";
 // 🚨 CORREÇÃO: Removemos a importação de saveUser, pois o salvamento é delegado ao index.js.
 
 export default {
