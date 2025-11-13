@@ -19,13 +19,13 @@ function saveJSON(filePath, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
-const config = loadJSON(path.join(__dirname, "data/config.json"), {
+const config = {
   prefix: "!",
   gameName: "Eternal Clash",
   version: "0.1.0",
   energyRegenRate: 30,
   energyRegenHours: [10, 15],
-});
+};
 
 async function main() {
     console.log("-------------------------------------------------");

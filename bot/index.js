@@ -50,7 +50,7 @@ export async function startBot(config) {
 
     client.commands = new Collection();
     // Ajuste o caminho dos comandos relativo a 'bot/index.js'
-    const commandsPath = path.join(__dirname, "..", "commands"); 
+    const commandsPath = path.join(__dirname, ".", "commands"); 
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
 
     for (const file of commandFiles) {
