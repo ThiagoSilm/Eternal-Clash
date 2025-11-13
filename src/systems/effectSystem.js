@@ -1,210 +1,124 @@
-// src/systems/effectSystem.js
+// src/systems/effectSystem.js (REVISADO)
+
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// --- Configuração e Carregamento de Efeitos ---
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const EFFECTS_PATH = path.join(__dirname, "../../data/effects.json"); 
 
-const effectsPath = path.join(__dirname, "../../data/effects.json");
-const effects = JSON.parse(fs.readFileSync(effectsPath, "utf-8"));
+let EFFECTS = [];
+try {
+  EFFECTS = JSON.parse(fs.readFileSync(EFFECTS_PATH, "utf-8"));
+} catch (e) {
+  console.error(`Erro ao carregar effects.json em ${EFFECTS_PATH}:`, e.message);
+  EFFECTS = [];
+}
+
+/** Retorna a definição completa de um efeito pelo seu ID. */
+export function getEffectById(id) { 
+    return EFFECTS.find(e => e.id === id); 
+}
+
+// --- Funções Auxiliares ---
+
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 /**
- * Ativa efeitos de uma carta conforme o evento.
+ * Executa a lógica JavaScript contida em eff.action,
+ * injetando o contexto necessário.
+ * * @param {object} eff - A definição do efeito (do effects.json).
+ * @param {object} subject - A carta/guardião INSTÂNCIA que está ativando.
+ * @param {object} owner - O combatente proprietário (com .cards, .graveyard, etc.).
+ * @param {object} opponent - O combatente adversário.
+ * @param {object} context - O objeto de alvo (ex: a carta que foi atacada).
+ * @param {function} pushLog - Função para adicionar mensagens ao log de batalha.
+ * @param {object} rng - O gerador de números aleatórios.
  */
-export async function triggerEffects(owner, trigger, log, attacker, defender) {
-  if (!owner.cards) return;
+export function executeEffect(eff, subject, owner, opponent, context = null, pushLog = () => {}, rng = Math) {
+  if (!eff) return null;
   
-  for (const card of owner.cards) {
-    if (!card.effects || card.hp <= 0 || card.silenced) continue;
-    
-    for (const effId of card.effects) {
-      const eff = effects.find(e => e.id === effId && e.type === trigger);
-      if (!eff) continue;
-      
-      // Checagem de chance
-      if (eff.chance && Math.random() > eff.chance) continue;
-      
-      switch (eff.effect) {
-        // ======= 💪 Buffs =======
-        case "buffAttack": {
-          const bonus = Math.round((card.attack || 100) * eff.value);
-          card.attack += bonus;
-          log.push(`⚔️ ${card.name} ganhou +${bonus} de ataque (${eff.desc})`);
-          break;
-        }
-        
-        case "buffDefense": {
-          card.defense = (card.defense || 0) + Math.round(eff.value * 100);
-          log.push(`🛡️ ${card.name} fortaleceu sua defesa (${eff.desc})`);
-          break;
-        }
-        
-        // ======= 💔 Debuffs =======
-        case "burn": {
-          const target = defender.cards?.[0];
-          if (!target) break;
-          const dmg = Math.round(card.attack * eff.value);
-          addOverTime(defender, "burn", dmg, 2, card.name);
-          log.push(`🔥 ${target.name} foi queimado e sofrerá ${dmg} de dano por 2 turnos.`);
-          break;
-        }
-        
-        case "poison": {
-          const target = defender.cards?.[0];
-          if (!target) break;
-          const dmg = Math.round((card.attack || 100) * eff.value);
-          addOverTime(defender, "poison", dmg, 3, card.name);
-          log.push(`☠️ ${target.name} foi envenenado (${dmg}/turno).`);
-          break;
-        }
-        
-        // ======= ❤️ Suporte =======
-        case "heal": {
-          const heal = Math.round((card.maxHp || 200) * eff.value);
-          card.hp = Math.min(card.maxHp || 200, card.hp + heal);
-          log.push(`💚 ${card.name} se curou em ${heal} HP (${eff.desc})`);
-          break;
-        }
-        
-        case "shield": {
-          card.shield = (card.shield || 0) + Math.round(eff.value * 200);
-          log.push(`🧱 ${card.name} ergueu um escudo de ${Math.round(eff.value * 200)} HP (${eff.desc})`);
-          break;
-        }
-        
-        // ======= ☠️ Controle =======
-        case "stun": {
-          const target = defender.cards?.[0];
-          if (!target) break;
-          target.stunned = 1;
-          log.push(`💫 ${target.name} foi atordoado e perde o próximo turno!`);
-          break;
-        }
-        
-        case "silence": {
-          const target = defender.cards?.[0];
-          if (!target) break;
-          target.silenced = true;
-          log.push(`🔇 ${target.name} teve seus efeitos bloqueados!`);
-          break;
-        }
-        
-        // ======= ⚗️ Sorte =======
-        case "evade": {
-          card.evadeChance = eff.value; // ex: 0.4 = 40%
-          log.push(`💨 ${card.name} agora tem ${eff.value * 100}% de chance de esquivar ataques.`);
-          break;
-        }
-        
-        // ======= ⚰️ Ressurreição =======
-        case "reviveOne": {
-          if (owner.graveyardLocked) {
-            log.push(`🚫 ${card.name} tentou reviver, mas o cemitério está bloqueado.`);
-            break;
-          }
-          if (!owner.graveyard || owner.graveyard.length === 0) break;
-          const revived = owner.graveyard.pop();
-          revived.hp = revived.maxHp || 200;
-          owner.cards.push(revived);
-          log.push(`✨ ${card.name} reviveu ${revived.name} com 100% do HP.`);
-          break;
-        }
-        
-        case "reviveTwo": {
-          if (owner.graveyardLocked) {
-            log.push(`🚫 ${card.name} tentou reviver, mas o cemitério está bloqueado.`);
-            break;
-          }
-          if (!owner.graveyard || owner.graveyard.length === 0) break;
-          const revived = owner.graveyard.splice(-2).map(c => ({
-            ...c,
-            hp: c.maxHp || 200
-          }));
-          owner.cards.push(...revived);
-          log.push(`🌟 ${card.name} reviveu ${revived.length} cartas com HP total.`);
-          break;
-        }
-        
-        // ======= 💀 Sacrifício =======
-        case "sacrificeStealPower": {
-          const target = owner.cards
-            .filter(c => c !== card && c.hp > 0)
-            .sort((a, b) => (b.attack || 0) - (a.attack || 0))[0];
-          if (!target) break;
-          
-          const bonus = Math.round((target.attack || 0) * (eff.value || 0.7));
-          card.attack += bonus;
-          log.push(`🩸 ${card.name} sacrificou ${target.name} e absorveu ${bonus} de ataque!`);
-          
-          if (!owner.graveyard) owner.graveyard = [];
-          owner.graveyard.push({ ...target, hp: 0 });
-          owner.cards = owner.cards.filter(c => c !== target);
-          break;
-        }
-        
-        // ======= 🔒 Cemitério =======
-        case "graveLock": {
-          owner.graveyardLocked = true;
-          log.push(`🪦 ${card.name} bloqueou o cemitério. Nenhum aliado pode ser revivido enquanto viver.`);
-          break;
-        }
-        
-        // ======= 🧬 Combos =======
-        case "comboBoost": {
-          const sameTypeCount = owner.cards.filter(c => c.type === card.type && c.hp > 0).length;
-          const boost = sameTypeCount * eff.value;
-          card.attack = Math.round(card.attack * (1 + boost));
-          log.push(`⚡ Combo ativo! ${card.name} ganhou ${boost * 100}% de ataque (${sameTypeCount} cartas do mesmo tipo).`);
-          break;
-        }
-        
-        default:
-          log.push(`❔ Efeito desconhecido: ${eff.effect}`);
-      }
-      
-      // Evita continuar aplicando se a carta morreu no meio
-      if (card.hp <= 0) break;
-      await delay(50); // micro delay pra garantir ordem
+  // CORREÇÃO: Cria um objeto de contexto único e completo para o escopo da função dinâmica.
+  const executionContext = {
+    // Aliases comuns
+    subject: subject,     // A carta que ativou o efeito (instância)
+    target: context,      // O alvo do efeito (ex: carta atacada)
+    owner: owner,         // O jogador proprietário (com .cards, .graveyard)
+    opponent: opponent,   // O jogador adversário
+    // Utilitários
+    rng: rng,
+    pushLog: pushLog,
+    deepClone: deepClone,
+    // Acesso direto aos dados internos
+    graveyard: owner.graveyard, 
+    allCards: owner.cards.concat(opponent.cards), // Todas as cartas em campo
+  };
+
+  try {
+    // 1. Condição (eff.condition)
+    if (eff.condition) {
+      // Condição deve ser um corpo de função que retorna um booleano
+      const condFn = new Function('ctx', `with (ctx) { return (${eff.condition}); }`);
+      const ok = !!condFn(executionContext);
+      if (!ok) return null;
     }
+
+    // 2. Ação (eff.action - Execução Dinâmica)
+    if (eff.action) {
+      // 2. CORREÇÃO: Usa um único formato robusto para execução,
+      // injetando o contexto no escopo da função (usando 'with').
+      const actionFn = new Function('ctx', `with (ctx) { ${eff.action}; }`);
+      actionFn(executionContext);
+
+      pushLog(`✨ ${subject.name ?? subject.id} ativou: ${eff.name ?? eff.id}`);
+    }
+
+    // 3. Efeitos de Próximo Turno (eff.nextTurnEffect)
+    if (eff.nextTurnEffect) {
+      owner.overTime = owner.overTime || [];
+      // Usamos deepClone para garantir que o objeto seja novo e não referencie o eff
+      owner.overTime.push(deepClone(eff.nextTurnEffect)); 
+      pushLog(`⏳ ${subject.name ?? subject.id} agendou efeito de próximo turno: ${eff.nextTurnEffect.name || eff.nextTurnEffect.id}`);
+    }
+
+    return true;
+  } catch (err) {
+    pushLog(`⚠️ ERRO ao executar efeito ${eff.id} de ${subject.name}: ${err.message}`);
+    return null;
   }
 }
 
 /**
- * Aplica efeitos contínuos (burn, poison etc.)
- * Agora eles só agem no turno do dono.
+ * Percorre todas as cartas e o guardião e ativa os efeitos correspondentes a um gatilho.
  */
-export async function processOverTimeEffects(owner, log, phase = "turnStart") {
-  if (!owner.overTime || owner.overTime.length === 0) return false;
-  let triggered = false;
-  const remaining = [];
+export function runEffectsTrigger(trigger, owner, opponent, context = null, pushLog = () => {}, rng = Math) {
   
-  if (phase !== "turnStart") return false;
-  
-  for (const eff of owner.overTime) {
-    if (eff.turns > 0) {
-      const target = owner.cards.find(c => c.hp > 0);
-      if (!target) continue;
-      
-      target.hp = Math.max(0, target.hp - eff.value);
-      eff.turns -= 1;
-      triggered = true;
-      log.push(`☠️ ${target.name} sofreu ${eff.value} de dano (${eff.type}) de ${eff.source}.`);
-      await delay(100);
-    }
+  // 1. Efeitos de Cartas em Campo
+  for (const card of (owner.cards || []).filter(c => (c.hp ?? 0) > 0)) {
+    if (card.silenced) continue;
     
-    if (eff.turns > 0) remaining.push(eff);
+    // O array de efeitos (card.effects) deve conter os IDs de efeitos da definição (template)
+    for (const eid of (card.effects || [])) {
+      const eff = getEffectById(eid);
+      if (!eff || eff.type !== trigger) continue;
+      
+      // Passamos a INSTÂNCIA da carta como 'subject'
+      executeEffect(eff, card, owner, opponent, context, pushLog, rng); 
+    }
   }
-  
-  owner.overTime = remaining;
-  return triggered;
-}
 
-function addOverTime(owner, type, value, turns, source) {
-  if (!owner.overTime) owner.overTime = [];
-  owner.overTime.push({ type, value, turns, source });
-}
-
-function delay(ms) {
-  return new Promise(r => setTimeout(r, ms));
+  // 2. Efeitos do Guardião (Se o guardião for uma entidade de batalha)
+  // 4. INCONSISTÊNCIA CORRIGIDA: Presumimos que owner.guardian é a INSTÂNCIA
+  if (owner.guardian && owner.guardian.effects && owner.guardian.effects.length) {
+    for (const eid of owner.guardian.effects) {
+      const eff = getEffectById(eid);
+      if (!eff || eff.type !== trigger) continue;
+      
+      // Passamos a INSTÂNCIA do guardião como 'subject'
+      executeEffect(eff, owner.guardian, owner, opponent, context, pushLog, rng); 
+    }
+  }
 }

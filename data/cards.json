@@ -4,7 +4,11 @@
     "name": "Emberling",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff017", "eff042"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -12,7 +16,11 @@
     "name": "Stoneclaw",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff038", "eff035", "eff050"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -20,7 +28,11 @@
     "name": "Ironhart",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff003", "eff048", "eff024"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Maze", "AltarGema"]
   },
   {
@@ -28,7 +40,11 @@
     "name": "Shadowfiend",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff009", "eff029"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -36,7 +52,11 @@
     "name": "Pyrestone",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff007", "eff004", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -44,7 +64,11 @@
     "name": "Thunderhoof",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff032", "eff039"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -52,7 +76,11 @@
     "name": "Lumina",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff005", "eff053"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -60,7 +88,11 @@
     "name": "Dreadmaw",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff013", "eff046", "eff037"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -68,7 +100,11 @@
     "name": "Vinewhisper",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -76,7 +112,11 @@
     "name": "Ironjaw",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -84,7 +124,11 @@
     "name": "Blazefang",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff042", "eff017"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -92,7 +136,11 @@
     "name": "Rockhide",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff035", "eff038", "eff050"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -100,7 +148,11 @@
     "name": "Brightshield",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff024", "eff003", "eff048"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Maze", "AltarGema"]
   },
   {
@@ -108,7 +160,11 @@
     "name": "Nightwraith",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff009", "eff029"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -116,7 +172,11 @@
     "name": "Ashvine",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff004", "eff007", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -124,7 +184,11 @@
     "name": "Stormhoof",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff032", "eff039"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -132,7 +196,11 @@
     "name": "Solaris",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff005", "eff053"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -140,7 +208,11 @@
     "name": "Voidmaw",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff013", "eff046", "eff037"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -148,7 +220,11 @@
     "name": "Leafwhisper",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -156,7 +232,11 @@
     "name": "Ironfang",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -164,7 +244,11 @@
     "name": "Emberhorn",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff017", "eff042"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -172,7 +256,11 @@
     "name": "Gravelock",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff035", "eff050", "eff038"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -180,7 +268,11 @@
     "name": "Aurashield",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff024", "eff048", "eff003"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Maze", "AltarGema"]
   },
   {
@@ -188,7 +280,11 @@
     "name": "Nightfang",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff029", "eff009"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -196,7 +292,11 @@
     "name": "Cinderbloom",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff004", "eff007", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -204,7 +304,11 @@
     "name": "Thunderback",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff039", "eff032"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -212,7 +316,11 @@
     "name": "Lightbringer",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff053", "eff005"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -220,7 +328,11 @@
     "name": "Doommaw",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff046", "eff037", "eff013"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -228,7 +340,11 @@
     "name": "Greenwhisper",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -236,7 +352,11 @@
     "name": "Rockjaw",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -244,7 +364,11 @@
     "name": "Flamepaw",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff042", "eff017"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -252,7 +376,11 @@
     "name": "Stonehoof",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff035", "eff038", "eff050"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -260,7 +388,11 @@
     "name": "Sunwarden",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff024", "eff003", "eff048"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Maze", "AltarGema"]
   },
   {
@@ -268,7 +400,11 @@
     "name": "Shadowfang",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff009", "eff029"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -276,7 +412,11 @@
     "name": "Ashpetal",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff004", "eff007", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -284,7 +424,11 @@
     "name": "Stormback",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff032", "eff039"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -292,7 +436,11 @@
     "name": "Radiant",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff005", "eff053"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -300,7 +448,11 @@
     "name": "Voidfang",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff013", "eff046", "eff037"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -308,7 +460,11 @@
     "name": "Leafshadow",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -316,7 +472,11 @@
     "name": "Ironclaw",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -324,7 +484,11 @@
     "name": "Firehorn",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff017", "eff042"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -332,7 +496,11 @@
     "name": "Graniteback",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff035", "eff038", "eff050"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -340,7 +508,11 @@
     "name": "Brightward",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff024", "eff048", "eff003"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Maze", "AltarGema"]
   },
   {
@@ -348,7 +520,11 @@
     "name": "Dreadfang",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff029", "eff009"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -356,7 +532,11 @@
     "name": "Cinderleaf",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff004", "eff007", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -364,7 +544,11 @@
     "name": "Thunderjaw",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff039", "eff032"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -372,7 +556,11 @@
     "name": "Luminary",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff053", "eff005"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -380,7 +568,11 @@
     "name": "Doomfang",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff046", "eff037", "eff013"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -388,7 +580,11 @@
     "name": "Greenshadow",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -396,7 +592,11 @@
     "name": "Stonefang",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -404,7 +604,11 @@
     "name": "Emberpaw",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff042", "eff017"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -412,7 +616,11 @@
     "name": "Granitehoof",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff035", "eff038", "eff050"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -420,7 +628,11 @@
     "name": "Solarward",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff024", "eff003", "eff048"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Maze", "AltarGema"]
   },
   {
@@ -428,7 +640,11 @@
     "name": "Shadowmaw",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff009", "eff029"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -436,7 +652,11 @@
     "name": "Ashwhisper",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff004", "eff007", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -444,7 +664,11 @@
     "name": "Stormfang",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff032", "eff039"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -452,7 +676,11 @@
     "name": "Radiantlight",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff005", "eff053"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -460,7 +688,11 @@
     "name": "Voidclaw",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff013", "eff046", "eff037"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -468,7 +700,11 @@
     "name": "Leaffang",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -476,7 +712,11 @@
     "name": "Ironback",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -484,7 +724,11 @@
     "name": "Flameclaw",
     "faction": "Faen",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff007", "eff017", "eff042"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -492,7 +736,11 @@
     "name": "Granitefang",
     "faction": "Gorath",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff035", "eff038", "eff050"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Arena", "AltarCupom"]
   },
   {
@@ -500,15 +748,23 @@
     "name": "Brightwarder",
     "faction": "Human",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff024", "eff048", "eff003"],
-    "sources": ["Booster", "Maze", "AltarGema"]
+    "evolutionEffectId": "eff063",
+    "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
     "id": "c064",
     "name": "Dreadclaw",
     "faction": "Morrath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff008", "eff029", "eff009"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -516,7 +772,11 @@
     "name": "Cinderleafy",
     "faction": "Faen",
     "rarity": 1,
+    "type": "card",
+    "hp": 100,
+    "attack": 50,
     "effects": ["eff004", "eff007", "eff019"],
+    "evolutionEffectId": "eff060",
     "sources": ["Booster", "Maze", "AltarOuro"]
   },
   {
@@ -524,7 +784,11 @@
     "name": "Thunderclaw",
     "faction": "Gorath",
     "rarity": 2,
+    "type": "card",
+    "hp": 150,
+    "attack": 80,
     "effects": ["eff038", "eff039", "eff032"],
+    "evolutionEffectId": "eff061",
     "sources": ["Booster", "Arena", "AltarOuro"]
   },
   {
@@ -532,7 +796,11 @@
     "name": "Luminara",
     "faction": "Human",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff053", "eff005"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -540,7 +808,11 @@
     "name": "Doomclaw",
     "faction": "Morrath",
     "rarity": 4,
+    "type": "card",
+    "hp": 300,
+    "attack": 180,
     "effects": ["eff046", "eff037", "eff013"],
+    "evolutionEffectId": "eff063",
     "sources": ["Booster", "Arena", "AltarGema"]
   },
   {
@@ -548,7 +820,11 @@
     "name": "Greenshadow",
     "faction": "Faen",
     "rarity": 3,
+    "type": "card",
+    "hp": 220,
+    "attack": 120,
     "effects": ["eff026", "eff004", "eff048"],
+    "evolutionEffectId": "eff062",
     "sources": ["Booster", "Maze", "AltarCupom"]
   },
   {
@@ -556,7 +832,11 @@
     "name": "Stonefang",
     "faction": "Gorath",
     "rarity": 5,
+    "type": "card",
+    "hp": 400,
+    "attack": 250,
     "effects": ["eff039", "eff034", "eff027"],
+    "evolutionEffectId": "eff064",
     "sources": ["Booster", "Arena", "AltarGema"]
   }
 ]

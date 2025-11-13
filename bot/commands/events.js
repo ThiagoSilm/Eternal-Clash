@@ -1,43 +1,55 @@
+// src/commands/events.js
+
 import { claimDaily, getDailyStatus } from "../../src/systems/dailySystem.js";
 import { dailyDraw } from "../../src/systems/drawSystem.js";
-import { getOrCreateUser } from "../../src/systems/userSystem.js";
+// 🚨 CORREÇÃO: Removemos getOrCreateUser, pois o usuário já é carregado pelo index.js.
 
 export default {
   name: "events",
   description: "Gerencie eventos diários e sorteios.",
-  async execute(message, args) {
-    const sub = args[0];
-    const userId = message.author.id;
+  usage: "[login | status | sorteio]",
+  
+  // ⚠️ ATENÇÃO: Adicionamos o objeto 'user' para receber o dado do middleware
+  async execute(message, args, user) {
+    const sub = args[0]?.toLowerCase(); // Tratamento mais seguro para subcomando
     
-    // garante que o usuário exista antes de qualquer ação
-    const user = getOrCreateUser(userId);
+    // O usuário já está garantido e carregado (ou criado) pelo index.js.
     let response;
     
     try {
       switch (sub) {
         case "login":
+          // claimDaily deve modificar o objeto 'user' (adicionando recompensas, atualizando status)
           response = claimDaily(user);
           break;
           
         case "status":
+          // getDailyStatus deve ler o objeto 'user'
           response = getDailyStatus(user);
           break;
           
         case "sorteio":
+          // dailyDraw deve modificar o objeto 'user' (dando a recompensa, atualizando cooldown)
           response = dailyDraw(user);
           break;
           
         default:
           response =
-            "🎁 **Comandos de Evento:**\n" +
-            "`!events login` — Coletar recompensa diária\n" +
-            "`!events status` — Ver sequência de login\n" +
-            "`!events sorteio` — Girar a sorte do dia";
+            "🎁 **Comandos de Evento**\n" +
+            "---" +
+            "`!events login` — Coletar recompensa diária de login.\n" +
+            "`!events status` — Ver sequência e status do login.\n" +
+            "`!events sorteio` — Girar a sorte do dia (cooldown/recompensa única).\n" +
+            "---";
       }
       
-      await message.reply(response);
+      // O index.js cuidará de chamar markUserDirty(user) e salvá-lo automaticamente
+      // se o objeto 'user' foi modificado por claimDaily ou dailyDraw.
+      
+      await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+      
     } catch (err) {
-      console.error("Erro no comando de eventos:", err);
+      console.error("❌ Erro no comando de eventos:", err);
       await message.reply("⚠️ Ocorreu um erro ao processar o evento.");
     }
   },

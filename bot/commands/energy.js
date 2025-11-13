@@ -1,17 +1,26 @@
+// src/commands/energy.js
+
 import { getEnergyStatus } from "../../src/systems/energySystem.js";
-import { getOrCreateUser } from "../../src/systems/userSystem.js"; // garante que o user exista
+// 🚨 CORREÇÃO: Removemos a importação de getOrCreateUser, pois o usuário já é garantido pelo index.js.
 
 export default {
   name: "energy",
   description: "Verifique o status atual da sua energia.",
-  async execute(message) {
-    const userId = message.author.id;
+  
+  // ⚠️ ATENÇÃO: Adicionamos o objeto 'user' para receber o dado do middleware
+  async execute(message, args, user) {
+    // O usuário já está garantido e carregado (ou criado) pelo index.js.
     
     try {
-      const response = getEnergyStatus(userId);
-      await message.reply(response);
+      // ⚠️ CORREÇÃO: Passamos o objeto 'user' para a função de status
+      const response = getEnergyStatus(user); 
+      
+      await message.reply({ content: response, allowedMentions: { repliedUser: false } });
+      
+      // Comando de leitura, não precisa de markUserDirty.
+      
     } catch (err) {
-      console.error("Erro ao checar energia:", err);
+      console.error("❌ Erro ao checar energia:", err);
       await message.reply("⚠️ Ocorreu um erro ao verificar sua energia.");
     }
   }

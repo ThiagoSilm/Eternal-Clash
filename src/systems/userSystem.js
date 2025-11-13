@@ -1,85 +1,68 @@
-// src/systems/userSystem.js
-import { loadUserCached, markUserDirty, saveUser } from "./userCacheSystem.js";
-import { getNextLevelXP } from "./xpSystem.js";
+// src/systems/userSystem.js (RESTRUTURADO PARA GERENCIAR O OBJETO CENTRAL)
 
-export function createUser(userId) {
-  const user = loadUserCached(userId);
-  markUserDirty(userId);
+import { loadUserCached, markUserDirty, saveUser as saveUserToCache } from "./userCacheSystem.js";
+
+// --- FUNÇÃO DE INICIALIZAÇÃO DE DADOS BÁSICOS ---
+
+function initializeNewUser(userId) {
+    return {
+        id: userId,
+        // Stats de progressão
+        level: 1,
+        xp: 0,
+        energy: 100, // Exemplo de recurso de jogo
+        // Recursos
+        gold: 0,
+        gems: 0,
+        coupons: 0,
+        // Inventário
+        cards: [],
+        decks: {}, // Ex: { "main": [c1, c2], "arena": [c3, c4] }
+        graveyard: []
+        // Adicionar outros campos iniciais, como tutorialStatus, etc.
+    };
+}
+
+// --- FUNÇÕES DE CICLO DE VIDA ---
+
+/**
+ * Carrega o usuário do cache. Se não existir, inicializa um novo.
+ * Este é o ponto de entrada canônico para obter o objeto do usuário.
+ */
+export function loadUser(userId) {
+  let user = loadUserCached(userId);
+  
+  // Se o usuário for novo ou precisar de inicialização
+  if (!user || user.level === undefined) { 
+    user = initializeNewUser(userId);
+    // Marca como dirty para garantir que o objeto recém-criado seja salvo.
+    markUserDirty(userId); 
+  }
+  
   return user;
 }
 
-export function addResource(user, type, amount) {
-  if (!["gold", "gems", "coupons", "energy", "xp"].includes(type)) return false;
-  user[type] = (user[type] || 0) + amount;
-  markUserDirty(user.userId);
-  return true;
-}
-
-export function spendResource(user, type, amount) {
-  if (!["gold", "gems", "coupons", "energy"].includes(type)) return false;
-  if ((user[type] || 0) < amount) return false;
-  user[type] -= amount;
-  markUserDirty(user.userId);
-  return true;
-}
-
-export function addXp(user, amount) {
-  user.xp += amount;
-  let leveledUp = false;
-  while (user.xp >= getNextLevelXP(user.level)) {
-    user.xp -= getNextLevelXP(user.level);
-    user.level++;
-    user.energy += 10;
-    leveledUp = true;
-  }
-  markUserDirty(user.userId);
-  return leveledUp ? `✨ Subiu para o nível ${user.level}!` : null;
-}
-
-// Deck management
-export function getUnlockedDecks(user) {
-  const maxDeck = Math.min(5, Math.ceil(user.level / 8)); // 5 decks liberados até level 40
-  return Object.keys(user.decks).slice(0, maxDeck);
-}
-
-export function addCardToDeck(user, card, deckName) {
-  const unlocked = getUnlockedDecks(user);
-  if (!unlocked.includes(deckName)) return "⚠️ Deck não desbloqueado ainda.";
-  if (!user.decks[deckName]) user.decks[deckName] = [];
-  if (user.decks[deckName].length >= 10) return "⚠️ Deck cheio.";
-  user.decks[deckName].push(card);
-  markUserDirty(user.userId);
-  return `✅ ${card.id} adicionada ao ${deckName}`;
-}
-
-export function removeCardFromDeck(user, deckName, index) {
-  const deck = user.decks[deckName];
-  if (!deck || deck.length === 0) return "⚠️ Deck vazio.";
-  const removed = deck.splice(index, 1)[0];
-  markUserDirty(user.userId);
-  return `🗑️ ${removed.id} removida do ${deckName}`;
-}
-
-export function removeAllCardsFromDeck(user, deckName, keepCardId = null) {
-  const deck = user.decks[deckName];
-  if (!deck) return;
-  user.decks[deckName] = deck.filter((c) => c.id === keepCardId);
-  markUserDirty(user.userId);
-}
-
-export function listCards(user, filter = {}) {
-  // filter: { rarity, minLevel, maxLevel, type: 'guardian'|'card' }
-  return user.cards.filter((c) => {
-    if (filter.rarity && c.rarity !== filter.rarity) return false;
-    if (filter.type === "guardian" && !c.id.startsWith("G")) return false;
-    if (filter.type === "card" && c.id.startsWith("G")) return false;
-    if (filter.minLevel && c.level < filter.minLevel) return false;
-    if (filter.maxLevel && c.level > filter.maxLevel) return false;
-    return true;
-  });
-}
-
-// Save user at end
+/**
+ * Salva o estado atual do usuário no cache/disco.
+ * (Envolve a função saveUserToCache ou markUserDirty do userCacheSystem)
+ * Outros módulos devem usar esta função se modificarem o objeto 'user' diretamente.
+ */
 export function saveUserData(user) {
-  saveUser(user);
+    const userId = user.id;
+    if (!userId) {
+        console.error("Erro: Objeto de usuário sem ID. Não foi possível salvar.");
+        return;
+    }
+    // Usa a função de cache para garantir que as mudanças sejam persistidas
+    markUserDirty(userId); 
+}
+
+// --- FUNÇÕES DE ACESSO AO ESTADO (SIMPLES) ---
+
+/**
+ * Retorna o nível de um usuário (exemplo de getter simples).
+ */
+export function getUserLevel(userId) {
+    const user = loadUser(userId);
+    return user.level;
 }

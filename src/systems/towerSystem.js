@@ -1,101 +1,87 @@
 // src/systems/towerSystem.js
-import { loadUser, saveUser } from "./userCacheSystem.js";
-import { battle } from "./battleSystem.js";
-import { giveCardToUser } from "./cardSystem.js";
+
+// ----------------------------------------------------
+// 🔹 CONFIGURAÇÃO DE DIFICULDADE (Andares)
+// ----------------------------------------------------
+
+// Define como os inimigos e as recompensas escalam por andar
+const TOWER_SCALING = {
+    BASE_HP: 100,
+    HP_PER_FLOOR: 50,
+    BASE_ATTACK: 30,
+    ATTACK_PER_FLOOR: 15,
+    XP_BASE: 500,
+    GOLD_BASE: 300,
+    REWARD_MULTIPLIER: 1.15, // Multiplicador de recompensas por andar
+    MAX_ATTEMPTS: 3,
+};
+
+// ----------------------------------------------------
+// 🔹 FUNÇÕES DO SISTEMA
+// ----------------------------------------------------
 
 /**
- * Inicializa ou reseta a torre do jogador
+ * Retorna o status formatado da Torre para o usuário.
+ * @param {object} user O objeto usuário.
+ * @returns {string} O status atual da Torre.
  */
-export function initTower(user) {
-  if (!user.tower) {
-    user.tower = {
-      currentFloor: 1,
-      attemptsLeft: 3,
-      rewardsCollected: [],
+export function getTowerStatus(user) {
+    const floor = user.tower.floor;
+    const attempts = user.tower.attempts;
+
+    return `
+• **Andar Atual:** ${floor}
+• **Tentativas Restantes:** ${attempts}/${TOWER_SCALING.MAX_ATTEMPTS}
+• **Próximo Inimigo:** [Lv. ${Math.floor(floor / 5) + 1}] Guardião do Andar ${floor}
+`;
+}
+
+/**
+ * Define e retorna o objeto inimigo para o andar atual.
+ * @param {number} floor O número do andar.
+ * @returns {object} O objeto inimigo formatado para o battleSystem.
+ */
+export function getFloorEnemy(floor) {
+    const level = Math.floor(floor / 5) + 1; // Inimigo ganha níveis a cada 5 andares
+    const hp = TOWER_SCALING.BASE_HP + (floor * TOWER_SCALING.HP_PER_FLOOR);
+    const attack = TOWER_SCALING.BASE_ATTACK + (floor * TOWER_SCALING.ATTACK_PER_FLOOR);
+    
+    // O inimigo terá 1 carta que representa o chefe do andar
+    const enemyCard = { name: `Guardião do Andar ${floor}`, hp, attack, level };
+
+    return {
+        id: `TOWER_ENEMY_${floor}`,
+        name: `Guardião da Torre (Andar ${floor})`,
+        cards: [enemyCard],
+        // O poder do guardião inimigo pode ser baseado no andar
+        guardianId: Math.floor(floor / 10) + 1 
     };
-    saveUser(user);
-  }
-  return user.tower;
 }
 
 /**
- * Reseta as tentativas diárias da torre
+ * Calcula e retorna as recompensas por completar um andar.
+ * @param {number} floor O número do andar.
+ * @returns {{xp: number, gold: number}} Recompensas.
  */
-export function resetTowerAttempts(user) {
-  if (!user.tower) initTower(user);
-  user.tower.attemptsLeft = 3;
-  saveUser(user);
-}
+export function getFloorReward(floor) {
+    const xp = Math.floor(TOWER_SCALING.XP_BASE * Math.pow(TOWER_SCALING.REWARD_MULTIPLIER, floor - 1));
+    const gold = Math.floor(TOWER_SCALING.GOLD_BASE * Math.pow(TOWER_SCALING.REWARD_MULTIPLIER, floor - 1));
 
-/**
- * Avança uma tentativa na torre
- * @param {Object} user 
- * @param {Number} floorsToAdvance 
- */
-export function attemptTower(user, floorsToAdvance = 1) {
-  if (!user.tower) initTower(user);
-  
-  if (user.tower.attemptsLeft <= 0)
-    return "⚠️ Você não tem tentativas restantes para hoje.";
-  
-  const startFloor = user.tower.currentFloor;
-  const maxFloor = 120;
-  const floors = Math.min(floorsToAdvance, maxFloor - startFloor + 1);
-  
-  let totalXP = 0;
-  let totalGold = 0;
-  let cardsWon = [];
-  
-  for (let i = 0; i < floors; i++) {
-    const floorNum = startFloor + i;
-    
-    // Calcula força do inimigo (força aumenta gradualmente)
-    const enemyForce = 500 + floorNum * 50; // exemplo
-    const playerForce = user.decks.main.reduce((acc, card) => acc + card.attack, 0);
-    
-    // Chama battleSystem para simular batalha
-    const battleResult = battle(user.decks.main, { force: enemyForce });
-    
-    if (battleResult.win) {
-      // Recompensas por casa
-      const xp = 50 + floorNum * 5;
-      const gold = 100 + floorNum * 10;
-      
-      totalXP += xp;
-      totalGold += gold;
-      
-      // A cada 5 casas, recompensa extra
-      if (floorNum % 5 === 0) {
-        totalGold += 200;
-        totalXP += 100;
-        
-        // Chance de carta e gema
-        if (Math.random() < 0.5) {
-          const card = giveCardToUser(user, Math.floor(Math.random() * 200) + 1); // exemplo
-          cardsWon.push(card.name);
-        }
-        if (Math.random() < 0.3) {
-          user.gems = (user.gems || 0) + 1;
-        }
-      }
-      
-      user.tower.currentFloor++;
-    } else {
-      // Se perder, para no último piso vencido
-      break;
+    // Recompensa especial (ex: carta rara) a cada 10 andares
+    if (floor % 10 === 0) {
+        // Lógica para obter carta rara
     }
-  }
-  
-  user.tower.attemptsLeft--;
-  saveUser(user);
-  
-  return `🏯 Torre: Avançou da casa ${startFloor} para ${user.tower.currentFloor - 1}.\n💰 Ouro ganho: ${totalGold}\n✨ XP ganho: ${totalXP}\n🎴 Cartas: ${cardsWon.join(", ") || "Nenhuma"}\n🟢 Tentativas restantes: ${user.tower.attemptsLeft}`;
+
+    return { xp, gold };
 }
 
 /**
- * Visualiza progresso da torre
+ * Diminui o contador de tentativas da Torre do usuário.
+ * @param {object} user O objeto usuário.
  */
-export function viewTower(user) {
-  if (!user.tower) initTower(user);
-  return `🏯 Torre - Casa atual: ${user.tower.currentFloor}\n🟢 Tentativas restantes: ${user.tower.attemptsLeft}`;
+export function spendTowerAttempt(user) {
+    if (user.tower.attempts > 0) {
+        user.tower.attempts -= 1;
+        // O objeto 'user' é modificado e será salvo pelo middleware.
+    }
 }

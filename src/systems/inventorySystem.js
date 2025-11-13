@@ -1,153 +1,164 @@
-// src/systems/summonSystem.js
-import { getCardTemplate, giveCardToUser } from "./cardSystem.js";
-import { saveUserCached, loadUserCached } from "./economySystem.js";
-import cards from "../data/cards.json" with { type: "json" };
-import boosters from "../data/boosters.json" with { type: "json" };
+// src/systems/inventorySystem.js
 
-// Drop rates por raridade
-const dropRates = { 1: 45, 2: 30, 3: 15, 4: 7, 5: 3 };
+// Importações dos sistemas
+// Assumindo que essas funções existem em seus respectivos arquivos
+import { saveUserData } from "./userSystem.js"; 
+import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
+import { getCardXPValue, levelUpCard } from "./xpSystem.js";
+import { spendGold, addGold } from "./economySystem.js"; 
 
-// Custos
-const summonCosts = {
-  card: { unit: 150, multi5: 675 },
-  guardian: { unit: 300, multi5: 675 },
-  booster: { multi5: 675 }
+const MAX_DECKS = 5;
+const LEVELS_TO_UNLOCK_DECK = {
+    "deck1": 1,
+    "deck2": 5,
+    "deck3": 10,
+    "deck4": 20,
+    "deck5": 30
 };
 
-// Helper aleatório
-function randomChoice(array) {
-  return array[Math.floor(Math.random() * array.length)];
+// -------------------------------------------------------------------
+// --- FUNÇÕES AUXILIARES ---
+// -------------------------------------------------------------------
+
+function getDeckName(deckIndex) {
+    return `deck${deckIndex + 1}`; 
 }
 
+function ensureDecksAreInitialized(user) {
+    if (!user.decks) user.decks = {};
+    for (let i = 0; i < MAX_DECKS; i++) {
+        const name = getDeckName(i);
+        if (!user.decks[name]) user.decks[name] = []; 
+    }
+}
+
+// -------------------------------------------------------------------
+// --- FUNÇÕES DE INVENTÁRIO (Outras funções de gestão omitidas) ---
+// -------------------------------------------------------------------
+
+// export function listInventory(user) { /* ... */ }
+// export function addCardToDeck(user, cardIndex, deckIndex) { /* ... */ }
+// export function removeCardFromDeck(user, cardIndex, deckIndex) { /* ... */ }
+// export function viewDeck(user, deckIndex) { /* ... */ }
+// export function upgradeCard(user, cardIndex) { /* ... */ }
+
+
+// -------------------------------------------------------------------
+// --- NOVA FUNÇÃO DE VENDA (sellCards) ---
+// -------------------------------------------------------------------
+
 /**
- * Invoca cartas normais
+ * Remove cartas do inventário e adiciona ouro ao usuário.
+ * Lança erro se a carta estiver em um deck ativo.
+ * @param {object} user - Objeto do usuário a ser modificado.
+ * @param {number[]} indicesToSell - Array de índices (0-based) das cartas no user.cards.
+ * @returns {object} { count: number, goldGained: number, cardsSold: object[] }
  */
-export function summonCards(userId, multi = false) {
-  const user = loadUserCached(userId);
-  const cost = multi ? summonCosts.card.multi5 : summonCosts.card.unit;
-  if (user.gems < cost) return "💎 Gemas insuficientes.";
-  user.gems -= cost;
+export function sellCards(user, indicesToSell) {
+    // Garante que a estrutura de decks esteja inicializada para checagem
+    ensureDecksAreInitialized(user); 
 
-  const results = [];
-  const alreadyDrawn = new Set();
+    const cardsToSell = [];
+    let totalGoldGained = 0;
+    
+    // Set de uniqueIds para garantir remoção eficiente (evita vender a mesma carta duas vezes)
+    const cardUniqueIdsToRemove = new Set();
+    
+    // 1. Validação e Cálculo de Valor
+    indicesToSell.forEach(index => {
+        const card = user.cards[index];
+        if (!card) return;
 
-  const drawCount = multi ? 5 : 1;
-  let guaranteed5StarDone = false;
-
-  for (let i = 0; i < drawCount; i++) {
-    let rarity;
-    if (multi && !guaranteed5StarDone) {
-      rarity = 5;
-      guaranteed5StarDone = true;
-    } else {
-      const roll = Math.random() * 100;
-      let accumulated = 0;
-      rarity = 1;
-      for (const [r, rate] of Object.entries(dropRates)) {
-        accumulated += rate;
-        if (roll <= accumulated) {
-          rarity = parseInt(r);
-          break;
+        // A. Checa se está em qualquer deck ativo
+        const isInDeck = Object.values(user.decks).some(deck => 
+            deck.some(deckCard => deckCard.uniqueId === card.uniqueId)
+        );
+        
+        if (isInDeck) {
+            // Lança um erro que o comando !sell pode capturar
+            throw new Error(`A carta ${getCardTemplate(card.id).name} (Índice ${index + 1}) está em um deck ativo e não pode ser vendida.`);
         }
-      }
+
+        // B. Checa por Guardião
+        if (card.isGuardian) return; 
+
+        // C. Calcula o valor
+        const template = getCardTemplate(card.id);
+        // Ex: O preço base é 50 de Ouro + 10 por nível (usa um valor de fallback se o template não tiver baseSellValue)
+        const cardValue = (template.baseSellValue || 50) + (card.level * 10); 
+        
+        totalGoldGained += cardValue;
+        cardsToSell.push(card);
+        cardUniqueIdsToRemove.add(card.uniqueId);
+    });
+
+    if (cardsToSell.length === 0) {
+        throw new Error("Nenhuma carta válida ou disponível para venda foi encontrada.");
     }
+    
+    // 2. Executa a Mutação
 
-    const pool = cards.filter(c => c.rarity === rarity && !alreadyDrawn.has(c.id) && !c.id.startsWith("G"));
-    if (!pool.length) continue;
+    // A. Adiciona o Ouro
+    addGold(user, totalGoldGained);
 
-    const chosen = randomChoice(pool);
-    giveCardToUser(user, chosen.id);
-    alreadyDrawn.add(chosen.id);
-    results.push(`${chosen.name} (${chosen.rarity}★)`);
-  }
+    // B. Remove as Cartas: Filtra o array user.cards
+    user.cards = user.cards.filter(c => !cardUniqueIdsToRemove.has(c.uniqueId));
 
-  saveUserCached(userId);
-  return `✨ Você recebeu:\n${results.join("\n")}`;
+    // O Middleware fará o salvamento automático
+    
+    return {
+        count: cardsToSell.length,
+        goldGained: totalGoldGained,
+        cardsSold: cardsToSell.map(c => ({ id: c.id, level: c.level })) 
+    };
 }
 
+
+// -------------------------------------------------------------------
+// --- NOVA FUNÇÃO DE BUSCA (searchInventory) ---
+// -------------------------------------------------------------------
+
 /**
- * Invoca guardiões
+ * Busca cartas no inventário do usuário pelo nome.
+ * @param {object} user - Objeto do usuário.
+ * @param {string} searchTerm - Termo de busca (nome parcial).
+ * @returns {object[]} Array de cartas encontradas com seu índice 1-based.
  */
-export function summonGuardians(userId, multi = false) {
-  const user = loadUserCached(userId);
-  const cost = multi ? summonCosts.guardian.multi5 : summonCosts.guardian.unit;
-  if (user.gems < cost) return "💎 Gemas insuficientes.";
-  user.gems -= cost;
-
-  const results = [];
-  const alreadyDrawn = new Set();
-
-  const drawCount = multi ? 5 : 1;
-  let guaranteed4or5StarDone = false;
-
-  for (let i = 0; i < drawCount; i++) {
-    let rarity;
-    if (multi && !guaranteed4or5StarDone) {
-      rarity = 4 + Math.floor(Math.random() * 2); // 4★ ou 5★ garantido
-      guaranteed4or5StarDone = true;
-    } else {
-      const roll = Math.random() * 100;
-      let accumulated = 0;
-      rarity = 1;
-      for (const [r, rate] of Object.entries(dropRates)) {
-        accumulated += rate;
-        if (roll <= accumulated) {
-          rarity = parseInt(r);
-          break;
+export function searchInventory(user, searchTerm) {
+    if (!user.cards || user.cards.length === 0) return [];
+    
+    const term = searchTerm.toLowerCase();
+    const results = [];
+    
+    user.cards.forEach((card, index) => {
+        const template = getCardTemplate(card.id);
+        const cardName = template?.name?.toLowerCase() || "";
+        
+        // A busca é feita no nome do template.
+        if (cardName.includes(term)) {
+            results.push({
+                index: index + 1, // Retorna o índice 1-based
+                name: template.name,
+                level: card.level || 1,
+                uniqueId: card.uniqueId,
+                type: card.isGuardian ? "Guardião" : "Normal" 
+            });
         }
-      }
-    }
+    });
 
-    // Pool de guardiões (IDs que começam com G) que o usuário ainda não possui
-    const pool = cards.filter(c => c.rarity === rarity && c.id.startsWith("G") && !user.cards.some(uc => uc.id === c.id) && !alreadyDrawn.has(c.id));
-    if (!pool.length) continue;
-
-    const chosen = randomChoice(pool);
-    giveCardToUser(user, chosen.id);
-    alreadyDrawn.add(chosen.id);
-    results.push(`${chosen.name} (${chosen.rarity}★)`);
-  }
-
-  saveUserCached(userId);
-  return `🛡️ Você recebeu guardiões:\n${results.join("\n")}`;
+    return results;
 }
 
-/**
- * Invoca booster
- */
-export function summonBooster(userId, boosterId) {
-  const user = loadUserCached(userId);
-  const booster = boosters.find(b => b.id === boosterId);
-  if (!booster) return "⚠️ Booster inválido.";
-  const cost = summonCosts.booster.multi5;
-  if (user.gems < cost) return "💎 Gemas insuficientes.";
-  user.gems -= cost;
+// --- FUNÇÕES DE GUARDIAN ---
 
-  const results = [];
-  const alreadyDrawn = new Set();
-
-  // Sorteia 5 cartas do booster, garantindo 1 carta temática
-  const drawCount = 5;
-  let guaranteedThemeDone = false;
-
-  for (let i = 0; i < drawCount; i++) {
-    let pool = booster.cards.filter(cId => !alreadyDrawn.has(cId)).map(id => getCardTemplate(id));
-
-    if (!pool.length) continue;
-
-    let chosen;
-    if (!guaranteedThemeDone) {
-      chosen = getCardTemplate(booster.theme);
-      guaranteedThemeDone = true;
-    } else {
-      chosen = randomChoice(pool);
-    }
-
-    giveCardToUser(user, chosen.id);
-    alreadyDrawn.add(chosen.id);
-    results.push(`${chosen.name} (${chosen.rarity}★)`);
-  }
-
-  saveUserCached(userId);
-  return `🎁 Você recebeu do booster **${booster.name}**:\n${results.join("\n")}`;
+// 🎯 RECEBE O OBJETO 'user'
+export function listGuardians(user) { 
+  const guardians = user.guardians || [];
+  
+  if (!guardians.length) return "⚠️ Nenhum guardião desbloqueado.";
+  
+  return guardians.map((id, i) => {
+      const template = getCardTemplate(id);
+      return `${i + 1}. 🛡️ ${template?.name || "Desconhecido"}`;
+  }).join("\n");
 }

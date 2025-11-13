@@ -1,60 +1,66 @@
+// src/commands/help.js
+
 export default {
   name: "help",
   description: "Mostra todos os comandos disponíveis do bot.",
   async execute(message) {
+    
+    // Lista de todos os 22 comandos implementados e revisados, categorizados.
     const helpMessage = `
-🎮 **Eternal Clash - Lista de Comandos**
+**⚔️ Eternal Clash - Lista de Comandos (22 no total)**
 
-🃏 **Cards**
-\`!cards evoluir <indiceCarta> [XP]\` — Evolui a carta escolhida  
-\`!cards meld <indiceCarta> <indiceDoadora>\` — Transfere habilidade da doadora  
+---
+📈 **1. Status & Progressão**
+*Seu painel de controle e informações vitais.*
 
-⚔️ **Battle**
-\`!battle\` — Batalhe contra inimigos da campanha  
+\`!status\` — Exibe Nível, Ouro, Rank e status de todos os recursos.
+\`!energy\` — Verifica o status atual da sua energia e regeneração.
 
-🎲 **Maze**
-\`!maze rolar\` — Rola o dado e explora  
-\`!maze resetar\` — Reseta o Maze  
+---
+💰 **2. Economia & Ganhos**
+*Como coletar recursos, gastar e obter renda.*
 
-🏰 **Clan**
-\`!clan criar <nome>\` — Cria um clã  
-\`!clan entrar <nome>\` — Entra em um clã  
-\`!clan sair\` — Sai do clã  
-\`!clan doar <quantia>\` — Doa recursos ao clã  
-\`!clan info <nome>\` — Mostra informações do clã  
+\`!dailyquest [status | claim]\` — Verifica/resgata missões diárias.
+\`!events [login | sorteio]\` — Coleta recompensa de login e tenta a sorte.
+\`!claimenergy\` — Resgate diário de energia bônus.
 
-📘 **Deck**
-\`!deck add <n>\` — Adiciona carta ao deck  
-\`!deck remove <n>\` — Remove carta do deck  
-\`!deck view\` — Mostra cartas do deck  
+\`!shop [list | buy <id>]\` — Compra itens e recursos na loja.
+\`!luckyspin [spin | status]\` — Gira a Roda da Sorte por prêmios.
+\`!sell <idx...>\` — Vende cartas do seu inventário por Ouro.
 
-⚡ **Energy**
-\`!energy\` — Mostra status da energia  
-\`!claimenergy\` — Resgata energia diária  
+---
+🃏 **3. Coleção & Gestão**
+*Gerencie seu inventário, decks e cartas.*
 
-🏯 **Tower**
-\`!tower start\` — Começa a torre  
-\`!tower status\` — Mostra o progresso da torre  
+\`!altar <tipo> [qntd]\` — Invoca cartas no altar (Gold, Gem, Booster, etc.).
+\`!search <nome>\` — Busca cartas no seu inventário pelo nome.
 
-🪄 **Summon**
-\`!summon <tipo> [quantidade]\` — Invoca cartas pelo altar  
+\`!inventory [list | deck]\` — Gerencia e lista cartas no seu inventário/decks.
+\`!items [list | use]\` — Gerencia e usa itens consumíveis (poções, boosters).
+\`!card <idx>\` — Mostra detalhes completos de uma carta pelo índice.
+\`!upgrade <main> <sacrifices>\` — Upa cartas sacrificando outras e gastando ouro.
 
-🎰 **Lucky Spin**
-\`!luckyspin\` — Gira a roda da sorte por gemas  
+\`!setdeck [save | equip | list]\` — Salva e alterna entre decks.
+\`!guardian [select | info | list]\` — Gerencia seu Guardião principal.
 
-🎁 **Events**
-\`!events login\` — Coleta recompensa diária  
-\`!events status\` — Mostra sequência de login  
-\`!events sorteio\` — Gira a sorte do dia  
+---
+⚔️ **4. Batalha & Competição**
+*Comandos para lutar e progredir no jogo.*
 
-📦 **Inventory**
-\`!inventory\` — Mostra itens e cartas do inventário  
+\`!battle\` — Inicia uma batalha PvE (ganha XP/Ouro).
+\`!arena [status | lutar | recompensa]\` — Desafia outros jogadores no Rank.
+\`!tower [status | challenge]\` — Desafia a Torre Infinita para recompensas.
 
-📊 **Status**
-\`!status\` — Exibe progresso e informações do jogador  
+\`!maze [roll | gold | reset]\` — Joga no minigame do labirinto (ganha recompensas).
 
-💡 **Help**
-\`!help\` — Mostra esta mensagem de ajuda  
+---
+🤝 **5. Social & Clã**
+
+\`!clan [criar | entrar | doar | info | ranking]\` — Comandos de gestão de clãs.
+
+---
+⚙️ **6. Geral**
+\`!help\` — Mostra esta mensagem de ajuda detalhada.
 `;
     
     await message.reply({
