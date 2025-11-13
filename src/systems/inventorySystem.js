@@ -114,3 +114,33 @@ export function listGuardians(user) {
     
     return result.length ? result.join("\n") : "⚠️ Nenhum guardião desbloqueado.";
 }
+
+function ensureInventory(user) {
+    if (!user.cards) user.cards = [];
+    if (!user.guardians) user.guardians = [];
+    if (!user.items) user.items = []; // se você tiver itens gerais
+}
+
+export function addItemToInventory(user, type, itemData) {
+    ensureInventory(user);
+    
+    switch (type) {
+        case "card": {
+            const template = getCardTemplate(itemData);
+            if (!template) throw new Error(`Carta ${itemData} não existe`);
+            const uniqueId = Date.now() + Math.floor(Math.random() * 1000); // ID único
+            user.cards.push({ id: itemData, level: 1, uniqueId });
+            return uniqueId;
+        }
+        case "guardian": {
+            if (!user.guardians.includes(itemData)) user.guardians.push(itemData);
+            return itemData;
+        }
+        case "item": {
+            user.items.push(itemData);
+            return itemData;
+        }
+        default:
+            throw new Error(`Tipo inválido para inventário: ${type}`);
+    }
+}
