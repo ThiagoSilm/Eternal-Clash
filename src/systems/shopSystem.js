@@ -8,7 +8,7 @@ const SHOP_CATALOG = [
     name: "Booster de XP (Pequeno)",
     description: "Ganha 2x XP por 3 batalhas.",
     currency: "gold",
-    cost: 5000,
+    price: 5000,
     type: "buff",
     effect: { duration: 3, multiplier: 2.0 },
   },
@@ -17,7 +17,7 @@ const SHOP_CATALOG = [
     name: "Poção de Energia",
     description: "Restaura 30 de energia instantaneamente.",
     currency: "gem",
-    cost: 50,
+    price: 50,
     type: "consumable",
     effect: { amount: 30, resource: "energy" },
   },
@@ -26,7 +26,7 @@ const SHOP_CATALOG = [
     name: "Cupom de Invocação",
     description: "Um giro grátis no Altar (Tipo Ouro).",
     currency: "gem",
-    cost: 100,
+    price: 100,
     type: "consumable",
     effect: { type: "coupon", summonType: "gold" },
   },
@@ -35,13 +35,14 @@ const SHOP_CATALOG = [
     name: "Tentativa de Torre",
     description: "Restaura 1 tentativa de Torre.",
     currency: "gold",
-    cost: 2500,
+    price: 2500,
     type: "consumable",
     effect: { resource: "towerAttempt", amount: 1 },
   },
 ];
 
 export function getShopCatalog() {
+  // Mock de exemplo
   return SHOP_CATALOG;
 }
 

@@ -52,7 +52,7 @@ export default {
           const rewards = getFloorReward(currentFloor);
           
           // Adiciona recompensas (modifica o objeto 'user' e funções devem marcar dirty)
-          addXp(user, rewards.xp);
+          addXP(user, rewards.xp);
           addGold(user, rewards.gold);
           // 💡 Ponto de Extensão: Adicionar logicamente recompensas de cartas/itens aqui.
           

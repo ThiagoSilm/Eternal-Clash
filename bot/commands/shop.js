@@ -2,6 +2,8 @@
 
 import { spendCurrency } from "../../src/systems/economySystem.js";
 
+import { getShopCatalog, processPurchase } from "../../src/systems/../../src/systems/shopSystem.js"
+
 
 export default {
   name: "shop",

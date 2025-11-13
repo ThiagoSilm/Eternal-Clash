@@ -1,27 +1,15 @@
 // src/systems/arenaSystem.js
 
-// 🚨 IMPORTAÇÕES ESSENCIAIS
-// loadUser é necessário para carregar o objeto do OPONENTE (exceção aceita para dados de outro usuário).
-import { loadUser } from "./userSystem.js"; 
-// Lógica de batalha
+import { loadUser } from "./userSystem.js";
 import { battleSystem } from "./battleSystem.js";
-// Economia (Gasto de energia e adição de recompensas)
-import { spendEnergy, addGold, addGems } from "./economySystem.js"; 
+import { spendEnergy, addGold, addGems } from "./economySystem.js";
 
-// --- MOCKS DE DADOS COMPARTILHADOS (Ranking) ---
-let ARENA_RANKINGS_MOCK = {}; 
+// ---------------- MOCK DE RANKINGS ----------------
+let ARENA_RANKINGS_MOCK = {};
+function loadArenaRankings() { return ARENA_RANKINGS_MOCK; }
+function saveArenaRankings(rankings) { ARENA_RANKINGS_MOCK = rankings; }
 
-/** [HELPER] Carrega o ranking da arena (mock). */
-function loadArenaRankings() {
-  return ARENA_RANKINGS_MOCK; 
-}
-
-/** [HELPER] Salva o ranking da arena (mock). */
-function saveArenaRankings(rankings) {
-  ARENA_RANKINGS_MOCK = rankings;
-}
-
-// --- CONFIGURAÇÕES ---
+// ---------------- CONFIGURAÇÕES ----------------
 const ENERGY_COST = 4;
 const MMR_BASE_CHANGE = 20;
 
@@ -32,192 +20,140 @@ const REWARDS = [
     { rank: 50, gold: 500, gems: 5 },
 ];
 
-// ------------------------------------
-// 🔹 FUNÇÕES INTERNAS DE LÓGICA
-// ------------------------------------
+// ---------------- HELPERS ----------------
 
-/** [HELPER] Inicializa o status de arena do usuário. */
 function initializeArenaStatus(user) {
     if (!user.arena) {
         user.arena = {
-            mmr: 1000, // Pontuação inicial
+            mmr: 1000,
             lastRewardClaim: null,
-            // defenseDeck: [] // Assumimos que o campo será criado por outro comando
+            attackDeck: [],
+            defenseDeck: []
         };
     }
 }
 
-/** [HELPER] Calcula a mudança de MMR (Elo Rating System simplificado). */
 function calculateMMRChange(winnerMMR, loserMMR, isWinner) {
     const expectedScore = 1 / (1 + Math.pow(10, (loserMMR - winnerMMR) / 400));
     const actualScore = isWinner ? 1 : 0;
     const kFactor = MMR_BASE_CHANGE;
-    
     return Math.round(kFactor * (actualScore - expectedScore));
 }
 
-/**
- * [HELPER] Cria o input para o battleSystem baseado no objeto do usuário e em um deck de uniqueIds.
- * @param {object} combatantUser O objeto do usuário/combatente.
- * @param {string[]} selectedUniqueIds Array de uniqueIds das cartas selecionadas.
- */
 function createCombatantInput(combatantUser, selectedUniqueIds = []) {
-    // Busca as instâncias completas das cartas baseadas nos uniqueIds presentes no inventário.
     const cardsToUse = (combatantUser.cards || []).filter(c => selectedUniqueIds.includes(c.uniqueId));
-
     return {
         id: combatantUser.id,
         name: combatantUser.username || combatantUser.id,
         cards: cardsToUse,
-        // TODO: Incluir Guardian se a lógica de deck de defesa/ataque for separada para ele.
+        guardian: combatantUser.guardian ? { ...combatantUser.guardian } : null
     };
 }
 
-// ------------------------------------
-// 🔹 FUNÇÕES EXPORTADAS
-// ------------------------------------
+// ---------------- FUNÇÕES PRINCIPAIS ----------------
 
-/**
- * Simula um desafio de Arena contra o time de defesa de outro jogador.
- * @param {object} user O objeto usuário (atacante), que será mutado.
- * @param {string} targetId O ID do usuário alvo.
- * @returns {string} Mensagem do resultado.
- */
 export function arenaChallenge(user, targetId) {
     initializeArenaStatus(user);
 
-    // 1. Gasto de Energia (Delegação ao economySystem)
-    try {
-        spendEnergy(user, ENERGY_COST);
-    } catch (e) {
-        return `❌ Você precisa de ${ENERGY_COST} de energia para lutar.`;
-    }
-    
-    // 2. Carregar o Objeto do Oponente (Alvo)
+    // 1️⃣ Gasto de energia
+    try { spendEnergy(user, ENERGY_COST); }
+    catch { return `❌ Você precisa de ${ENERGY_COST} de energia para lutar.`; }
+
+    // 2️⃣ Carregar o oponente
     let opponent;
-    try {
-        opponent = loadUser(targetId); // Busca o objeto completo do oponente
-    } catch (e) {
-        return `❌ O jogador com ID/Nome "${targetId}" não foi encontrado.`;
-    }
+    try { opponent = loadUser(targetId); }
+    catch { return `❌ Jogador "${targetId}" não encontrado.`; }
 
-    // 3. Validação e Construção do Input do Oponente
-    const defenseDeck = opponent.arena?.defenseDeck || [];
-    const playerAttackDeck = user.arena?.attackDeck || user.cards.map(c => c.uniqueId); // Usa todas se não houver deck de ataque
+    initializeArenaStatus(opponent);
 
-    if (defenseDeck.length === 0) {
-        return `❌ O jogador ${opponent.username} não possui um deck de defesa configurado na Arena.`;
-    }
-    
-    // 4. Monta os times a partir dos decks
+    // 3️⃣ Decks de ataque/defesa
+    const playerAttackDeck = user.arena.attackDeck.length > 0 
+        ? user.arena.attackDeck 
+        : user.cards.map(c => c.uniqueId);
+
+    const defenseDeck = opponent.arena.defenseDeck;
+    if (!defenseDeck || defenseDeck.length === 0) 
+        return `❌ O jogador ${opponent.username} não possui um deck de defesa configurado.`;
+
     const playerInput = createCombatantInput(user, playerAttackDeck);
-    const opponentInput = createCombatantInput(opponent, defenseDeck); 
-    
-    // Checagem final: ambos os combatentes devem ter cartas
-    if (playerInput.cards.length === 0) {
-        return "❌ Você não tem cartas selecionadas para lutar (Verifique seu deck de ataque).";
-    }
+    const opponentInput = createCombatantInput(opponent, defenseDeck);
 
-    // 5. Execução da Batalha (PvP Assíncrono)
+    if (playerInput.cards.length === 0) 
+        return "❌ Você não tem cartas selecionadas para lutar.";
+
+    // 4️⃣ Executa batalha
     const battleResult = battleSystem(playerInput, opponentInput, { seed: Date.now() });
 
-    // 6. Lógica de Atualização de MMR (Apenas o atacante ganha/perde MMR)
+    // 5️⃣ Atualiza MMR
     const rankings = loadArenaRankings();
-    
     const playerMMR = user.arena.mmr;
-    // Usa o MMR do alvo ou 1000 base se ainda não tiver jogado Arena
-    const opponentMMR = opponent.arena?.mmr ?? 1000; 
+    const opponentMMR = opponent.arena?.mmr ?? 1000;
 
     let playerChange = 0;
-    
-    if (battleResult.winner === 'player') {
-        playerChange = calculateMMRChange(playerMMR, opponentMMR, true);
-    } else if (battleResult.winner === 'opponent') {
-        playerChange = calculateMMRChange(playerMMR, opponentMMR, false);
-    }
-    
-    user.arena.mmr = Math.max(100, playerMMR + playerChange); 
-    
-    // 7. Atualiza o Ranking Global
+    if (battleResult.winner === 'player') playerChange = calculateMMRChange(playerMMR, opponentMMR, true);
+    else if (battleResult.winner === 'opponent') playerChange = calculateMMRChange(playerMMR, opponentMMR, false);
+
+    user.arena.mmr = Math.max(100, playerMMR + playerChange);
+
+    // 6️⃣ Atualiza ranking
     rankings[user.id] = { id: user.id, mmr: user.arena.mmr, username: user.username || user.id };
     saveArenaRankings(rankings);
-    
-    // 8. Concessão de Recompensas (imediata)
-    const baseGold = battleResult.rewards.gold;
-    addGold(user, baseGold);
-    
-    // 9. Mensagem de Retorno
-    let response = `⚔️ **Resultado da Arena vs ${opponent.username}**\n`;
-    response += `--- \n`;
+
+    // 7️⃣ Recompensa imediata
+    addGold(user, battleResult.rewards.gold);
+    addGems(user, battleResult.rewards.gems);
+
+    // 8️⃣ Mensagem final
+    let response = `⚔️ **Arena: ${user.username} vs ${opponent.username}**\n`;
+    response += `---\n`;
     response += `Vencedor: **${battleResult.winner === 'player' ? user.username : opponent.username}**\n`;
-    response += `MMR: ${playerMMR} -> **${user.arena.mmr}** (${playerChange > 0 ? '+' : ''}${playerChange})\n`;
-    response += `💰 Recompensa imediata: +${baseGold} Ouro\n`;
-    response += `Detalhes do Log: ${battleResult.log.slice(0, 3).join(' / ')}...`;
-    
+    response += `MMR: ${playerMMR} -> **${user.arena.mmr}** (${playerChange >= 0 ? '+' : ''}${playerChange})\n`;
+    response += `💰 Ouro ganho: +${battleResult.rewards.gold} | Gemas: +${battleResult.rewards.gems}\n`;
+    response += `📜 Log da batalha: ${battleResult.log.slice(0, 5).join(' / ')}...`;
+
     return response;
 }
 
-/**
- * Retorna o status de Arena do usuário (MMR, Rank, Recompensas Pendentes).
- * @param {object} user O objeto usuário.
- * @returns {string} Mensagem de status.
- */
 export function arenaStatus(user) {
     initializeArenaStatus(user);
-
     const rankings = loadArenaRankings();
-    
-    // 1. Calcula a posição do usuário (rank)
     const sorted = Object.values(rankings).sort((a, b) => b.mmr - a.mmr);
-    // Encontra o rank pelo ID para evitar conflitos de usernames
-    const userRank = sorted.findIndex(r => r.id === user.id) + 1; 
-    
-    // 2. Calcula a próxima recompensa
+    const userRank = sorted.findIndex(r => r.id === user.id) + 1;
+
     const nextReward = REWARDS.find(r => r.rank >= userRank);
     const nextRewardMsg = nextReward 
-        ? `🏆 Rank ${nextReward.rank}: ${nextReward.gold} Ouro e ${nextReward.gems} Gemas.` 
+        ? `🏆 Rank ${nextReward.rank}: +${nextReward.gold} Ouro e +${nextReward.gems} Gemas`
         : "Nenhuma recompensa bônus de rank disponível.";
-    
+
     return `
-🏆 **Status da Arena de ${user.username || user.id}**
+🏆 **Arena de ${user.username || user.id}**
 ---
-✨ **MMR (Pontuação):** ${user.arena.mmr}
-🏅 **Rank Global:** #${userRank}
-💰 **Próxima Recompensa:** ${nextRewardMsg}
+✨ MMR: ${user.arena.mmr}
+🏅 Rank Global: #${userRank}
+💰 Próxima Recompensa: ${nextRewardMsg}
 `;
 }
 
-/**
- * Reivindica a recompensa diária/semanal baseada no Rank.
- * @param {object} user O objeto usuário.
- * @returns {string} Mensagem do resultado.
- */
 export function arenaReward(user) {
     initializeArenaStatus(user);
-    
     const today = new Date().toDateString();
 
-    if (user.arena.lastRewardClaim === today) {
+    if (user.arena.lastRewardClaim === today)
         return "❌ Você já reivindicou suas recompensas de rank hoje.";
-    }
 
     const rankings = loadArenaRankings();
     const sorted = Object.values(rankings).sort((a, b) => b.mmr - a.mmr);
-    const userRank = sorted.findIndex(r => r.id === user.id) + 1; 
-    
-    const reward = REWARDS.find(r => r.rank >= userRank);
+    const userRank = sorted.findIndex(r => r.id === user.id) + 1;
 
+    const reward = REWARDS.find(r => r.rank >= userRank);
     if (!reward) {
         user.arena.lastRewardClaim = today;
         return "⚠️ Não há recompensas disponíveis para o seu rank atual.";
     }
-    
-    // Concede as recompensas
+
     addGold(user, reward.gold);
     addGems(user, reward.gems);
-    
     user.arena.lastRewardClaim = today;
-    
-    return `🎉 **Recompensa Diária Recebida!**\n` +
-           `🏅 Rank #${userRank} Bônus: +${reward.gold} Ouro e +${reward.gems} Gemas.`;
+
+    return `🎉 **Recompensa Recebida!**\n🏅 Rank #${userRank}: +${reward.gold} Ouro e +${reward.gems} Gemas.`;
 }
