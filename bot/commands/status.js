@@ -1,8 +1,8 @@
 // src/commands/status.js
 
-import { getEnergyStatus } from "../systems/energySystem.js";
-import { viewDeck } from "../systems/inventorySystem.js";
-import { getDailyStatus } from "../systems/dailySystem.js";
+import { getEnergyStatus } from "../../src/systems/energySystem.js";
+import { viewDeck } from "../../src/systems/inventorySystem.js";
+import { getDailyStatus } from "../../src/systems/dailySystem.js";
 
 export default {
   name: "status",

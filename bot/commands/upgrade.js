@@ -4,7 +4,7 @@
 // 📦 IMPORTAÇÕES CORRETAS
 // -----------------------------
 
-import { getCardTemplate } from "../systems/cardSystem.js";
+import { getCardTemplate } from "../../src/systems/cardSystem.js";
 import {
     levelUpCard,
     burnCardForXp,

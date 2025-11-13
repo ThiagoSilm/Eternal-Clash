@@ -1,7 +1,7 @@
 // src/commands/shop.js
 
-import { spendCurrency } from "../systems/economySystem.js";
-import { getShopCatalog, processPurchase } from "../systems/shopSystem.js";
+import { spendCurrency } from "../../src/systems/economySystem.js";
+import { getShopCatalog, processPurchase } from "../../src/systems/shopSystem.js";
 
 export default {
   name: "shop",

@@ -1,6 +1,6 @@
 // src/commands/setdeck.js
 
-import { saveDeck, loadDeck, listDecks } from "../systems/deckSystem.js";
+import { saveDeck, loadDeck, listDecks } from "../../src/systems/deckSystem.js";
 
 export default {
   name: "setdeck",
