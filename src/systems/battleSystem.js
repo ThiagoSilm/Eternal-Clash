@@ -1,5 +1,5 @@
 // src/systems/battleSystem.js
-import { getEffectById, runEffectsTrigger, executeEffect } from "./effectSystem.js";
+import { getEffectById } from "./effectSystem.js";
 import { getCardTemplate } from "./cardSystem.js";
 
 // Configs
@@ -10,11 +10,9 @@ const MAX_HAND_SIZE = 5;
 
 /* ----------------------
    Utilitários & RNG
-   ---------------------- */
+---------------------- */
 function createRng(seed) {
-  if (seed === undefined || seed === null) {
-    return { rand: () => Math.random() };
-  }
+  if (seed === undefined || seed === null) return { rand: () => Math.random() };
   let t = seed >>> 0;
   return {
     rand() {
@@ -22,7 +20,7 @@ function createRng(seed) {
       let r = Math.imul(t ^ (t >>> 15), 1 | t);
       r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
       return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    }
+    },
   };
 }
 
@@ -42,30 +40,61 @@ function sumTotalHP(combatant) {
 }
 
 function pickFirstAlive(cards) {
-  return (cards || []).find(c => (c.hp ?? 0) > 0) || null;
+  return (cards || []).find((c) => (c.hp ?? 0) > 0) || null;
 }
 
 /* ----------------------
-   Dano e efeitos básicos
-   ---------------------- */
+   EFEITOS
+---------------------- */
+function executeEffect(effect, card, owner, opponent, pushLog, rng) {
+  try {
+    if (typeof effect.action === "function") {
+      effect.action(card, owner, opponent, pushLog, rng);
+    } else if (typeof effect.action === "string") {
+      // Avalia string como função
+      const fn = new Function(
+        "card",
+        "owner",
+        "opponent",
+        "pushLog",
+        "rng",
+        effect.action.includes("function") ? effect.action + "; return effect(card, owner, opponent, pushLog, rng);" : effect.action
+      );
+      fn(card, owner, opponent, pushLog, rng);
+    }
+  } catch (err) {
+    console.error(`⚠️ ERRO na ação do efeito ${effect.id}:`, err.message);
+    if (pushLog) pushLog(`⚠️ ERRO na ação do efeito ${effect.id}: ${err.message}`);
+  }
+}
+
+function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng) {
+  const effects = [];
+  if (card && card.effects) effects.push(...card.effects.map(getEffectById).filter(Boolean));
+  if (combatant.guardian && combatant.guardian.effects) effects.push(...combatant.guardian.effects.map(getEffectById).filter(Boolean));
+  for (const eff of effects) {
+    if (eff.type === trigger) {
+      executeEffect(eff, card || combatant, combatant, opponent, pushLog, rng);
+    }
+  }
+}
+
+/* ----------------------
+   Dano
+---------------------- */
 function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
-  // Evasão
   const evadeChance = defenderCard.evadeChance ?? 0;
   if (evadeChance > 0 && rng.rand() < evadeChance) {
     defenderCard.lastDamage = 0;
     return { damage: 0, evaded: true };
   }
 
-  // Dano base com variação
   const atk = Math.max(0, attackerCard.attack ?? 100);
   const base = Math.round(atk * (0.85 + rng.rand() * 0.3));
-
-  // Defesa reduz dano
   const def = defenderCard.defense ?? 0;
   let reduced = Math.max(0, Math.round(base - def * 0.2));
   let remaining = reduced;
 
-  // Escudo (shield)
   if (defenderCard.shield && defenderCard.shield > 0) {
     const absorbed = Math.min(defenderCard.shield, remaining);
     defenderCard.shield -= absorbed;
@@ -73,8 +102,6 @@ function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
   }
 
   defenderCard.lastDamage = remaining;
-
-  // Rage no guardião
   if (remaining > 0 && defenderCombatant.guardian) {
     defenderCombatant.rage = (defenderCombatant.rage ?? 0) + remaining;
   }
@@ -84,75 +111,64 @@ function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
 
 /* ----------------------
    DOT / OverTime
-   ---------------------- */
+---------------------- */
 function processOverTimeFor(combatant, pushLog) {
   if (!combatant.overTime || combatant.overTime.length === 0) return;
   const remaining = [];
-
-  // O DOT é aplicado preferencialmente na primeira carta viva do campo, senão no guardião
-  const target = pickFirstAlive(combatant.field) || (combatant.guardian && (combatant.guardian.hp ?? 0) > 0 ? combatant.guardian : null);
+  const target = pickFirstAlive(combatant.field) || (combatant.guardian && combatant.guardian.hp > 0 ? combatant.guardian : null);
   if (!target) return;
 
   for (const eff of combatant.overTime) {
     if (eff.turns > 0) {
       const damage = eff.value ?? 0;
-      target.hp = Math.max(0, (target.hp ?? 0) - damage);
+      target.hp = Math.max(0, target.hp - damage);
       pushLog(`🔥 ${target.name} sofreu ${damage} de dano por tempo (${Math.max(0, target.hp)} HP restantes).`);
       eff.turns -= 1;
     }
     if (eff.turns > 0) remaining.push(eff);
   }
   combatant.overTime = remaining;
-  // atualiza HP total (opcional)
   combatant.hp = sumTotalHP(combatant);
 }
 
 /* ----------------------
-   Mortes, Revive (Phoenix) e limpeza
-   ---------------------- */
+   Mortes & Phoenix
+---------------------- */
 function checkDeathsAndHandle(combatant, pushLog) {
   const died = [];
-
-  combatant.field = (combatant.field || []).filter(c => {
+  combatant.field = (combatant.field || []).filter((c) => {
     if ((c.hp ?? 0) <= 0) {
-      // Procura efeito de onDeath phoenixSoul
-      const phoenixEffectId = (c.effects || []).find(eid => {
+      const phoenixEffectId = (c.effects || []).find((eid) => {
         const ee = getEffectById(eid);
         return ee && ee.type === "onDeath" && (ee.id === "phoenixSoul" || ee.id === "phoenix_soul");
       });
 
       if (phoenixEffectId) {
         const eff = getEffectById(phoenixEffectId);
-        executeEffect(eff, c, combatant, null, null, pushLog);
+        executeEffect(eff, c, combatant, null, pushLog);
         if ((c.hp ?? 0) > 0) {
           pushLog(`🔁 ${c.name} revivido por ${eff.name ?? eff.id} com ${c.hp} HP.`);
-          return true; // mantém a carta
+          return true;
         }
       }
 
       died.push(c);
       combatant.graveyard = combatant.graveyard || [];
       combatant.graveyard.push(deepClone(c));
-      return false; // remove a carta
+      return false;
     }
     return true;
   });
 
-  if (died.length > 0) {
-    for (const d of died) pushLog(`⚰️ ${d.name} foi para o cemitério.`);
-  }
-
-  // Verifica guardião
-  if (combatant.guardian && (combatant.guardian.hp ?? 0) <= 0) {
-    pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
-  }
+  if (died.length > 0) died.forEach((d) => pushLog(`⚰️ ${d.name} foi para o cemitério.`));
+  if (combatant.guardian && (combatant.guardian.hp ?? 0) <= 0) pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
 
   combatant.hp = sumTotalHP(combatant);
 }
 
 /* ----------------------
-   Guardião - habilidade especial
-   ---------------------- */
+   Guardião
+---------------------- */
 function tryActivateGuardianSpecial(combatant, opponent, pushLog, rng) {
   if (!combatant.guardian) return;
   combatant.rage = combatant.rage ?? 0;
@@ -174,13 +190,13 @@ function tryActivateGuardianSpecial(combatant, opponent, pushLog, rng) {
   }
 
   pushLog(`💥 Guardião ${combatant.guardian.name} ativou ESPECIAL: ${eff.name ?? eff.id}`);
-  executeEffect(eff, combatant.guardian, combatant, opponent, null, pushLog, rng);
+  executeEffect(eff, combatant.guardian, combatant, opponent, pushLog, rng);
   combatant.rage = 0;
 }
 
 /* ----------------------
-   Preparação das cartas / combatentes
-   ---------------------- */
+   Preparação das cartas
+---------------------- */
 function createCombatCard(cardTemplate, rng) {
   const card = deepClone(cardTemplate);
   card.uniqueId = card.uniqueId ?? `${card.id}_${Math.floor((rng?.rand?.() ?? Math.random()) * 1e9)}`;
@@ -196,22 +212,21 @@ function createCombatCard(cardTemplate, rng) {
 }
 
 function makeCombatantFromInput(input = {}, role = "player", rng) {
-  // input.cards pode ser array de IDs ou array de templates/objetos
-  const cardsToUse = (input.cards || []).map(cIdOrObj => {
-    if (typeof cIdOrObj === "string") {
-      const template = getCardTemplate(cIdOrObj);
-      return template ? deepClone(template) : null;
-    }
-    if (typeof cIdOrObj === "object") {
-      // se é um objeto já contendo propriedades, tente usar id -> fetch template para preencher defaults
-      const template = getCardTemplate(cIdOrObj.id) || cIdOrObj;
-      return Object.assign(deepClone(template), deepClone(cIdOrObj));
-    }
-    return null;
-  }).filter(Boolean);
+  const cardsToUse = (input.cards || [])
+    .map((cIdOrObj) => {
+      if (typeof cIdOrObj === "string") {
+        const template = getCardTemplate(cIdOrObj);
+        return template ? deepClone(template) : null;
+      }
+      if (typeof cIdOrObj === "object") {
+        const template = getCardTemplate(cIdOrObj.id) || cIdOrObj;
+        return Object.assign(deepClone(template), deepClone(cIdOrObj));
+      }
+      return null;
+    })
+    .filter(Boolean);
 
-  const deck = cardsToUse.map(c => createCombatCard(c, rng));
-
+  const deck = cardsToUse.map((c) => createCombatCard(c, rng));
   const guardianData = input.guardian ? deepClone(input.guardian) : null;
   if (guardianData) {
     guardianData.hp = guardianData.hp ?? guardianData.maxHp ?? 1000;
@@ -230,10 +245,9 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
     overTime: deepClone(input.overTime || []),
     rage: input.rage ?? 0,
     rageMax: guardianData?.rageMax ?? 100,
-    hp: 0
+    hp: 0,
   };
 
-  // Draw inicial (3)
   for (let i = 0; i < 3 && combatant.deck.length > 0; i++) {
     combatant.hand.push(combatant.deck.shift());
   }
@@ -242,8 +256,8 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
 }
 
 /* ----------------------
-   Hand/Field management
-   ---------------------- */
+   Hand/Field
+---------------------- */
 function drawCard(combatant, pushLog) {
   if (!combatant || combatant.deck.length === 0 || combatant.hand.length >= MAX_HAND_SIZE) return null;
   const card = combatant.deck.shift();
@@ -253,31 +267,28 @@ function drawCard(combatant, pushLog) {
 }
 
 function moveReadyToField(combatant, pushLog) {
-  const ready = combatant.hand.filter(c => (c.turnTime ?? 0) <= 0);
+  const ready = combatant.hand.filter((c) => (c.turnTime ?? 0) <= 0);
   if (ready.length === 0) return;
-  combatant.hand = combatant.hand.filter(c => (c.turnTime ?? 0) > 0);
+  combatant.hand = combatant.hand.filter((c) => (c.turnTime ?? 0) > 0);
   combatant.field.push(...ready);
   for (const c of ready) {
-    runEffectsTrigger("onEnterField", combatant, c, null, pushLog);
+    runEffectsTrigger("onEnterField", combatant, null, c, pushLog);
     pushLog(`⬆️ ${c.name} entrou em campo.`);
   }
 }
 
 function processTurnTime(combatant, pushLog) {
-  combatant.hand.forEach(c => {
-    c.turnTime = Math.max(0, (c.turnTime ?? 0) - 1);
-  });
+  combatant.hand.forEach((c) => (c.turnTime = Math.max(0, (c.turnTime ?? 0) - 1)));
   moveReadyToField(combatant, pushLog);
 }
 
 /* ----------------------
-   Win condition & attacker order
-   ---------------------- */
+   Win / Ordem atacante
+---------------------- */
 function checkWinCondition(state) {
   const { player1, player2 } = state;
   const p1Alive = sumHP(player1.field) > 0 || sumHP(player1.hand) > 0 || (player1.guardian?.hp ?? 0) > 0;
   const p2Alive = sumHP(player2.field) > 0 || sumHP(player2.hand) > 0 || (player2.guardian?.hp ?? 0) > 0;
-
   if (!p1Alive && p2Alive) return "opponent";
   if (!p2Alive && p1Alive) return "player";
   if (!p1Alive && !p2Alive) return "draw";
@@ -285,22 +296,21 @@ function checkWinCondition(state) {
 }
 
 function getFirstAttacker(inputA, inputB) {
-  const sumAttackA = (inputA.cards || []).reduce((s, c) => s + (typeof c === "object" ? (c.attack ?? 0) : (getCardTemplate(c)?.attack ?? 0)), 0);
-  const sumAttackB = (inputB.cards || []).reduce((s, c) => s + (typeof c === "object" ? (c.attack ?? 0) : (getCardTemplate(c)?.attack ?? 0)), 0);
-  return sumAttackB > sumAttackA ? (inputB.id ?? "opponent") : (inputA.id ?? "player");
+  const sumAttackA = (inputA.cards || []).reduce((s, c) => s + (typeof c === "object" ? c.attack ?? 0 : getCardTemplate(c)?.attack ?? 0), 0);
+  const sumAttackB = (inputB.cards || []).reduce((s, c) => s + (typeof c === "object" ? c.attack ?? 0 : getCardTemplate(c)?.attack ?? 0), 0);
+  return sumAttackB > sumAttackA ? inputB.id ?? "opponent" : inputA.id ?? "player";
 }
 
 /* ----------------------
    Ataques
-   ---------------------- */
+---------------------- */
 function resolveAttacks(attacker, defender, pushLog, rng) {
-  for (const attackCard of attacker.field.filter(c => (c.hp ?? 0) > 0 && !(c.stunned > 0))) {
-    // Pre-attack triggers
+  for (const attackCard of attacker.field.filter((c) => (c.hp ?? 0) > 0 && !(c.stunned > 0))) {
     runEffectsTrigger("onAttackStart", attacker, defender, attackCard, pushLog, rng);
 
-    const targetCard = defender.field.find(c => (c.hp ?? 0) > 0) || null;
-    const targetGuardian = defender.guardian && (defender.guardian.hp ?? 0) > 0 ? defender.guardian : null;
-    let targetUnit = targetCard || targetGuardian;
+    const targetCard = defender.field.find((c) => (c.hp ?? 0) > 0) || null;
+    const targetGuardian = defender.guardian && defender.guardian.hp > 0 ? defender.guardian : null;
+    const targetUnit = targetCard || targetGuardian;
 
     if (!targetUnit) {
       pushLog(`🚫 ${attackCard.name} não encontrou alvos e encerra o ataque.`);
@@ -309,14 +319,12 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
 
     const { damage, evaded } = computeDamage(attackCard, targetUnit, defender, rng);
 
-    if (evaded) {
-      pushLog(`💨 ${targetUnit.name} evadiu o ataque de ${attackCard.name}.`);
-    } else {
+    if (evaded) pushLog(`💨 ${targetUnit.name} evadiu o ataque de ${attackCard.name}.`);
+    else {
       targetUnit.hp = Math.max(0, (targetUnit.hp ?? 0) - damage);
-      pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack}) deu ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp)}).`);
+      pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack}) causou ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp)}).`);
     }
 
-    // Pós-ataque triggers e checagens
     runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng);
     checkDeathsAndHandle(defender, pushLog);
     runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng);
@@ -327,25 +335,15 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
 }
 
 /* ----------------------
-   Motor principal exportado
-   ---------------------- */
+   Motor principal
+---------------------- */
 export function runBattle(userInput, opponentInput, options = {}) {
   const rng = createRng(options.seed ?? null);
   const log = [];
-  const pushLog = (line) => {
-    try {
-      if (typeof line === "string") log.push(line);
-      else log.push(String(line));
-    } catch {
-      log.push(String(line));
-    }
-  };
+  const pushLog = (line) => log.push(String(line));
 
-  // Preparação
   const A = makeCombatantFromInput(userInput || {}, "player", rng);
   const B = makeCombatantFromInput(opponentInput || {}, "opponent", rng);
-
-  // Primeiro atacante
   let activePlayerId = getFirstAttacker(userInput || {}, opponentInput || {});
   const maxTurns = options.maxTurns ?? MAX_TURNS;
   let winner = "draw";
@@ -355,39 +353,32 @@ export function runBattle(userInput, opponentInput, options = {}) {
   pushLog(`⚔️ Batalha: ${A.nameForLog} (A) vs ${B.nameForLog} (B). Primeiro atacante: ${activePlayerId === A.id ? A.nameForLog : B.nameForLog}`);
 
   while (turn <= maxTurns) {
-    const attacker = (activePlayerId === A.id) ? A : B;
-    const defender = (activePlayerId === A.id) ? B : A;
+    const attacker = activePlayerId === A.id ? A : B;
+    const defender = activePlayerId === A.id ? B : A;
 
-    // Check win before turn
     const preCheck = checkWinCondition({ player1: A, player2: B });
     if (preCheck) {
-      winner = preCheck === "player" ? "player" : (preCheck === "opponent" ? "opponent" : "draw");
+      winner = preCheck === "player" ? "player" : preCheck === "opponent" ? "opponent" : "draw";
       break;
     }
 
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
-
-    // Guardian special / start triggers
     tryActivateGuardianSpecial(attacker, defender, pushLog, rng);
     runEffectsTrigger("onTurnStart", attacker, defender, null, pushLog, rng);
 
-    // Draw & hand management
     drawCard(attacker, pushLog);
     processTurnTime(attacker, pushLog);
 
-    // Attack phase
     resolveAttacks(attacker, defender, pushLog, rng);
     const postAttackCheck = checkWinCondition({ player1: A, player2: B });
     if (postAttackCheck) {
-      winner = postAttackCheck === "player" ? "player" : (postAttackCheck === "opponent" ? "opponent" : "draw");
+      winner = postAttackCheck === "player" ? "player" : postAttackCheck === "opponent" ? "opponent" : "draw";
       break;
     }
 
-    // DOT on defender
     processOverTimeFor(defender, pushLog);
     checkDeathsAndHandle(defender, pushLog);
 
-    // Auto mode shortcut
     if (isAutoMode && turn >= AUTO_MODE_TURN_START) {
       pushLog(`⏩ Auto Mode ativado no Turno ${turn}. Simulação acelerada.`);
       if (sumTotalHP(A) > sumTotalHP(B)) winner = "player";
@@ -396,16 +387,13 @@ export function runBattle(userInput, opponentInput, options = {}) {
       break;
     }
 
-    // End of turn triggers
     runEffectsTrigger("onTurnEnd", attacker, defender, null, pushLog, rng);
-
-    // Swap active
-    activePlayerId = (activePlayerId === A.id) ? B.id : A.id;
+    activePlayerId = activePlayerId === A.id ? B.id : A.id;
     turn += 1;
   }
 
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
-  const rewards = (finalWinner === "player") ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
+  const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
 
   return {
     win: finalWinner === "player",
@@ -413,6 +401,6 @@ export function runBattle(userInput, opponentInput, options = {}) {
     turns: Math.min(turn, maxTurns),
     log,
     final: { player: A, opponent: B },
-    rewards
+    rewards,
   };
 }
