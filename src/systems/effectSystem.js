@@ -20,7 +20,7 @@ try {
   EFFECTS = [];
 }
 
-// --- Limpeza de "export function ..." ---
+// --- Limpeza de "export function ..." em todos os efeitos carregados ---
 function cleanEffectAction(actionStr) {
   if (!actionStr || typeof actionStr !== "string") return actionStr;
   return actionStr
@@ -29,9 +29,10 @@ function cleanEffectAction(actionStr) {
     .trim();
 }
 
-// Aplica a limpeza a todos os efeitos carregados
 EFFECTS.forEach(eff => {
-  eff.action = cleanEffectAction(eff.action);
+  if (eff && eff.action) {
+    eff.action = cleanEffectAction(eff.action);
+  }
 });
 
 export function getEffectById(id) {
