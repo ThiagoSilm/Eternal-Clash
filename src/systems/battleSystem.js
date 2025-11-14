@@ -66,6 +66,7 @@ const MAX_TURNS = 100;
 const AUTO_MODE_TURN_START = 20;
 const BASE_CARD_TURN_TIME = 3;
 const MAX_HAND_SIZE = 5;
+const MAX_TURN_LOG_LENGTH = 350; // NOVO: Limite de caracteres para o log de eventos por turno
 
 /* ----------------------
    Utilitários & RNG
@@ -88,36 +89,43 @@ function deepClone(obj) {
 }
 
 function sumHP(cards) {
-  // FIX: Garantir que NaN/null/undefined HP seja tratado como 0
+  // Garantir que NaN/null/undefined HP seja tratado como 0
   return (cards || []).reduce((s, c) => s + Math.max(0, Number(c.hp) || 0), 0);
 }
 
 function sumTotalHP(combatant) {
   let total = sumHP(combatant.field);
   total += sumHP(combatant.hand);
-  // FIX: Garantir que NaN/null/undefined HP do guardian seja tratado como 0
+  // Garantir que NaN/null/undefined HP do guardian seja tratado como 0
   if (combatant.guardian) total += Math.max(0, Number(combatant.guardian.hp) || 0);
   return total;
 }
 
 function pickFirstAlive(cards) {
-  // FIX: Considerar apenas cartas onde o HP é um número positivo
+  // Considerar apenas cartas onde o HP é um número positivo
   return (cards || []).find((c) => (Number(c.hp) || 0) > 0) || null;
 }
 
-// NOVO: Loga o estado completo do combatente (USADO APENAS NO TURNO 1)
-function logCombatantState(combatant, pushLog, isInitialLog = false) {
-  if (!isInitialLog) return;
+// REMOVIDO: logCombatantState (muito verboso)
+// NOVO: Loga o estado conciso do combatente
+function logCombatantSummary(combatant, pushLog) {
+  const fieldSummary = combatant.field
+    .filter(c => (Number(c.hp) || 0) > 0)
+    .map(c => `${c.name}: ${Math.max(0, c.hp.toFixed(0))} HP`);
+    
+  let summary = `  [${combatant.nameForLog}] - HP Total: ${Math.max(0, sumTotalHP(combatant).toFixed(0))}`;
   
-  const handNames = combatant.hand.map(c => `${c.name} (T: ${c.turnTime})`);
-  const fieldNames = combatant.field.map(c => `${c.name} (HP: ${Math.max(0, Number(c.hp) || 0)})`);
-  
-  pushLog(`📋 Estado de ${combatant.nameForLog}:`);
-  pushLog(`  Mão [${combatant.hand.length}/${MAX_HAND_SIZE}]: ${handNames.join(', ') || 'Vazia'}`);
-  pushLog(`  Campo [${combatant.field.length}]: ${fieldNames.join(', ') || 'Vazio'}`);
-  if (combatant.guardian) {
-    pushLog(`  Guardião: ${combatant.guardian.name} (HP: ${Math.max(0, Number(combatant.guardian.hp) || 0)}, Raiva: ${combatant.rage}/${combatant.rageMax})`);
+  if (combatant.guardian && (Number(combatant.guardian.hp) || 0) > 0) {
+    summary += `, Guardião: ${Math.max(0, combatant.guardian.hp.toFixed(0))} HP`;
   }
+  
+  if (fieldSummary.length > 0) {
+    summary += ` | Campo: ${fieldSummary.join('; ')}`;
+  } else {
+    summary += ` | Campo: Vazio`;
+  }
+  
+  pushLog(summary);
 }
 
 /* ----------------------
@@ -134,7 +142,7 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng, context = {}
     // Se a ação é string (JS)
     else if (typeof effect.action === "string") {
       try {
-        // FIX CRÍTICO: Injeção de Contexto para string effects
+        // Injeção de Contexto para string effects
         const allies = owner.field.filter(c => (Number(c.hp) || 0) > 0);
         const enemies = opponent ? opponent.field.filter(c => (Number(c.hp) || 0) > 0) : [];
 
@@ -176,7 +184,7 @@ function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng, con
   // Efeitos do Guardião
   if (combatant.guardian && combatant.guardian.effects) effects.push(...combatant.guardian.effects.map(getEffectById).filter(Boolean));
   
-  // FIX: Coleta efeitos de campo/aura para triggers de turno e entrada/saída
+  // Efeitos de Campo/Aura
   if (trigger === "onTurnEnd" || trigger === "onTurnStart" || trigger === "onEnterField") {
       combatant.field.forEach(c => {
           // Garante que a carta ainda está viva antes de rodar a Aura
@@ -184,7 +192,7 @@ function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng, con
       });
   }
   
-  // NOVO: Filtra para evitar logs duplicados do mesmo efeito de aura no mesmo combatente
+  // Filtra para evitar logs duplicados do mesmo efeito de aura no mesmo combatente
   const uniqueEffects = Array.from(new Set(effects.map(e => e.id)))
                               .map(id => effects.find(e => e.id === id));
 
@@ -201,21 +209,21 @@ function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng, con
    Dano
 ---------------------- */
 function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
-  // FIX: Garante que evadeChance é numérico
+  // Garantir que evadeChance é numérico
   const evadeChance = Number(defenderCard.evadeChance) || 0;
   if (evadeChance > 0 && rng.rand() < evadeChance) {
     defenderCard.lastDamage = 0;
     return { damage: 0, evaded: true };
   }
 
-  // FIX: Garante que attack e defense são numéricos, usando 100 como default para attack
+  // Garantir que attack e defense são numéricos
   const atk = Math.max(0, Number(attackerCard.attack) || 100);
   const base = Math.round(atk * (0.85 + rng.rand() * 0.3));
   const def = Number(defenderCard.defense) || 0;
   let reduced = Math.max(0, Math.round(base - def * 0.2));
   let remaining = reduced;
 
-  // FIX: Garante que shield é numérico
+  // Garante que shield é numérico
   if (Number(defenderCard.shield) > 0) {
     const absorbed = Math.min(defenderCard.shield, remaining);
     defenderCard.shield -= absorbed;
@@ -242,8 +250,8 @@ function processOverTimeFor(combatant, pushLog) {
   for (const eff of combatant.overTime) {
     if (eff.turns > 0) {
       const damage = eff.value ?? 0;
-      target.hp = Math.max(0, (Number(target.hp) || 0) - damage); // FIX: Safe subtraction
-      pushLog(`🔥 ${target.name} sofreu ${damage} de dano por tempo (${Math.max(0, target.hp)} HP restantes).`);
+      target.hp = Math.max(0, (Number(target.hp) || 0) - damage); 
+      pushLog(`🔥 ${target.name} sofreu ${damage} de dano por tempo (${Math.max(0, target.hp.toFixed(0))} HP restantes).`);
       eff.turns -= 1;
     }
     if (eff.turns > 0) remaining.push(eff);
@@ -258,7 +266,7 @@ function processOverTimeFor(combatant, pushLog) {
 function checkDeathsAndHandle(combatant, pushLog) {
   const died = [];
   combatant.field = (combatant.field || []).filter((c) => {
-    // FIX: Garantir que a checagem de morte funcione corretamente com NaN
+    // Garantir que a checagem de morte funcione corretamente com NaN
     if ((Number(c.hp) || 0) <= 0) {
       const phoenixEffectId = (c.effects || []).find((eid) => {
         const ee = getEffectById(eid);
@@ -270,7 +278,7 @@ function checkDeathsAndHandle(combatant, pushLog) {
         // Passa contexto vazio para onDeath
         executeEffect(eff, c, combatant, null, pushLog, null, {});
         if ((Number(c.hp) || 0) > 0) {
-          pushLog(`🔁 ${c.name} revivido por ${eff.name ?? eff.id} com ${c.hp} HP.`);
+          pushLog(`🔁 ${c.name} revivido por ${eff.name ?? eff.id} com ${c.hp.toFixed(0)} HP.`);
           return true;
         }
       }
@@ -285,7 +293,7 @@ function checkDeathsAndHandle(combatant, pushLog) {
 
   if (died.length > 0) died.forEach((d) => pushLog(`⚰️ ${d.name} foi para o cemitério.`));
   
-  // FIX CRÍTICO (Anti-Redundância): Logar a morte do Guardião apenas uma vez
+  // Logar a morte do Guardião apenas uma vez
   if ((Number(combatant.guardian?.hp) || 0) <= 0 && combatant.guardian) {
     if (!combatant.isGuardianDefeated) {
       pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
@@ -310,7 +318,7 @@ function tryActivateGuardianSpecial(combatant, opponent, pushLog, rng) {
   if (!combatant.guardian) return;
   combatant.rage = combatant.rage ?? 0;
   const rageMax = combatant.guardian.rageMax ?? 100;
-  // FIX: Checagem de HP do Guardião
+  // Checagem de HP do Guardião
   if ((Number(combatant.guardian.hp) || 0) <= 0 || combatant.rage < rageMax) return;
 
   const specialId = combatant.guardian.specialEffect ?? combatant.guardian.special ?? null;
@@ -340,7 +348,7 @@ function createCombatCard(cardTemplate, rng) {
   const card = deepClone(cardTemplate);
   card.uniqueId = card.uniqueId ?? `${card.id}_${Math.floor((rng?.rand?.() ?? Math.random()) * 1e9)}`;
   card.turnTime = card.turnTime ?? BASE_CARD_TURN_TIME;
-  // FIX: Inicializa HP, MaxHP, Defense e Attack como números válidos
+  // Inicializa HP, MaxHP, Defense e Attack como números válidos
   card.hp = Number(card.hp) || Number(card.maxHp) || 200;
   card.maxHp = Number(card.maxHp) || Number(card.hp) || 200;
   card.attack = Number(card.attack) || 100;
@@ -388,7 +396,7 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
     overTime: deepClone(input.overTime || []),
     rage: input.rage ?? 0,
     rageMax: guardianData?.rageMax ?? 100,
-    // FIX: Adicionar flag para evitar log duplicado de morte do Guardião
+    // Adicionar flag para evitar log duplicado de morte do Guardião
     isGuardianDefeated: (Number(guardianData?.hp) || 0) <= 0,
     hp: 0,
   };
@@ -404,17 +412,10 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
    Hand/Field
 ---------------------- */
 function drawCard(combatant, pushLog) {
-  if (!combatant || combatant.deck.length === 0) return null; // Remove check for MAX_HAND_SIZE
+  if (!combatant || combatant.deck.length === 0 || combatant.hand.length >= MAX_HAND_SIZE) return null;
   
-  // Condição para logar o draw (apenas se a mão não estiver cheia)
-  if (combatant.hand.length >= MAX_HAND_SIZE) {
-    // Não puxa, mas também não loga nada, mantendo o silêncio.
-    return null; 
-  }
-
   const card = combatant.deck.shift();
   combatant.hand.push(card);
-  // Logamos apenas se a carta foi puxada
   pushLog(`🃏 ${combatant.nameForLog} puxou ${card.name}.`);
   return card;
 }
@@ -478,34 +479,34 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
       continue;
     }
 
-    // onAttackStart (Atacante) - GARANTIDO: Efeitos modificam ATK/DEF antes do dano
+    // onAttackStart (Atacante)
     runEffectsTrigger("onAttackStart", attacker, defender, attackCard, pushLog, rng, context);
 
     // 2. Calcular Dano
     const { damage, evaded } = computeDamage(attackCard, targetUnit, defender, rng);
     
-    // Atualiza o dano no contexto (crucial para onHit/afterDefense/afterAttack)
+    // Atualiza o dano no contexto
     context.damage = damage; 
 
     // 3. Aplicar Dano
     if (evaded) pushLog(`💨 ${targetUnit.name} evadiu o ataque de ${attackCard.name}.`);
     else {
-      // FIX: Garante que HP seja sempre um número válido antes de subtrair
+      // Garante que HP seja sempre um número válido antes de subtrair
       targetUnit.hp = Math.max(0, (Number(targetUnit.hp) || 0) - damage);
-      pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack}) causou ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp)}).`);
+      pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack.toFixed(0)}) causou ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp.toFixed(0))}).`);
     }
 
-    // 4. onHit (Defensor) - passa atacante, alvo e dano
+    // 4. onHit (Defensor)
     runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng, context);
     checkDeathsAndHandle(defender, pushLog);
     
     // Checa a condição de vitória
     if (checkWinCondition({ player1: attacker, player2: defender })) return;
     
-    // 5. afterAttack (Atacante) - passa alvo e dano
+    // 5. afterAttack (Atacante)
     runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng, context);
     
-    // 6. afterDefense (Defensor) - passa atacante, alvo e dano
+    // 6. afterDefense (Defensor)
     runEffectsTrigger("afterDefense", defender, attacker, targetUnit, pushLog, rng, context);
 
     // Checa novamente caso algum afterEffect cause mais mortes
@@ -519,7 +520,29 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
 export function runBattle(userInput, opponentInput, options = {}) {
   const rng = createRng(options.seed ?? null);
   const log = [];
-  const pushLog = (line) => log.push(String(line));
+  let currentTurnLogSize = 0;
+
+  const pushLog = (line) => {
+    line = String(line);
+    
+    // Lógica de Truncamento
+    if (log.length > 0 && log[log.length - 1] === '... (Log truncado para concisão) ...') {
+        return;
+    }
+    
+    // Se a linha é um novo marcador de turno, resetar o contador
+    if (line.startsWith('\n--- 🕐 Turno')) {
+        currentTurnLogSize = 0;
+    }
+    
+    if (currentTurnLogSize + line.length > MAX_TURN_LOG_LENGTH) {
+        log.push('... (Log truncado para concisão) ...');
+        return;
+    }
+    
+    log.push(line);
+    currentTurnLogSize += line.length;
+  };
 
   const A = makeCombatantFromInput(userInput || {}, "player", rng);
   const B = makeCombatantFromInput(opponentInput || {}, "opponent", rng);
@@ -530,6 +553,12 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const isAutoMode = !!options.autoMode;
 
   pushLog(`⚔️ Batalha: ${A.nameForLog} (A) vs ${B.nameForLog} (B). Primeiro atacante: ${activePlayerId === A.id ? A.nameForLog : B.nameForLog}`);
+  
+  // Log de Estado Inicial Compacto (Substituindo o log verboso de Turno 1)
+  pushLog(`\n📋 ESTADO INICIAL:`);
+  logCombatantSummary(A, pushLog);
+  logCombatantSummary(B, pushLog);
+
 
   while (turn <= maxTurns) {
     const attacker = activePlayerId === A.id ? A : B;
@@ -541,20 +570,15 @@ export function runBattle(userInput, opponentInput, options = {}) {
       break;
     }
 
+    // A contagem de log do turno será resetada aqui pelo pushLog
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
     
-    // Loga o estado do atacante e defensor APENAS no Turno 1 (Máxima Concisão)
-    if (turn === 1) {
-        logCombatantState(attacker, pushLog, true);
-        logCombatantState(defender, pushLog, true);
-    }
-
     tryActivateGuardianSpecial(attacker, defender, pushLog, rng);
     
-    // onTurnStart: Passa contexto vazio
+    // onTurnStart
     runEffectsTrigger("onTurnStart", attacker, defender, null, pushLog, rng, {});
 
-    drawCard(attacker, pushLog); // O DrawCard loga a ação internamente
+    drawCard(attacker, pushLog); 
     processTurnTime(attacker, pushLog);
 
     resolveAttacks(attacker, defender, pushLog, rng);
@@ -585,8 +609,15 @@ export function runBattle(userInput, opponentInput, options = {}) {
       break;
     }
 
-    // onTurnEnd: Passa contexto vazio
+    // onTurnEnd
     runEffectsTrigger("onTurnEnd", attacker, defender, null, pushLog, rng, {});
+    
+    // NOVO: Resumo de estado no final do turno
+    pushLog(`\n--- 📊 Resumo do Turno ${turn} ---`);
+    logCombatantSummary(A, pushLog);
+    logCombatantSummary(B, pushLog);
+
+
     activePlayerId = activePlayerId === A.id ? B.id : A.id;
     turn += 1;
   }
@@ -594,8 +625,6 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
   
-  // Nenhuma mensagem de log final, dependemos do sistema externo para exibir o resultado.
-
   return {
     win: finalWinner === "player",
     winner: finalWinner,
