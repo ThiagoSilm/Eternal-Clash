@@ -1,1202 +1,403 @@
-[{
-    "id": "eff001",
-    "name": "Buff Attack Small",
-    "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 100,
-    "xpMax": 100,
-    "desc": "Increases your attack by 15%.",
-    "action": "export function effect(card, target){ card.attack *= (1 + 0.15); }"
-  },
-  {
-    "id": "eff002",
-    "name": "Buff Attack Big",
-    "type": "onAttackStart",
-    "valueBase": 0.40,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Increases your attack by 40%.",
-    "action": "export function effect(card, target){ card.attack *= (1 + 0.40); }"
-  },
-  {
-    "id": "eff003",
-    "name": "Buff Defense",
-    "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.04,
-    "level": 10,
-    "xpBase": 200,
-    "xpMax": 200,
-    "desc": "Increases your defense by 25%.",
-    "action": "export function effect(card, target){ card.defense *= (1 + 0.25); }"
-  },
-  {
-    "id": "eff004",
-    "name": "Heal Small",
-    "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 150,
-    "xpMax": 150,
-    "desc": "Heals 25% of your max HP.",
-    "action": "export function effect(card, target){ card.hp += card.maxHp * 0.25; if(card.hp > card.maxHp) card.hp = card.maxHp; }"
-  },
-  {
-    "id": "eff005",
-    "name": "Heal All",
-    "type": "afterTurn",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 800,
-    "xpMax": 800,
-    "desc": "Heals 50% of all allies' max HP.",
-    "action": "export function effect(card, targets){ targets.forEach(t=>{ t.hp += t.maxHp*0.5; if(t.hp>t.maxHp)t.hp=t.maxHp; }); }"
-  },
-  {
-    "id": "eff006",
-    "name": "Shield Small",
-    "type": "onDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 300,
-    "xpMax": 300,
-    "desc": "Creates a shield equal to 25% of your HP.",
-    "action": "export function effect(card, target){ card.shield = (card.shield || 0) + card.maxHp*0.25; }"
-  },
-  {
-    "id": "eff007",
-    "name": "Burn",
-    "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 200,
-    "xpMax": 200,
-    "desc": "Applies burn to the target.",
-    "action": "export function effect(card, target){ target.status.burn = (target.status.burn || 0) + 1; }"
-  },
-  {
-    "id": "eff008",
-    "name": "Poison",
-    "type": "onAttackStart",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 200,
-    "xpMax": 200,
-    "desc": "Applies poison for 3 turns.",
-    "action": "export function effect(card, target){ target.status.poison = 3; }"
-  },
-  {
-    "id": "eff009",
-    "name": "Stun",
-    "type": "onHit",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 300,
-    "xpMax": 300,
-    "desc": "25% chance to stun the target.",
-    "action": "export function effect(card, target){ if(Math.random()<0.25) target.status.stun=true; }"
-  },
-  {
-    "id": "eff010",
-    "name": "Silence",
-    "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 300,
-    "xpMax": 300,
-    "desc": "20% chance to silence the target.",
-    "action": "export function effect(card, target){ if(Math.random()<0.20) target.status.silence=true; }"
-  },
-  {
-    "id": "eff011",
-    "name": "Evade",
-    "type": "afterDefense",
-    "valueBase": 0.40,
-    "valuePerLevel": 0.04,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "40% chance to evade incoming attacks.",
-    "action": "export function effect(card, target){ if(Math.random()<0.40) card.status.evade=true; }"
-  },
-  {
-    "id": "eff012",
-    "name": "Revive",
-    "type": "afterDefense",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 1000,
-    "xpMax": 1000,
-    "desc": "Revives 1 ally from the graveyard at full HP.",
-    "action": "export function effect(card, targets){ let dead = targets.filter(t=>t.hp<=0); if(dead.length>0) dead[0].hp=dead[0].maxHp; }"
-  },
-  {
-    "id": "eff013",
-    "name": "Sacrifice Steal Power",
-    "type": "onAttackStart",
-    "valueBase": 0.70,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 1200,
-    "xpMax": 1200,
-    "desc": "Sacrifices the strongest ally to gain 70% of its attack.",
-    "action": "export function effect(card, allies){ let strongest = allies.sort((a,b)=>b.attack-a.attack)[0]; card.attack += strongest.attack*0.70; strongest.hp=0; }"
-  },
-  {
-    "id": "eff014",
-    "name": "Grave Lock",
-    "type": "afterTurn",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 800,
-    "xpMax": 800,
-    "desc": "Blocks the graveyard while alive.",
-    "action": "export function effect(card, game){ game.graveLocked=true; }"
-  },
-  {
-    "id": "eff015",
-    "name": "Combo Boost",
-    "type": "onAttackStart",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Gains 10% attack per card of the same type on the field.",
-    "action": "export function effect(card, allies){ let count = allies.filter(a=>a.type===card.type).length; card.attack *= (1 + 0.10*count); }"
-  },
-  {
-    "id": "eff016",
-    "name": "Reflect",
-    "type": "onHit",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Reflects 25% of damage received.",
-    "action": "export function effect(card, attacker, damage){ attacker.hp -= damage*0.25; }"
-  },
-  {
-    "id": "eff017",
-    "name": "Bleed",
-    "type": "onAttackStart",
-    "valueBase": 0.08,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 300,
-    "xpMax": 300,
-    "desc": "Causes light bleeding to the target.",
-    "action": "export function effect(card, target){ target.status.bleed = (target.status.bleed || 0) + 1; }"
-  },
-  {
-    "id": "eff018",
-    "name": "Rage Boost",
-    "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Gains 25% attack when hit.",
-    "action": "export function effect(card, attacker){ card.attack *= 1.25; }"
-  },
-  {
-    "id": "eff019",
-    "name": "Regen",
-    "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 300,
-    "xpMax": 300,
-    "desc": "Regenerates 20% of HP each turn.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.20; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
-  },
-  {
-    "id": "eff020",
-    "name": "Frost",
-    "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 250,
-    "xpMax": 250,
-    "desc": "15% chance to freeze the target.",
-    "action": "export function effect(card, target){ if(Math.random()<0.15) target.status.stun=true; }"
-  },
-  {
-    "id": "eff021",
-    "name": "Curse",
-    "type": "onHit",
-    "valueBase": 0.12,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 300,
-    "xpMax": 300,
-    "desc": "Curses attacker to receive continuous damage.",
-    "action": "export function effect(card, attacker){ attacker.status.curse = true; }"
-  },
-  {
-    "id": "eff022",
-    "name": "Siphon Life",
-    "type": "onAttackStart",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.04,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Steals 30% of damage dealt as healing.",
-    "action": "export function effect(card, target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
-  },
-  {
-    "id": "eff023",
-    "name": "Bravery",
-    "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 350,
-    "xpMax": 350,
-    "desc": "Increases your attack by 20% when starting the turn.",
-    "action": "export function effect(card){ card.attack *= 1.20; }"
-  },
-  {
-    "id": "eff024",
-    "name": "Mirror Shield",
-    "type": "onHit",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Reflects 30% of damage received.",
-    "action": "export function effect(card, attacker, damage){ attacker.hp -= damage*0.30; }"
-  },
-  {
-    "id": "eff025",
-    "name": "Berserk",
-    "type": "afterTurn",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 800,
-    "xpMax": 800,
-    "desc": "Increases 50% attack when HP < 30%.",
-    "action": "export function effect(card){ if(card.hp<card.maxHp*0.3) card.attack *= 1.5; }"
-  },
-  {
-    "id": "eff026",
-    "name": "Holy Aura",
-    "type": "afterTurn",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Heals all living allies by 15% per turn.",
-    "action": "export function effect(card, allies){ allies.forEach(t=>{ if(t.hp>0){ t.hp+=t.maxHp*0.15; if(t.hp>t.maxHp)t.hp=t.maxHp; } }); }"
-  },
-  {
-    "id": "eff027",
-    "name": "Dark Link",
-    "type": "onAttackStart",
-    "valueBase": 0.50,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 1000,
-    "xpMax": 1000,
-    "desc": "Sacrifices 1 ally and gains 50% of its power.",
-    "action": "export function effect(card, allies){ let ally = allies.find(a=>a.hp>0); if(ally){ card.attack+=ally.attack*0.5; ally.hp=0; } }"
-  },
-  {
-    "id": "eff028",
-    "name": "Grave Blessing",
-    "type": "afterDefense",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 1000,
-    "xpMax": 1000,
-    "desc": "Revives 1 random ally after defending.",
-    "action": "export function effect(card, allies){ let dead = allies.filter(a=>a.hp<=0); if(dead.length>0){ let r = dead[Math.floor(Math.random()*dead.length)]; r.hp=r.maxHp; } }"
-  },
-  {
-    "id": "eff029",
-    "name": "Phoenix Soul",
-    "type": "onDeath",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 1200,
-    "xpMax": 1200,
-    "desc": "Revives automatically once upon death.",
-    "action": "export function effect(card){ if(!card.status.reviveUsed){ card.hp = card.maxHp; card.status.reviveUsed=true; } }"
-  },
-  {
-    "id": "eff030",
-    "name": "Skip Enemy Turn",
-    "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "20% chance to make the enemy skip their next turn.",
-    "action": "export function effect(card, enemy){ if(Math.random()<0.20) enemy.status.skipTurn=true; }"
-  },
-  {
-    "id": "eff031",
-    "name": "Auto Attack Guardian",
-    "type": "afterTurn",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 800,
-    "xpMax": 800,
-    "desc": "Automatically attacks the Guardian each turn.",
-    "action": "export function effect(card, guardian){ guardian.hp -= card.attack; }"
-  },
-  {
-    "id": "eff032",
-    "name": "Freeze Enemy",
-    "type": "onAttackStart",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
-    "desc": "25% chance to freeze the enemy, skipping their next action.",
-    "action": "export function effect(card, target){ if(Math.random()<0.25) target.status.stun=true; }"
-  },
-  {
-    "id": "eff033",
-    "name": "Damage Over Time",
-    "type": "onAttackStart",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Deals 10% of your attack as damage over 3 turns.",
-    "action": "export function effect(card, target){ target.status.dot = {damage: card.attack*0.10, turns:3}; }"
-  },
-  {
-    "id": "eff034",
-    "name": "Counter Attack",
-    "type": "onHit",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Reflects 30% of incoming damage immediately.",
-    "action": "export function effect(card, attacker, damage){ attacker.hp -= damage*0.30; }"
-  },
-  {
-    "id": "eff035",
-    "name": "Increase Defense",
-    "type": "afterDefense",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Increases your defense by 30% after being attacked.",
-    "action": "export function effect(card){ card.defense *= 1.30; }"
-  },
-  {
-    "id": "eff036",
-    "name": "Life Link",
-    "type": "onAttackStart",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Shares 25% of damage taken among allies.",
-    "action": "export function effect(card, allies, damage){ let share = damage*0.25/allies.length; allies.forEach(a=>{ a.hp -= share; }); }"
-  },
-  {
-    "id": "eff037",
-    "name": "Self Destruct",
-    "type": "onAttackStart",
-    "valueBase": 0.50,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 1000,
-    "xpMax": 1000,
-    "desc": "Sacrifices self to deal 50% attack to all enemies.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ e.hp -= card.attack*0.5; }); card.hp=0; }"
-  },
-  {
-    "id": "eff038",
-    "name": "Armor Break",
-    "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Reduces enemy defense by 20%.",
-    "action": "export function effect(card, target){ target.defense *= 0.80; }"
-  },
-  {
-    "id": "eff039",
-    "name": "Double Strike",
-    "type": "onAttackStart",
-    "valueBase": 2,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 800,
-    "xpMax": 800,
-    "desc": "Attacks twice in one turn.",
-    "action": "export function effect(card, target){ target.hp -= card.attack; target.hp -= card.attack; }"
-  },
-  {
-    "id": "eff040",
-    "name": "Magic Shield",
-    "type": "onDefense",
-    "valueBase": 0.40,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
-    "desc": "Absorbs 40% of magical damage received.",
-    "action": "export function effect(card, damageType, damage){ if(damageType==='magic') card.hp -= damage*0.60; else card.hp -= damage; }"
-  },
-  {
-    "id": "eff041",
-    "name": "Silence Aura",
-    "type": "afterTurn",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "15% chance to silence all enemies at the end of your turn.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ if(Math.random()<0.15) e.status.silence=true; }); }"
-  },
-  {
-    "id": "eff042",
-    "name": "Burn Aura",
-    "type": "afterTurn",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Deals 10% attack as burn damage to all enemies at the end of turn.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ e.hp -= card.attack*0.10; }); }"
-  },
-  {
-    "id": "eff043",
-    "name": "Vampiric Aura",
-    "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Heals 20% of damage dealt to all enemies.",
-    "action": "export function effect(card, enemies){ let total = enemies.reduce((sum,e)=>sum+Math.min(e.hp, card.attack*0.2),0); card.hp += total; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
-  },
-  {
-    "id": "eff044",
-    "name": "Curse Aura",
-    "type": "afterTurn",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Curses all attackers to take 10% of their max HP as damage each turn.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ if(e.isAttacker) e.hp -= e.maxHp*0.10; }); }"
-  },
-  {
-    "id": "eff045",
-    "name": "Poison Aura",
-    "type": "afterTurn",
-    "valueBase": 0.08,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Applies poison damage to all enemies every turn.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ e.status.poison = (e.status.poison||0)+1; }); }"
-  },
-  {
-    "id": "eff046",
-    "name": "Life Drain",
-    "type": "onAttackStart",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Drains 25% of target's HP and heals self.",
-    "action": "export function effect(card, target){ let drain = target.hp*0.25; target.hp -= drain; card.hp += drain; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
-  },
-  {
-    "id": "eff047",
-    "name": "Stun Aura",
-    "type": "afterTurn",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "15% chance to stun all enemies at the end of each turn.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ if(Math.random()<0.15) e.status.stun=true; }); }"
-  },
-  {
-    "id": "eff048",
-    "name": "Shield Aura",
-    "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Gives a 20% HP shield to all allies every turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.shield = (a.shield||0) + a.maxHp*0.20; }); }"
-  },
-  {
-    "id": "eff049",
-    "name": "Reflect Aura",
-    "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Reflects 20% of damage received back to all attackers.",
-    "action": "export function effect(card, enemies){ enemies.forEach(e=>{ if(e.isAttacker) e.hp -= e.lastDamage*0.20; }); }"
-  },
-  {
-    "id": "eff050",
-    "name": "Energy Burn",
-    "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
-    "desc": "Burns 15% of target's attack power for 2 turns.",
-    "action": "export function effect(card, target){ target.status.attackDebuff = {value: target.attack*0.15, turns:2}; }"
-  },
+[
+  { "id": "eff001", "name": "Buff Attack Small", "type": "onAttackStart", "valueBase": 0.15, "valuePerLevel": 0.03, "level": 10, "xpBase": 100, "xpMax": 100, "desc": "Increases your attack by 15%.", "action": "card.attack *= (1 + 0.15);" },
+  { "id": "eff002", "name": "Buff Attack Big", "type": "onAttackStart", "valueBase": 0.40, "valuePerLevel": 0.05, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Increases your attack by 40%.", "action": "card.attack *= (1 + 0.40);" },
+  { "id": "eff003", "name": "Buff Defense", "type": "afterDefense", "valueBase": 0.25, "valuePerLevel": 0.04, "level": 10, "xpBase": 200, "xpMax": 200, "desc": "Increases your defense by 25%.", "action": "card.defense *= (1 + 0.25);" },
+  { "id": "eff004", "name": "Heal Small", "type": "afterDefense", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 150, "xpMax": 150, "desc": "Heals 25% of your max HP.", "action": "card.hp += card.maxHp * 0.25; if(card.hp > card.maxHp) card.hp = card.maxHp;" },
+  { "id": "eff005", "name": "Heal All", "type": "afterTurn", "valueBase": 0.50, "valuePerLevel": 0.05, "level": 10, "xpBase": 800, "xpMax": 800, "desc": "Heals 50% of all allies' max HP.", "action": "if(Array.isArray(targets)) targets.forEach(t=>{ t.hp += t.maxHp*0.5; if(t.hp>t.maxHp) t.hp=t.maxHp; });" },
+  { "id": "eff006", "name": "Shield Small", "type": "onDefense", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 300, "xpMax": 300, "desc": "Creates a shield equal to 25% of your HP.", "action": "card.shield = (card.shield || 0) + card.maxHp*0.25;" },
+  { "id": "eff007", "name": "Burn", "type": "onAttackStart", "valueBase": 0.15, "valuePerLevel": 0.02, "level": 10, "xpBase": 200, "xpMax": 200, "desc": "Applies burn to the target.", "action": "if(target){ target.status = target.status||{}; target.status.burn = (target.status.burn || 0) + 1; }" },
+  { "id": "eff008", "name": "Poison", "type": "onAttackStart", "valueBase": 0.10, "valuePerLevel": 0.02, "level": 10, "xpBase": 200, "xpMax": 200, "desc": "Applies poison for 3 turns.", "action": "if(target){ target.status = target.status||{}; target.status.poison = 3; }" },
+  { "id": "eff009", "name": "Stun", "type": "onHit", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 300, "xpMax": 300, "desc": "25% chance to stun the target.", "action": "if(target){ target.status = target.status||{}; if(Math.random()<0.25) target.status.stun=true; }" },
+  { "id": "eff010", "name": "Silence", "type": "onAttackStart", "valueBase": 0.20, "valuePerLevel": 0.02, "level": 10, "xpBase": 300, "xpMax": 300, "desc": "20% chance to silence the target.", "action": "if(target){ target.status = target.status||{}; if(Math.random()<0.20) target.status.silence=true; }" },
+  { "id": "eff011", "name": "Evade", "type": "afterDefense", "valueBase": 0.40, "valuePerLevel": 0.04, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "40% chance to evade incoming attacks.", "action": "card.status = card.status||{}; if(Math.random()<0.40) card.status.evade=true;" },
+  { "id": "eff012", "name": "Revive", "type": "afterDefense", "valueBase": 1, "valuePerLevel": 0, "level": 10, "xpBase": 1000, "xpMax": 1000, "desc": "Revives 1 ally from the graveyard at full HP.", "action": "if(Array.isArray(targets)){ let dead = targets.filter(t=>t.hp<=0); if(dead.length>0) dead[0].hp=dead[0].maxHp; }" },
+  { "id": "eff013", "name": "Sacrifice Steal Power", "type": "onAttackStart", "valueBase": 0.70, "valuePerLevel": 0, "level": 10, "xpBase": 1200, "xpMax": 1200, "desc": "Sacrifices the strongest ally to gain 70% of its attack.", "action": "if(Array.isArray(allies)&&allies.length>0){ let strongest = allies.sort((a,b)=>b.attack-a.attack)[0]; if(strongest){ card.attack += strongest.attack*0.70; strongest.hp=0; } }" },
+  { "id": "eff014", "name": "Grave Lock", "type": "afterTurn", "valueBase": 1, "valuePerLevel": 0, "level": 10, "xpBase": 800, "xpMax": 800, "desc": "Blocks the graveyard while alive.", "action": "if(game) game.graveLocked=true;" },
+  { "id": "eff015", "name": "Combo Boost", "type": "onAttackStart", "valueBase": 0.10, "valuePerLevel": 0.02, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Gains 10% attack per card of the same type on the field.", "action": "if(Array.isArray(allies)){ let count = allies.filter(a=>a.type===card.type).length; card.attack *= (1 + 0.10*count); }" },
+  { "id": "eff016", "name": "Reflect", "type": "onHit", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Reflects 25% of damage received.", "action": "if(attacker && typeof damage==='number') attacker.hp -= damage*0.25;" },
+  { "id": "eff017", "name": "Bleed", "type": "onAttackStart", "valueBase": 0.08, "valuePerLevel": 0.02, "level": 10, "xpBase": 300, "xpMax": 300, "desc": "Causes light bleeding to the target.", "action": "if(target){ target.status = target.status||{}; target.status.bleed = (target.status.bleed||0)+1; }" },
+  { "id": "eff018", "name": "Rage Boost", "type": "afterDefense", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Gains 25% attack when hit.", "action": "card.attack *= 1.25;" },
+  { "id": "eff019", "name": "Regen", "type": "afterTurn", "valueBase": 0.20, "valuePerLevel": 0.03, "level": 10, "xpBase": 300, "xpMax": 300, "desc": "Regenerates 20% of HP each turn.", "action": "card.hp += card.maxHp*0.20; if(card.hp>card.maxHp) card.hp=card.maxHp;" },
+  { "id": "eff020", "name": "Frost", "type": "onAttackStart", "valueBase": 0.15, "valuePerLevel": 0.02, "level": 10, "xpBase": 250, "xpMax": 250, "desc": "15% chance to freeze the target.", "action": "if(target){ target.status = target.status||{}; if(Math.random()<0.15) target.status.stun=true; }" },
+  { "id": "eff021", "name": "Curse", "type": "onHit", "valueBase": 0.12, "valuePerLevel": 0.02, "level": 10, "xpBase": 300, "xpMax": 300, "desc": "Curses attacker to receive continuous damage.", "action": "if(attacker){ attacker.status = attacker.status||{}; attacker.status.curse = true; }" },
+  { "id": "eff022", "name": "Siphon Life", "type": "onAttackStart", "valueBase": 0.30, "valuePerLevel": 0.04, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Steals 30% of damage dealt as healing.", "action": "if(target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }" },
+  { "id": "eff023", "name": "Bravery", "type": "onAttackStart", "valueBase": 0.20, "valuePerLevel": 0.03, "level": 10, "xpBase": 350, "xpMax": 350, "desc": "Increases your attack by 20% when starting the turn.", "action": "card.attack *= 1.20;" },
+  { "id": "eff024", "name": "Mirror Shield", "type": "onHit", "valueBase": 0.30, "valuePerLevel": 0.03, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Reflects 30% of damage received.", "action": "if(attacker && typeof damage==='number') attacker.hp -= damage*0.30;" },
+  { "id": "eff025", "name": "Berserk", "type": "afterTurn", "valueBase": 0.50, "valuePerLevel": 0.05, "level": 10, "xpBase": 800, "xpMax": 800, "desc": "Increases 50% attack when HP < 30%.", "action": "if(card.hp<card.maxHp*0.3) card.attack *= 1.5;" },
+  { "id": "eff026", "name": "Holy Aura", "type": "afterTurn", "valueBase": 0.15, "valuePerLevel": 0.03, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Heals all living allies by 15% per turn.", "action": "if(Array.isArray(allies)) allies.forEach(t=>{ if(t.hp>0){ t.hp+=t.maxHp*0.15; if(t.hp>t.maxHp) t.hp=t.maxHp; } });" },
+  { "id": "eff027", "name": "Dark Link", "type": "onAttackStart", "valueBase": 0.50, "valuePerLevel": 0, "level": 10, "xpBase": 1000, "xpMax": 1000, "desc": "Sacrifices 1 ally and gains 50% of its power.", "action": "if(Array.isArray(allies)){ let ally = allies.find(a=>a.hp>0); if(ally){ card.attack+=ally.attack*0.5; ally.hp=0; } }" },
+  { "id": "eff028", "name": "Grave Blessing", "type": "afterDefense", "valueBase": 1, "valuePerLevel": 0, "level": 10, "xpBase": 1000, "xpMax": 1000, "desc": "Revives 1 random ally after defending.", "action": "if(Array.isArray(allies)){ let dead = allies.filter(a=>a.hp<=0); if(dead.length>0){ let r = dead[Math.floor(Math.random()*dead.length)]; r.hp=r.maxHp; } }" },
+  { "id": "eff029", "name": "Phoenix Soul", "type": "onDeath", "valueBase": 1, "valuePerLevel": 0, "level": 10, "xpBase": 1200, "xpMax": 1200, "desc": "Revives automatically once upon death.", "action": "card.status = card.status||{}; if(!card.status.reviveUsed){ card.hp = card.maxHp; card.status.reviveUsed=true; }" },
+  { "id": "eff030", "name": "Skip Enemy Turn", "type": "onAttackStart", "valueBase": 0.20, "valuePerLevel": 0.02, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "20% chance to make the enemy skip their next turn.", "action": "if(enemy){ enemy.status = enemy.status||{}; if(Math.random()<0.20) enemy.status.skipTurn=true; }" },
+  { "id": "eff031", "name": "Auto Attack Guardian", "type": "afterTurn", "valueBase": 1, "valuePerLevel": 0, "level": 10, "xpBase": 800, "xpMax": 800, "desc": "Automatically attacks the Guardian each turn.", "action": "if(guardian){ guardian.hp -= card.attack; }" },
+  { "id": "eff032", "name": "Freeze Enemy", "type": "onAttackStart", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 600, "xpMax": 600, "desc": "25% chance to freeze the enemy, skipping their next action.", "action": "if(target){ target.status = target.status||{}; if(Math.random()<0.25) target.status.stun=true; }" },
+  { "id": "eff033", "name": "Damage Over Time", "type": "onAttackStart", "valueBase": 0.10, "valuePerLevel": 0.02, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Deals 10% of your attack as damage over 3 turns.", "action": "if(target){ target.status = target.status||{}; target.status.dot = {damage: card.attack*0.10, turns:3}; }" },
+  { "id": "eff034", "name": "Counter Attack", "type": "onHit", "valueBase": 0.30, "valuePerLevel": 0.03, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Reflects 30% of incoming damage immediately.", "action": "if(attacker && typeof damage==='number') attacker.hp -= damage*0.30;" },
+  { "id": "eff035", "name": "Increase Defense", "type": "afterDefense", "valueBase": 0.30, "valuePerLevel": 0.03, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Increases your defense by 30% after being attacked.", "action": "card.defense *= 1.30;" },
+  { "id": "eff036", "name": "Life Link", "type": "onAttackStart", "valueBase": 0.25, "valuePerLevel": 0.03, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Shares 25% of damage taken among allies.", "action": "if(Array.isArray(allies) && typeof damage==='number'){ let share = damage*0.25/allies.length; allies.forEach(a=>{ a.hp -= share; }); }" },
+  { "id": "eff037", "name": "Self Destruct", "type": "onAttackStart", "valueBase": 0.50, "valuePerLevel": 0, "level": 10, "xpBase": 1000, "xpMax": 1000, "desc": "Sacrifices self to deal 50% attack to all enemies.", "action": "if(Array.isArray(enemies)){ enemies.forEach(e=>{ e.hp -= card.attack*0.5; }); card.hp=0; }" },
+  { "id": "eff038", "name": "Armor Break", "type": "onAttackStart", "valueBase": 0.20, "valuePerLevel": 0.03, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Reduces enemy defense by 20%.", "action": "if(target) target.defense *= 0.80;" },
+  { "id": "eff039", "name": "Double Strike", "type": "onAttackStart", "valueBase": 2, "valuePerLevel": 0, "level": 10, "xpBase": 800, "xpMax": 800, "desc": "Attacks twice in one turn.", "action": "if(target){ target.hp -= card.attack; target.hp -= card.attack; }" },
+  { "id": "eff040", "name": "Magic Shield", "type": "onDefense", "valueBase": 0.40, "valuePerLevel": 0.03, "level": 10, "xpBase": 600, "xpMax": 600, "desc": "Absorbs 40% of magical damage received.", "action": "if(typeof damageType==='string' && typeof damage==='number'){ if(damageType==='magic') card.hp -= damage*0.60; else card.hp -= damage; }" },
+  { "id": "eff041", "name": "Silence Aura", "type": "afterTurn", "valueBase": 0.15, "valuePerLevel": 0.02, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "15% chance to silence all enemies at the end of your turn.", "action": "if(Array.isArray(enemies)) enemies.forEach(e=>{ e.status = e.status||{}; if(Math.random()<0.15) e.status.silence=true; });" },
+  { "id": "eff042", "name": "Burn Aura", "type": "afterTurn", "valueBase": 0.10, "valuePerLevel": 0.02, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Deals 10% attack as burn damage to all enemies at the end of turn.", "action": "if(Array.isArray(enemies)) enemies.forEach(e=>{ e.hp -= card.attack*0.10; });" },
+  { "id": "eff043", "name": "Vampiric Aura", "type": "afterTurn", "valueBase": 0.20, "valuePerLevel": 0.03, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Heals 20% of damage dealt to all enemies.", "action": "if(Array.isArray(enemies)){ let total = enemies.reduce((sum,e)=>sum+Math.min(e.hp, card.attack*0.2),0); card.hp += total; if(card.hp>card.maxHp) card.hp=card.maxHp; }" },
+  { "id": "eff044", "name": "Curse Aura", "type": "afterTurn", "valueBase": 0.10, "valuePerLevel": 0.02, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Curses all attackers to take 10% of their max HP as damage each turn.", "action": "if(Array.isArray(enemies)) enemies.forEach(e=>{ if(e.isAttacker) e.hp -= e.maxHp*0.10; });" },
+  { "id": "eff045", "name": "Poison Aura", "type": "afterTurn", "valueBase": 0.08, "valuePerLevel": 0.02, "level": 10, "xpBase": 400, "xpMax": 400, "desc": "Applies poison damage to all enemies every turn.", "action": "if(Array.isArray(enemies)) enemies.forEach(e=>{ e.status = e.status||{}; e.status.poison = (e.status.poison||0)+1; });" },
+{"id":"eff046","name":"Life Drain","type":"onAttackStart","valueBase":0.30,"valuePerLevel":0.03,"level":10,"xpBase":500,"xpMax":500,"desc":"Steals 30% of damage dealt as HP.","action":"if(target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"},
+  {"id":"eff047","name":"Counterspell","type":"onHit","valueBase":0.25,"valuePerLevel":0.03,"level":10,"xpBase":500,"xpMax":500,"desc":"25% chance to block enemy spell effects.","action":"if(attacker && attacker.isCasting && Math.random()<0.25) attacker.status.spellBlocked=true;"},
+  {"id":"eff048","name":"Mana Burn","type":"onAttackStart","valueBase":0.20,"valuePerLevel":0.03,"level":10,"xpBase":400,"xpMax":400,"desc":"Burns 20% of target's mana.","action":"if(target && typeof target.mana==='number'){ target.mana -= target.mana*0.20; if(target.mana<0) target.mana=0; }"},
+  {"id":"eff049","name":"Shield Ally","type":"afterTurn","valueBase":0.25,"valuePerLevel":0.03,"level":10,"xpBase":400,"xpMax":400,"desc":"Gives 25% max HP shield to all allies at the end of turn.","action":"if(Array.isArray(allies)) allies.forEach(a=>{ a.shield = (a.shield||0) + a.maxHp*0.25; });"},
+  {"id":"eff050","name":"Ultimate Sacrifice","type":"onDeath","valueBase":1,"valuePerLevel":0,"level":10,"xpBase":1200,"xpMax":1200,"desc":"Upon death, deals 100% of your attack to all enemies.","action":"if(Array.isArray(enemies)){ enemies.forEach(e=>{ e.hp -= card.attack; }); card.hp=0; }"},
   {
     "id": "eff051",
     "name": "Frostbite",
     "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Reduces target's speed by 15% and has a 15% chance to freeze them for 1 turn.",
-    "action": "export function effect(card, target){ target.speed *= 0.85; if(Math.random()<0.15) target.status.stun=true; }"
+    "action": "if(target){ target.speed *= 0.85; if(Math.random()<0.15) target.status.stun=true; }"
   },
   {
     "id": "eff052",
     "name": "Critical Boost",
     "type": "onAttackStart",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Increases own critical hit chance by 25% for this attack.",
-    "action": "export function effect(card){ card.critChance = (card.critChance||0) + 0.25; }"
+    "action": "card.critChance = (card.critChance||0)+0.25;"
   },
   {
     "id": "eff053",
     "name": "Regen Aura",
     "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Restores 20% of max HP to all allies at the end of each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.20; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "allies.forEach(a=>{ a.hp+=a.maxHp*0.20; if(a.hp>a.maxHp)a.hp=a.maxHp; });"
   },
   {
     "id": "eff054",
     "name": "Combo Strike",
     "type": "onAttackStart",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Gain 10% attack for each card of the same type in play.",
-    "action": "export function effect(card, board){ let sameType = board.filter(c=>c.type===card.type).length; card.attack += card.attack*0.10*sameType; }"
+    "action": "let sameType=board.filter(c=>c.type===card.type).length; card.attack+=card.attack*0.10*sameType;"
   },
   {
     "id": "eff055",
     "name": "Sacrifice Power",
     "type": "onAttackStart",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Sacrifice the strongest ally to gain 50% of their attack as bonus.",
-    "action": "export function effect(card, allies){ let strongest = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += strongest.attack*0.50; allies.splice(allies.indexOf(strongest),1); }"
+    "action": "if(allies.length>0){ let strongest=allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack+=strongest.attack*0.50; allies.splice(allies.indexOf(strongest),1); }"
   },
   {
     "id": "eff056",
     "name": "Bleed Strike",
     "type": "onAttackStart",
-    "valueBase": 0.08,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
     "desc": "Inflicts bleeding causing 8% of target's max HP as damage per turn.",
-    "action": "export function effect(card, target){ target.status.bleed = (target.status.bleed||0)+0.08*target.maxHp; }"
+    "action": "if(target){ target.status.bleed=(target.status.bleed||0)+0.08*target.maxHp; }"
   },
   {
     "id": "eff057",
     "name": "Holy Blessing",
     "type": "afterTurn",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Heals all living allies for 15% of their max HP each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.15; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "allies.forEach(a=>{ a.hp+=a.maxHp*0.15; if(a.hp>a.maxHp)a.hp=a.maxHp; });"
   },
   {
     "id": "eff058",
     "name": "Revive Ally",
     "type": "afterDefense",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Revives 1 random ally from the graveyard at full HP.",
-    "action": "export function effect(card, allies, grave){ if(grave.length>0){ let revived = grave.splice(Math.floor(Math.random()*grave.length),1)[0]; revived.hp=revived.maxHp; allies.push(revived); } }"
+    "action": "if(grave.length>0){ let r=grave.splice(Math.floor(Math.random()*grave.length),1)[0]; r.hp=r.maxHp; allies.push(r); }"
   },
   {
     "id": "eff059",
-    "name": "Phoenix Soul",
+    "name": "Phoenix Soul 1",
     "type": "onDeath",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Revives itself once automatically upon death at full HP.",
-    "action": "export function effect(card){ if(!card.status.phoenixUsed){ card.hp = card.maxHp; card.status.phoenixUsed=true; } }"
+    "action": "if(!card.status.phoenixUsed){ card.hp=card.maxHp; card.status.phoenixUsed=true; }"
   },
   {
     "id": "eff060",
     "name": "Rage Boost",
     "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Gain 25% attack after being hit.",
-    "action": "export function effect(card){ card.attack += card.attack*0.25; }"
+    "action": "card.attack+=card.attack*0.25;"
   },
   {
     "id": "eff061",
     "name": "Mirror Shield",
     "type": "onHit",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Reflects 30% of the damage received back to the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.30; }"
+    "action": "if(attacker){ attacker.hp-=card.lastDamage*0.30; }"
   },
   {
     "id": "eff062",
     "name": "Curse",
     "type": "onHit",
-    "valueBase": 0.12,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
     "desc": "Inflicts continuous damage equal to 12% of attacker's max HP per turn.",
-    "action": "export function effect(card, attacker){ attacker.status.curse = (attacker.status.curse||0)+0.12*attacker.maxHp; }"
+    "action": "if(attacker){ attacker.status.curse=(attacker.status.curse||0)+0.12*attacker.maxHp; }"
   },
   {
     "id": "eff063",
     "name": "Siphon Life",
     "type": "onAttackStart",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Heals self for 30% of damage dealt to the target.",
-    "action": "export function effect(card, target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "if(target){ let dmg=card.attack; target.hp-=dmg; card.hp+=dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff064",
     "name": "Bravery",
     "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Increases own attack by 20% at the start of the turn.",
-    "action": "export function effect(card){ card.attack += card.attack*0.20; }"
+    "action": "card.attack+=card.attack*0.20;"
   },
   {
     "id": "eff065",
     "name": "Berserk",
     "type": "afterTurn",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Gain 50% attack when HP falls below 30%.",
-    "action": "export function effect(card){ if(card.hp<card.maxHp*0.30) card.attack += card.attack*0.50; }"
+    "action": "if(card.hp<card.maxHp*0.30) card.attack+=card.attack*0.50;"
   },
   {
     "id": "eff066",
     "name": "Dark Link",
     "type": "onAttackStart",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Sacrifice 1 ally and gain 50% of their attack.",
-    "action": "export function effect(card, allies){ if(allies.length>0){ let ally = allies.pop(); card.attack += ally.attack*0.50; } }"
+    "action": "if(allies.length>0){ let ally=allies.pop(); card.attack+=ally.attack*0.50; }"
   },
   {
     "id": "eff067",
     "name": "Grave Blessing",
     "type": "afterDefense",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Revives 1 ally from the graveyard at full HP after defending.",
-    "action": "export function effect(card, allies, grave){ if(grave.length>0){ let revived = grave.splice(Math.floor(Math.random()*grave.length),1)[0]; revived.hp=revived.maxHp; allies.push(revived); } }"
+    "action": "if(grave.length>0){ let r=grave.splice(Math.floor(Math.random()*grave.length),1)[0]; r.hp=r.maxHp; allies.push(r); }"
   },
   {
     "id": "eff068",
     "name": "Shield Small",
     "type": "onDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Creates a shield equal to 25% of max HP.",
-    "action": "export function effect(card){ card.shield = (card.shield||0)+card.maxHp*0.25; }"
+    "action": "card.shield=(card.shield||0)+card.maxHp*0.25;"
   },
   {
     "id": "eff069",
     "name": "Evade",
     "type": "afterDefense",
-    "valueBase": 0.40,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Grants 40% chance to evade incoming attacks.",
-    "action": "export function effect(card){ card.status.evade = 0.40; }"
+    "action": "card.status.evade=0.40;"
   },
   {
     "id": "eff070",
     "name": "Silence",
     "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "20% chance to silence the target for 1 turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.20) target.status.silence=true; }"
+    "action": "if(target&&Math.random()<0.20) target.status.silence=true;"
   },
   {
     "id": "eff071",
     "name": "Poison",
     "type": "onAttackStart",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 400,
-    "xpMax": 400,
     "desc": "Poisons the target for 3 turns, dealing 10% of their max HP per turn.",
-    "action": "export function effect(card, target){ target.status.poison=(target.status.poison||0)+0.10*target.maxHp; }"
+    "action": "if(target) target.status.poison=(target.status.poison||0)+0.10*target.maxHp;"
   },
   {
     "id": "eff072",
     "name": "Burn",
     "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Applies burn to the target, dealing 15% of max HP per turn.",
-    "action": "export function effect(card, target){ target.status.burn=(target.status.burn||0)+0.15*target.maxHp; }"
+    "action": "if(target) target.status.burn=(target.status.burn||0)+0.15*target.maxHp;"
   },
   {
     "id": "eff073",
     "name": "Heal Small",
     "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Heals 25% of max HP.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "card.hp+=card.maxHp*0.25;if(card.hp>card.maxHp) card.hp=card.maxHp;"
   },
   {
     "id": "eff074",
     "name": "Heal All",
     "type": "afterTurn",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Heals 50% of max HP to all allies.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.50; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "allies.forEach(a=>{ a.hp+=a.maxHp*0.50;if(a.hp>a.maxHp) a.hp=a.maxHp; });"
   },
   {
     "id": "eff075",
     "name": "Buff Attack Small",
     "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Increases own attack by 15%.",
-    "action": "export function effect(card){ card.attack += card.attack*0.15; }"
+    "action": "card.attack+=card.attack*0.15;"
   },
   {
     "id": "eff076",
     "name": "Buff Attack Big",
     "type": "onAttackStart",
-    "valueBase": 0.40,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Increases own attack by 40%.",
-    "action": "export function effect(card){ card.attack += card.attack*0.40; }"
+    "action": "card.attack+=card.attack*0.40;"
   },
   {
     "id": "eff077",
     "name": "Buff Defense",
     "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Increases own defense by 25%.",
-    "action": "export function effect(card){ card.defense += card.defense*0.25; }"
+    "action": "card.defense+=card.defense*0.25;"
   },
   {
     "id": "eff078",
     "name": "Combo Boost",
     "type": "onAttackStart",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Gain 10% attack per card of same type.",
-    "action": "export function effect(card, board){ let count=board.filter(c=>c.type===card.type).length; card.attack += card.attack*0.10*count; }"
+    "action": "let count=board.filter(c=>c.type===card.type).length; card.attack+=card.attack*0.10*count;"
   },
   {
     "id": "eff079",
     "name": "Sacrifice Steal Power",
     "type": "onAttackStart",
-    "valueBase": 0.70,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Sacrifice strongest ally and gain 70% of their attack.",
-    "action": "export function effect(card, allies){ if(allies.length>0){ let strongest=allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += strongest.attack*0.70; allies.splice(allies.indexOf(strongest),1); } }"
+    "action": "if(allies.length>0){ let strongest=allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack+=strongest.attack*0.70; allies.splice(allies.indexOf(strongest),1); }"
   },
   {
     "id": "eff080",
     "name": "Grave Lock",
     "type": "afterTurn",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Blocks the graveyard while alive.",
-    "action": "export function effect(card, grave){ grave.locked=true; }"
+    "action": "grave.locked=true;"
   },
   {
     "id": "eff081",
     "name": "Regen",
     "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Regenerates 20% of max HP each turn.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.20; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "card.hp+=card.maxHp*0.20;if(card.hp>card.maxHp) card.hp=card.maxHp;"
   },
   {
     "id": "eff082",
     "name": "Frost",
     "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "15% chance to freeze the target, skipping their next turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.15) target.status.skipTurn=true; }"
+    "action": "if(target&&Math.random()<0.15) target.status.skipTurn=true;"
   },
   {
     "id": "eff083",
     "name": "Stun",
     "type": "onHit",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "25% chance to stun the target, preventing their next action.",
-    "action": "export function effect(card, target){ if(Math.random()<0.25) target.status.stun=true; }"
+    "action": "if(target&&Math.random()<0.25) target.status.stun=true;"
   },
   {
     "id": "eff084",
-    "name": "Phoenix Soul",
+    "name": "Phoenix Soul 2",
     "type": "onDeath",
-    "valueBase": 1,
-    "valuePerLevel": 0,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Automatically revives once upon death.",
-    "action": "export function effect(card, allies){ card.hp = card.maxHp; card.status.revived=true; }"
+    "action": "card.hp=card.maxHp; card.status.revived=true;"
   },
   {
     "id": "eff085",
     "name": "Reflect",
     "type": "onHit",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Reflects 25% of damage received back to the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.25; }"
+    "action": "if(attacker) attacker.hp-=card.lastDamage*0.25;"
   },
   {
     "id": "eff086",
     "name": "Bleed",
     "type": "onAttackStart",
-    "valueBase": 0.08,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Causes light bleeding, dealing 8% of max HP per turn for 3 turns.",
-    "action": "export function effect(card, target){ target.status.bleed=(target.status.bleed||0)+0.08*target.maxHp; }"
+    "action": "if(target) target.status.bleed=(target.status.bleed||0)+0.08*target.maxHp;"
   },
   {
     "id": "eff087",
-    "name": "Rage Boost",
+    "name": "Rage Boost 2",
     "type": "afterDefense",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Gain 25% attack upon being hit.",
-    "action": "export function effect(card){ card.attack += card.attack*0.25; }"
+    "action": "card.attack+=card.attack*0.25;"
   },
   {
     "id": "eff088",
     "name": "Holy Aura",
     "type": "afterTurn",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Heals all alive allies by 15% of their max HP each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.15; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "allies.forEach(a=>{ a.hp+=a.maxHp*0.15;if(a.hp>a.maxHp) a.hp=a.maxHp; });"
   },
   {
     "id": "eff089",
     "name": "Sacrifice Steal Magic",
     "type": "onAttackStart",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Sacrifices an ally to steal 50% of their magical power.",
-    "action": "export function effect(card, allies){ if(allies.length>0){ let strongest = allies.reduce((a,b)=>a.magic>b.magic?a:b); card.magic += strongest.magic*0.50; allies.splice(allies.indexOf(strongest),1); } }"
+    "action": "if(allies.length>0){ let strongest=allies.reduce((a,b)=>a.magic>b.magic?a:b); card.magic+=strongest.magic*0.50; allies.splice(allies.indexOf(strongest),1); }"
   },
   {
     "id": "eff090",
     "name": "Weaken",
     "type": "onHit",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Reduces the target's attack by 20% for 2 turns.",
-    "action": "export function effect(card, target){ target.attack *= 0.80; }"
+    "action": "if(target) target.attack*=0.80;"
   },
   {
     "id": "eff091",
     "name": "Freeze Armor",
     "type": "afterDefense",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Reflects 15% of melee damage back and slows the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.15; attacker.status.slow=true; }"
+    "action": "if(attacker){ attacker.hp-=card.lastDamage*0.15; attacker.status.slow=true; }"
   },
   {
     "id": "eff092",
     "name": "Mana Surge",
     "type": "afterTurn",
-    "valueBase": 0.10,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Restores 10% of max power for each ally this turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.power += a.maxPower*0.10; if(a.power>a.maxPower) a.power=a.maxPower; }); }"
+    "action": "allies.forEach(a=>{ a.power+=a.maxPower*0.10;if(a.power>a.maxPower) a.power=a.maxPower; });"
   },
   {
     "id": "eff093",
     "name": "Auto Attack",
     "type": "afterTurn",
-    "valueBase": 0.50,
-    "valuePerLevel": 0.05,
-    "level": 10,
-    "xpBase": 600,
-    "xpMax": 600,
     "desc": "Automatically attacks a random enemy each turn dealing 50% of attack.",
-    "action": "export function effect(card, enemies){ if(enemies.length>0){ let target = enemies[Math.floor(Math.random()*enemies.length)]; target.hp -= card.attack*0.50; } }"
+    "action": "if(enemies.length>0){ let t=enemies[Math.floor(Math.random()*enemies.length)]; t.hp-=card.attack*0.50; }"
   },
   {
     "id": "eff094",
     "name": "Skip Enemy Turn",
     "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "20% chance to make the target skip their next turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.20) target.status.skipTurn=true; }"
+    "action": "if(target&&Math.random()<0.20) target.status.skipTurn=true;"
   },
   {
     "id": "eff095",
     "name": "Stone Skin",
     "type": "afterDefense",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Reduces incoming damage by 30% for one turn.",
-    "action": "export function effect(card){ card.status.reduceDamage=0.30; }"
+    "action": "card.status.reduceDamage=0.30;"
   },
   {
     "id": "eff096",
     "name": "Energy Leech",
     "type": "onAttackStart",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Steals 25% of target's current energy as own.",
-    "action": "export function effect(card, target){ let stolen = target.energy*0.25; target.energy -= stolen; card.energy += stolen; }"
+    "action": "if(target){ let stolen=target.energy*0.25; target.energy-=stolen; card.energy+=stolen; }"
   },
   {
     "id": "eff097",
     "name": "Chain Attack",
     "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Attacks up to 2 additional enemies with 15% damage each.",
-    "action": "export function effect(card, enemies){ enemies.slice(0,2).forEach(e=>{ e.hp -= card.attack*0.15; }); }"
+    "action": "enemies.slice(0,2).forEach(e=>{ e.hp-=card.attack*0.15; });"
   },
   {
     "id": "eff098",
     "name": "Counter Strike",
     "type": "onHit",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Deals 20% of damage received back to the attacker immediately.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.20; }"
+    "action": "if(attacker) attacker.hp-=card.lastDamage*0.20;"
   },
   {
     "id": "eff099",
     "name": "Curse of Weakness",
     "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 450,
-    "xpMax": 450,
     "desc": "Reduces target's defense by 15% for 2 turns.",
-    "action": "export function effect(card, target){ target.defense *= 0.85; }"
+    "action": "if(target) target.defense*=0.85;"
   },
   {
     "id": "eff100",
     "name": "Blood Pact",
     "type": "onAttackStart",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
     "desc": "Sacrifices 20% of own HP to increase attack by 20% this turn.",
-    "action": "export function effect(card){ card.hp -= card.maxHp*0.20; card.attack += card.attack*0.20; }"
+    "action": "card.hp-=card.maxHp*0.20; card.attack+=card.attack*0.20;"
   },
   {
     "id": "eff101",
@@ -1208,7 +409,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Sacrifices an ally and gains 50% of their attack power.",
-    "action": "export function effect(card, allies){ if(allies.length>0){ let ally = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += ally.attack*0.50; allies.splice(allies.indexOf(ally),1); } }"
+    "action": "(card, allies) => { if(allies.length>0){ let ally = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += ally.attack*0.50; allies.splice(allies.indexOf(ally),1); } }"
   },
   {
     "id": "eff102",
@@ -1220,7 +421,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Increases attack by 10% per card of the same type in play.",
-    "action": "export function effect(card, field){ let count = field.filter(c=>c.type===card.type).length; card.attack += card.attack*0.10*count; }"
+    "action": "(card, field) => { let count = field.filter(c=>c.type===card.type).length; card.attack += card.attack*0.10*count; }"
   },
   {
     "id": "eff103",
@@ -1232,7 +433,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Blocks the enemy graveyard while alive.",
-    "action": "export function effect(card, enemyField){ enemyField.forEach(c=>c.status.cannotRevive=true); }"
+    "action": "(card, enemyField) => { enemyField.forEach(c=>c.status.cannotRevive=true); }"
   },
   {
     "id": "eff104",
@@ -1244,7 +445,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Creates a shield equal to 25% of max HP when defending.",
-    "action": "export function effect(card){ card.shield += card.maxHp*0.25; }"
+    "action": "(card) => { card.shield += card.maxHp*0.25; }"
   },
   {
     "id": "eff105",
@@ -1256,7 +457,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals 25% of max HP after defending.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "(card) => { card.hp += card.maxHp*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff106",
@@ -1268,7 +469,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Heals 50% of max HP for all alive allies each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.50; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "(card, allies) => { allies.forEach(a=>{ a.hp += a.maxHp*0.50; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
   },
   {
     "id": "eff107",
@@ -1280,7 +481,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Applies burn, dealing 15% of max HP over 3 turns.",
-    "action": "export function effect(card, target){ target.status.burn=(target.status.burn||0)+0.15*target.maxHp; }"
+    "action": "(card, target) => { target.status.burn=(target.status.burn||0)+0.15*target.maxHp; }"
   },
   {
     "id": "eff108",
@@ -1292,7 +493,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Applies poison, dealing 10% of max HP over 3 turns.",
-    "action": "export function effect(card, target){ target.status.poison=(target.status.poison||0)+0.10*target.maxHp; }"
+    "action": "(card, target) => { target.status.poison=(target.status.poison||0)+0.10*target.maxHp; }"
   },
   {
     "id": "eff109",
@@ -1304,7 +505,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "20% chance to silence the target, preventing them from using abilities.",
-    "action": "export function effect(card, target){ if(Math.random()<0.20) target.status.silenced=true; }"
+    "action": "(card, target) => { if(Math.random()<0.20) target.status.silenced=true; }"
   },
   {
     "id": "eff110",
@@ -1316,7 +517,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "40% chance to evade incoming attacks after defending.",
-    "action": "export function effect(card){ card.status.evade=0.40; }"
+    "action": "(card) => { card.status.evade=0.40; }"
   },
   {
     "id": "eff111",
@@ -1328,7 +529,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Revives one random ally from the graveyard after defending.",
-    "action": "export function effect(card, allies, grave){ if(grave.length>0){ let revived = grave.splice(Math.floor(Math.random()*grave.length),1)[0]; allies.push(revived); revived.hp=revived.maxHp; } }"
+    "action": "(card, allies, grave) => { if(grave.length>0){ let revived = grave.splice(Math.floor(Math.random()*grave.length),1)[0]; allies.push(revived); revived.hp=revived.maxHp; } }"
   },
   {
     "id": "eff112",
@@ -1340,7 +541,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Gain 25% attack when hit.",
-    "action": "export function effect(card){ card.attack += card.attack*0.25; }"
+    "action": "(card) => { card.attack += card.attack*0.25; }"
   },
   {
     "id": "eff113",
@@ -1352,7 +553,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Gain 50% attack when HP drops below 30%.",
-    "action": "export function effect(card){ if(card.hp<card.maxHp*0.30) card.attack += card.attack*0.50; }"
+    "action": "(card) => { if(card.hp<card.maxHp*0.30) card.attack += card.attack*0.50; }"
   },
   {
     "id": "eff114",
@@ -1364,7 +565,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reflects 30% of damage received back to the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.30; }"
+    "action": "(card, attacker) => { attacker.hp -= card.lastDamage*0.30; }"
   },
   {
     "id": "eff115",
@@ -1376,7 +577,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Heals 30% of damage dealt as HP.",
-    "action": "export function effect(card, target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "(card, target) => { let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff116",
@@ -1388,7 +589,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Gain 20% attack at the start of your turn.",
-    "action": "export function effect(card){ card.attack += card.attack*0.20; }"
+    "action": "(card) => { card.attack += card.attack*0.20; }"
   },
   {
     "id": "eff117",
@@ -1400,7 +601,7 @@
     "xpBase": 450,
     "xpMax": 450,
     "desc": "Target suffers 12% damage each turn for 3 turns.",
-    "action": "export function effect(card, attacker){ attacker.status.curse=(attacker.status.curse||0)+attacker.maxHp*0.12; }"
+    "action": "(card, attacker) => { attacker.status.curse=(attacker.status.curse||0)+attacker.maxHp*0.12; }"
   },
   {
     "id": "eff118",
@@ -1412,7 +613,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Sacrifices the strongest ally and absorbs 70% of their attack.",
-    "action": "export function effect(card, allies){ if(allies.length>0){ let strongest = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += strongest.attack*0.70; allies.splice(allies.indexOf(strongest),1); } }"
+    "action": "(card, allies) => { if(allies.length>0){ let strongest = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += strongest.attack*0.70; allies.splice(allies.indexOf(strongest),1); } }"
   },
   {
     "id": "eff119",
@@ -1424,7 +625,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Increases your attack by 15% at the start of your turn.",
-    "action": "export function effect(card){ card.attack += card.attack*0.15; }"
+    "action": "(card) => { card.attack += card.attack*0.15; }"
   },
   {
     "id": "eff120",
@@ -1436,7 +637,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Increases your attack by 40% at the start of your turn.",
-    "action": "export function effect(card){ card.attack += card.attack*0.40; }"
+    "action": "(card) => { card.attack += card.attack*0.40; }"
   },
   {
     "id": "eff121",
@@ -1448,7 +649,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Increases your defense by 25% after defending.",
-    "action": "export function effect(card){ card.defense += card.defense*0.25; }"
+    "action": "(card) => { card.defense += card.defense*0.25; }"
   },
   {
     "id": "eff122",
@@ -1460,7 +661,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Regenerates 20% of max HP every turn.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.20; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "(card) => { card.hp += card.maxHp*0.20; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff123",
@@ -1472,7 +673,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "15% chance to freeze the target, skipping their next turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.15) target.status.skipped=true; }"
+    "action": "(card, target) => { if(Math.random()<0.15) target.status.skipped=true; }"
   },
   {
     "id": "eff124",
@@ -1484,7 +685,7 @@
     "xpBase": 450,
     "xpMax": 450,
     "desc": "Deals light bleeding damage over 3 turns.",
-    "action": "export function effect(card, target){ target.status.bleed=(target.status.bleed||0)+0.08*target.maxHp; }"
+    "action": "(card, target) => { target.status.bleed=(target.status.bleed||0)+0.08*target.maxHp; }"
   },
   {
     "id": "eff125",
@@ -1496,7 +697,7 @@
     "xpBase": 600,
     "xpMax": 600,
     "desc": "Revives automatically once upon death with full HP.",
-    "action": "export function effect(card, allies, grave){ if(!card.status.reborn){ card.hp = card.maxHp; card.status.reborn=true; allies.push(card); } }"
+    "action": "(card, allies, grave) => { if(!card.status.reborn){ card.hp = card.maxHp; card.status.reborn=true; allies.push(card); } }"
   },
   {
     "id": "eff126",
@@ -1508,7 +709,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals 15% of max HP for all alive allies each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.15; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "(card, allies) => { allies.forEach(a=>{ a.hp += a.maxHp*0.15; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
   },
   {
     "id": "eff127",
@@ -1520,7 +721,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reflects 25% of damage received back to the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.25; }"
+    "action": "(card, attacker) => { attacker.hp -= card.lastDamage*0.25; }"
   },
   {
     "id": "eff128",
@@ -1532,7 +733,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "25% chance to stun the attacker, skipping their next turn.",
-    "action": "export function effect(card, attacker){ if(Math.random()<0.25) attacker.status.skipped=true; }"
+    "action": "(card, attacker) => { if(Math.random()<0.25) attacker.status.skipped=true; }"
   },
   {
     "id": "eff129",
@@ -1544,7 +745,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Gain 30% attack when defending successfully.",
-    "action": "export function effect(card){ card.attack += card.attack*0.30; }"
+    "action": "(card) => { card.attack += card.attack*0.30; }"
   },
   {
     "id": "eff130",
@@ -1556,7 +757,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reduces target's attack by 20% for 2 turns.",
-    "action": "export function effect(card, target){ target.attack -= target.attack*0.20; target.status.debuffTurns=2; }"
+    "action": "(card, target) => { target.attack -= target.attack*0.20; target.status.debuffTurns=2; }"
   },
   {
     "id": "eff131",
@@ -1568,7 +769,7 @@
     "xpBase": 450,
     "xpMax": 450,
     "desc": "20% chance to freeze attacking enemy for 1 turn when defending.",
-    "action": "export function effect(card, attacker){ if(Math.random()<0.20) attacker.status.skipped=true; }"
+    "action": "(card, attacker) => { if(Math.random()<0.20) attacker.status.skipped=true; }"
   },
   {
     "id": "eff132",
@@ -1580,7 +781,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Restores 25% of attack power to allies each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>a.attack+=a.attack*0.25); }"
+    "action": "(card, allies) => { allies.forEach(a => a.attack += a.attack*0.25); }"
   },
   {
     "id": "eff133",
@@ -1592,7 +793,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Returns 30% of received damage as instant counter-attack.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.30; }"
+    "action": "(card, attacker) => { attacker.hp -= card.lastDamage*0.30; }"
   },
   {
     "id": "eff134",
@@ -1604,7 +805,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals 25% of damage dealt to target as HP.",
-    "action": "export function effect(card, target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "(card, target) => { let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff135",
@@ -1616,7 +817,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reduces target's defense by 20% for 2 turns.",
-    "action": "export function effect(card, target){ target.defense -= target.defense*0.20; target.status.debuffTurns=2; }"
+    "action": "(card, target) => { target.defense -= target.defense*0.20; target.status.debuffTurns=2; }"
   },
   {
     "id": "eff136",
@@ -1628,7 +829,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Deals 35% extra damage to targets below 50% HP.",
-    "action": "export function effect(card, target){ if(target.hp<target.maxHp*0.50) target.hp -= card.attack*0.35; }"
+    "action": "(card, target) => { if(target.hp<target.maxHp*0.50) target.hp -= card.attack*0.35; }"
   },
   {
     "id": "eff137",
@@ -1640,7 +841,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals 20% of max HP to a target and 10% to adjacent allies.",
-    "action": "export function effect(card, allies, index){ allies[index].hp += allies[index].maxHp*0.20; if(allies[index].hp>allies[index].maxHp) allies[index].hp=allies[index].maxHp; if(allies[index-1]) allies[index-1].hp += allies[index-1].maxHp*0.10; if(allies[index+1]) allies[index+1].hp += allies[index+1].maxHp*0.10; }"
+    "action": "(card, allies, index) => { allies[index].hp += allies[index].maxHp*0.20; if(allies[index].hp>allies[index].maxHp) allies[index].hp=allies[index].maxHp; if(allies[index-1]) allies[index-1].hp += allies[index-1].maxHp*0.10; if(allies[index+1]) allies[index+1].hp += allies[index+1].maxHp*0.10; }"
   },
   {
     "id": "eff138",
@@ -1652,7 +853,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reflects 35% of received damage and applies 10% burn to attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.35; attacker.status.burn=(attacker.status.burn||0)+attacker.maxHp*0.10; }"
+    "action": "(card, attacker) => { attacker.hp -= card.lastDamage*0.35; attacker.status.burn=(attacker.status.burn||0)+attacker.maxHp*0.10; }"
   },
   {
     "id": "eff139",
@@ -1664,7 +865,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Applies 10% burn to the target and 5% to adjacent enemies.",
-    "action": "export function effect(card, enemies, index){ enemies[index].status.burn=(enemies[index].status.burn||0)+enemies[index].maxHp*0.10; if(enemies[index-1]) enemies[index-1].status.burn=(enemies[index-1].status.burn||0)+enemies[index-1].maxHp*0.05; if(enemies[index+1]) enemies[index+1].status.burn=(enemies[index+1].status.burn||0)+enemies[index+1].maxHp*0.05; }"
+    "action": "(card, enemies, index) => { enemies[index].status.burn=(enemies[index].status.burn||0)+enemies[index].maxHp*0.10; if(enemies[index-1]) enemies[index-1].status.burn=(enemies[index-1].status.burn||0)+enemies[index-1].maxHp*0.05; if(enemies[index+1]) enemies[index+1].status.burn=(enemies[index+1].status.burn||0)+enemies[index+1].maxHp*0.05; }"
   },
   {
     "id": "eff140",
@@ -1676,7 +877,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "10% chance to make an enemy skip their next turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.10) target.status.skipped=true; }"
+    "action": "(card, target) => { if(Math.random()<0.10) target.status.skipped=true; }"
   },
   {
     "id": "eff161",
@@ -1688,7 +889,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Inflicts 12% continuous damage to the attacker over 3 turns.",
-    "action": "export function effect(card, attacker){ attacker.status.curse=(attacker.status.curse||0)+attacker.maxHp*0.12; }"
+    "action": "(card, attacker) => { attacker.status.curse=(attacker.status.curse||0)+attacker.maxHp*0.12; }"
   },
   {
     "id": "eff162",
@@ -1700,7 +901,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "20% chance to silence the target, preventing skill use for 1 turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.20) target.status.silenced=true; }"
+    "action": "(card, target) => { if(Math.random()<0.20) target.status.silenced=true; }"
   },
   {
     "id": "eff163",
@@ -1712,7 +913,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Gain 10% attack for each card of the same type in play.",
-    "action": "export function effect(card, battlefield){ let sameTypeCount = battlefield.filter(c=>c.type===card.type).length; card.attack += card.attack*0.10*sameTypeCount; }"
+    "action": "(card, battlefield) => { let sameTypeCount = battlefield.filter(c=>c.type===card.type).length; card.attack += card.attack*0.10*sameTypeCount; }"
   },
   {
     "id": "eff164",
@@ -1724,7 +925,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Sacrifice the strongest ally and absorb 70% of their attack.",
-    "action": "export function effect(card, allies){ let strongest = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += strongest.attack*0.70; allies.splice(allies.indexOf(strongest),1); }"
+    "action": "(card, allies) => { let strongest = allies.reduce((a,b)=>a.attack>b.attack?a:b); card.attack += strongest.attack*0.70; allies.splice(allies.indexOf(strongest),1); }"
   },
   {
     "id": "eff165",
@@ -1736,7 +937,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Sacrifice 1 ally and gain 50% of their power.",
-    "action": "export function effect(card, allies){ let ally = allies[Math.floor(Math.random()*allies.length)]; card.attack += ally.attack*0.50; allies.splice(allies.indexOf(ally),1); }"
+    "action": "(card, allies) => { let ally = allies[Math.floor(Math.random()*allies.length)]; card.attack += ally.attack*0.50; allies.splice(allies.indexOf(ally),1); }"
   },
   {
     "id": "eff166",
@@ -1748,7 +949,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "40% chance to completely dodge incoming basic attacks.",
-    "action": "export function effect(card){ card.status.evadeChance=0.40; }"
+    "action": "(card) => { card.status.evadeChance=0.40; }"
   },
   {
     "id": "eff167",
@@ -1760,7 +961,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Creates a shield equal to 25% of max HP.",
-    "action": "export function effect(card){ card.shield += card.maxHp*0.25; }"
+    "action": "(card) => { card.shield += card.maxHp*0.25; }"
   },
   {
     "id": "eff168",
@@ -1772,7 +973,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Gain 25% attack when hit by an enemy.",
-    "action": "export function effect(card){ card.attack += card.attack*0.25; }"
+    "action": "(card) => { card.attack += card.attack*0.25; }"
   },
   {
     "id": "eff169",
@@ -1784,7 +985,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Applies 15% burn damage to the target over 3 turns.",
-    "action": "export function effect(card, target){ target.status.burn=(target.status.burn||0)+target.maxHp*0.15; }"
+    "action": "(card, target) => { target.status.burn=(target.status.burn||0)+target.maxHp*0.15; }"
   },
   {
     "id": "eff170",
@@ -1796,7 +997,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Applies poison to the target for 3 turns, dealing 10% of max HP per turn.",
-    "action": "export function effect(card, target){ target.status.poison=(target.status.poison||0)+target.maxHp*0.10; }"
+    "action": "(card, target) => { target.status.poison=(target.status.poison||0)+target.maxHp*0.10; }"
   },
   {
     "id": "eff171",
@@ -1808,7 +1009,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals 25% of max HP after defending.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "(card) => { card.hp += card.maxHp*0.25; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff172",
@@ -1820,7 +1021,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals all allies for 50% of their max HP each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.50; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
+    "action": "(card, allies) => { allies.forEach(a => { a.hp += a.maxHp*0.50; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
   },
   {
     "id": "eff173",
@@ -1832,7 +1033,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Increase own attack by 20% at the start of turn.",
-    "action": "export function effect(card){ card.attack += card.attack*0.20; }"
+    "action": "(card) => { card.attack += card.attack*0.20; }"
   },
   {
     "id": "eff174",
@@ -1844,7 +1045,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Gain 50% attack when HP drops below 30%.",
-    "action": "export function effect(card){ if(card.hp<card.maxHp*0.30) card.attack += card.attack*0.50; }"
+    "action": "(card) => { if(card.hp<card.maxHp*0.30) card.attack += card.attack*0.50; }"
   },
   {
     "id": "eff175",
@@ -1856,7 +1057,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Revives 1 ally from the graveyard with full HP after defending.",
-    "action": "export function effect(card, allies, grave){ let ally = grave.pop(); if(ally){ ally.hp = ally.maxHp; allies.push(ally); } }"
+    "action": "(card, allies, grave) => { let ally = grave.pop(); if(ally){ ally.hp = ally.maxHp; allies.push(ally); } }"
   },
   {
     "id": "eff176",
@@ -1868,7 +1069,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Blocks the graveyard, preventing revivals while alive.",
-    "action": "export function effect(card, grave){ grave.locked=true; }"
+    "action": "(card, grave) => { grave.locked = true; }"
   },
   {
     "id": "eff177",
@@ -1880,7 +1081,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reflects 30% of received damage back to the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.30; }"
+    "action": "(card, attacker) => { attacker.hp -= card.lastDamage*0.30; }"
   },
   {
     "id": "eff178",
@@ -1892,7 +1093,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Heals 30% of the damage dealt to the target.",
-    "action": "export function effect(card, target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
+    "action": "(card, target) => { let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.30; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
   },
   {
     "id": "eff179",
@@ -1904,7 +1105,7 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Sacrifice 25% of your HP to gain a shield equal to 50% of max HP.",
-    "action": "export function effect(card){ card.hp -= card.maxHp*0.25; card.shield += card.maxHp*0.50; }"
+    "action": "(card) => { card.hp -= card.maxHp*0.25; card.shield += card.maxHp*0.50; }"
   },
   {
     "id": "eff180",
@@ -1916,128 +1117,9 @@
     "xpBase": 500,
     "xpMax": 500,
     "desc": "Reduces target's attack by 20% for the next 2 turns.",
-    "action": "export function effect(card, target){ target.attack -= target.attack*0.20; target.status.debuffTurns=2; }"
+    "action": "(card, target) => { target.attack -= target.attack*0.20; target.status.debuffTurns = 2; }"
   },
-  {
-    "id": "eff201",
-    "name": "Frost",
-    "type": "onAttackStart",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.01,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "15% chance to freeze the target, skipping their next turn.",
-    "action": "export function effect(card, target){ if(Math.random()<0.15) target.status.frozen=true; }"
-  },
-  {
-    "id": "eff202",
-    "name": "Regen",
-    "type": "afterTurn",
-    "valueBase": 0.20,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Regenerate 20% of max HP each turn.",
-    "action": "export function effect(card){ card.hp += card.maxHp*0.20; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
-  },
-  {
-    "id": "eff203",
-    "name": "Holy Aura",
-    "type": "afterTurn",
-    "valueBase": 0.15,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Heals all alive allies for 15% of their max HP each turn.",
-    "action": "export function effect(card, allies){ allies.forEach(a=>{ a.hp += a.maxHp*0.15; if(a.hp>a.maxHp) a.hp=a.maxHp; }); }"
-  },
-  {
-    "id": "eff204",
-    "name": "Reflect",
-    "type": "onHit",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Reflects 25% of incoming damage back to the attacker.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.25; }"
-  },
-  {
-    "id": "eff205",
-    "name": "Stun",
-    "type": "onHit",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "25% chance to stun the attacker for 1 turn.",
-    "action": "export function effect(card, attacker){ if(Math.random()<0.25) attacker.status.stunned=true; }"
-  },
-  {
-    "id": "eff206",
-    "name": "Bleed",
-    "type": "onAttackStart",
-    "valueBase": 0.08,
-    "valuePerLevel": 0.01,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Inflicts light bleeding, dealing 8% of max HP over 3 turns.",
-    "action": "export function effect(card, target){ target.status.bleed=(target.status.bleed||0)+target.maxHp*0.08; }"
-  },
-  {
-    "id": "eff207",
-    "name": "Combo Mastery",
-    "type": "onAttackStart",
-    "valueBase": 0.12,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Gain 12% extra attack per consecutive attack hit.",
-    "action": "export function effect(card){ card.attack += card.attack*0.12*card.status.comboCount; }"
-  },
-  {
-    "id": "eff208",
-    "name": "Life Steal Advanced",
-    "type": "onAttackStart",
-    "valueBase": 0.40,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Steal 40% of damage dealt as HP.",
-    "action": "export function effect(card, target){ let dmg = card.attack; target.hp -= dmg; card.hp += dmg*0.40; if(card.hp>card.maxHp) card.hp=card.maxHp; }"
-  },
-  {
-    "id": "eff209",
-    "name": "Piercing Strike",
-    "type": "onAttackStart",
-    "valueBase": 0.25,
-    "valuePerLevel": 0.02,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Ignores 25% of target's defense when attacking.",
-    "action": "export function effect(card, target){ let effectiveDmg = card.attack*(1-0.25); target.hp -= effectiveDmg; }"
-  },
-  {
-    "id": "eff210",
-    "name": "Counter Attack",
-    "type": "onHit",
-    "valueBase": 0.30,
-    "valuePerLevel": 0.03,
-    "level": 10,
-    "xpBase": 500,
-    "xpMax": 500,
-    "desc": "Counterattacks the attacker, dealing 30% of received damage.",
-    "action": "export function effect(card, attacker){ attacker.hp -= card.lastDamage*0.30; }"
-  },
+  
   {
     "id": "eff211",
     "name": "Freeze Shield",
