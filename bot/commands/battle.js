@@ -1,6 +1,6 @@
 /**
  * bot/commands/battle.js
- * Comando de batalha com lógica de TCC (Trading Card Game) implementada.
+ * Comando de batalha com lógica de Cooldown (uso por contagem) implementada.
  */
 import { BattleSystem } from "../../src/systems/battleSystem.js";
 import { spendEnergy, addXP, addGold, regenerateEnergy } from "../../src/systems/economySystem.js";
@@ -17,16 +17,17 @@ const shuffle = (array) => {
     return array;
 };
 
-// Dados de carta com custo para a lógica TCC
+// Dados de carta com COOLDOWN (cooldown: 0 significa que a carta está pronta para ser jogada)
 const BASE_PLAYER_CARDS = [
-    { id: "p1", name: "Leaffang", hp: 500, maxHp: 500, attack: 40, defense: 5, effects: [], cost: 3 },
-    { id: "p2", name: "Graniteback", hp: 600, maxHp: 600, attack: 35, defense: 10, effects: [], cost: 2 },
-    { id: "p3", name: "Voidclaw", hp: 450, maxHp: 450, attack: 45, defense: 0, effects: [], cost: 4 },
+    // cooldown inicial de 1, significa que fica disponível no início do Turno 2
+    { id: "p1", name: "Leaffang", hp: 500, maxHp: 500, attack: 40, defense: 5, effects: [], cooldown: 1, maxCooldown: 3 },
+    { id: "p2", name: "Graniteback", hp: 600, maxHp: 600, attack: 35, defense: 10, effects: [], cooldown: 0, maxCooldown: 4 },
+    { id: "p3", name: "Voidclaw", hp: 450, maxHp: 450, attack: 45, defense: 0, effects: [], cooldown: 2, maxCooldown: 2 },
 ];
 
 const BASE_OPPONENT_CARDS = [
-    { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, maxHp: 120, attack: 35, defense: 0, effects: ["eff013"], cost: 2 },
-    { id: "lesser_demon", name: "Demônio Menor", hp: 90, maxHp: 90, attack: 25, defense: 0, effects: ["eff046"], cost: 1 }
+    { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, maxHp: 120, attack: 35, defense: 0, effects: ["eff013"], cooldown: 1, maxCooldown: 3 },
+    { id: "lesser_demon", name: "Demônio Menor", hp: 90, maxHp: 90, attack: 25, defense: 0, effects: ["eff046"], cooldown: 0, maxCooldown: 2 }
 ];
 
 // O Deck deve ter 10 cartas no total
@@ -34,7 +35,7 @@ const createFullDeck = (baseCards, isPlayer) => {
     let deck = [];
     const maxCards = 10;
     
-    // Duplica cartas base para atingir 10
+    // Adiciona cartas base (duplicando para atingir 10)
     for (let i = 0; i < maxCards; i++) {
         const baseCard = baseCards[i % baseCards.length];
         deck.push({ 
@@ -59,11 +60,11 @@ export default {
     // 🔴 HP DO GUARDIÃO FIXADO EM 10000 🔴
     user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 10000, maxHp: 10000, rageMax: 100, specialEffect: "eff001" };
     
-    // 1️⃣ Regeneração automática de energia
+    // 1️⃣ Regeneração automática de energia (mantido o mock)
     const regenMsg = regenerateEnergy(user);
     if (regenMsg) await message.reply(`⚡ ${regenMsg}`);
     
-    // 2️⃣ Custo de energia (apenas verificando o custo)
+    // 2️⃣ Custo de energia (mantido o mock)
     const energyCost = 4;
     if (!spendEnergy(user, energyCost))
       return message.reply(`❌ Energia insuficiente. Você precisa de **${energyCost}** de energia. (Atual: ${user.energy || 0})`);
@@ -75,10 +76,10 @@ export default {
       guardian: { id: "G02", name: "Guardião Sombrio", hp: 400, maxHp: 400, rageMax: 100, specialEffect: "eff037" }
     };
     
-    // 4️⃣ Rodar batalha - Nova lógica TCC
+    // 4️⃣ Rodar batalha - Nova lógica de Cooldown
     let battle;
     try {
-      battle = await simulateTCCBattle(user, opponent, battleSystem);
+      battle = await simulateCooldownBattle(user, opponent, battleSystem);
       const battleMessage = await displayBattleLog(message, battle); // exibe log em tempo real
       
       // 5️⃣ Mensagem final e recompensas
@@ -95,14 +96,14 @@ export default {
       }
       
     } catch (err) {
-      console.error("❌ Erro no simulateTCCBattle:", err);
+      console.error("❌ Erro no simulateCooldownBattle:", err);
       return message.reply("⚠️ Erro interno ao processar a batalha.");
     }
   }
 };
 
 // -----------------------------
-// Função auxiliar para exibir log
+// Função auxiliar para exibir log - REDUÇÃO DE DELAY
 // -----------------------------
 async function displayBattleLog(message, battle) {
   const battleMessage = await message.reply(`⚔️ Iniciando a batalha...\n🔄 Preparando o inimigo...`);
@@ -116,46 +117,53 @@ async function displayBattleLog(message, battle) {
     } else {
         await battleMessage.edit(battleMessage.content + "\n" + text);
     }
-    await new Promise(r => setTimeout(r, 1200)); // delay para simular gameplay
+    // 🔴 DELAY REDUZIDO PARA 300MS 🔴
+    await new Promise(r => setTimeout(r, 300)); 
   }
   
   return battleMessage;
 }
 
 // -----------------------------
-// NOVO: Funções de suporte TCC
+// NOVO: Funções de suporte Cooldown
 // -----------------------------
 
-const drawCard = (playerState, amount = 1, log) => {
-    for (let i = 0; i < amount; i++) {
-        if (playerState.deck.length > 0) {
-            const card = playerState.deck.shift(); // Remove do deck
-            playerState.hand.push(card); // Adiciona à mão
-            log.push(`   [DRAW] ${playerState.name} compra ${card.name}. (${playerState.hand.length} na mão)`);
-        } else {
-            log.push(`   [DRAW] ${playerState.name} não tem mais cartas no deck.`);
-            // Implementar dano de fadiga, se necessário
-        }
-    }
+const checkAvailableCards = (playerState) => {
+    // Cartas disponíveis são aquelas no deck com cooldown <= 0
+    return playerState.deck.filter(card => card.cooldown <= 0);
 };
 
-const playCard = (playerState, cardIndex, log) => {
-    const card = playerState.hand[cardIndex];
-    if (card && playerState.energy >= card.cost) {
-        // Remove da mão e adiciona ao board
-        playerState.hand.splice(cardIndex, 1);
-        playerState.board.push(card);
-        playerState.energy -= card.cost;
-        log.push(`   [PLAY] ${playerState.name} joga **${card.name}** (Custo: ${card.cost}) | Energia restante: ${playerState.energy}`);
+/**
+ * Simula a jogada de uma carta, movendo-a do Deck (pool disponível) para o Board (campo).
+ * A carta jogada volta ao deck com o cooldown resetado para o valor máximo.
+ */
+const playCard = (playerState, cardIndexInDeck, log) => {
+    const cardToPlay = playerState.deck[cardIndexInDeck];
+    
+    if (cardToPlay && cardToPlay.cooldown <= 0) {
+        
+        // 1. Clonar para o Board (Campo)
+        // Damos um novo ID para a instância em campo
+        const boardCard = { 
+            ...cardToPlay, 
+            id: `${cardToPlay.id}_instance_${playerState.board.length}`,
+            isCardInstance: true, // Marca como instância em campo
+        };
+        playerState.board.push(boardCard);
+        
+        // 2. Resetar Cooldown da carta no Deck (pool de disponibilidade)
+        cardToPlay.cooldown = cardToPlay.maxCooldown;
+        
+        log.push(`   [PLAY] ${playerState.name} joga **${cardToPlay.name}** | CD resetado para ${cardToPlay.maxCooldown}.`);
         return true;
     }
     return false;
 };
 
 // -----------------------------
-// NOVO: Função que simula o loop TCC completo
+// NOVO: Função que simula o loop de Batalha por Cooldown
 // -----------------------------
-async function simulateTCCBattle(user, opponent, system) {
+async function simulateCooldownBattle(user, opponent, system) {
     const log = [];
     const maxTurns = 30; 
     let turn = 1;
@@ -168,11 +176,8 @@ async function simulateTCCBattle(user, opponent, system) {
     const userState = {
         name: user.name,
         guardian: { ...user.guardian, hp: user.guardian.maxHp },
-        deck: playerDeck,
-        hand: [],
-        board: [],
-        energy: 0,
-        maxEnergy: 0,
+        deck: playerDeck, // Cartas disponíveis (com cooldown)
+        board: [], // Cartas em campo
     };
     
     // Estado do Oponente
@@ -180,17 +185,10 @@ async function simulateTCCBattle(user, opponent, system) {
     const opponentState = {
         name: opponent.name,
         guardian: { ...opponent.guardian, hp: opponent.guardian.maxHp },
-        deck: opponentDeck,
-        hand: [],
-        board: [],
-        energy: 0,
-        maxEnergy: 0,
+        deck: opponentDeck, // Cartas disponíveis (com cooldown)
+        board: [], // Cartas em campo
     };
 
-    // --- 2. Fase de Início de Jogo (Sorteio Inicial) ---
-    drawCard(userState, 3, log); // Sorteio inicial do jogador (3 cartas)
-    drawCard(opponentState, 3, log); // Sorteio inicial do oponente (3 cartas)
-    
     const gameState = { user: userState, opponent: opponentState, log };
     system.startBattle(
         { playerBoard: userState.board, enemyBoard: opponentState.board }, 
@@ -200,30 +198,28 @@ async function simulateTCCBattle(user, opponent, system) {
     log.push(`\n⚔️ ${userState.name} (Guardião HP: ${userState.guardian.hp}) vs ${opponentState.name} (Guardião HP: ${opponentState.guardian.hp})!`);
 
     
-    // --- 3. Loop de Turnos ---
+    // --- 2. Loop de Turnos ---
 
     while (userState.guardian.hp > 0 && opponentState.guardian.hp > 0 && turn <= maxTurns) {
         log.push(`\n--- Turno ${turn} ---`);
 
         // --- A. FASE DO JOGADOR ---
         
-        // 1. Recarga e Sorteio (Max Energy até 10)
-        userState.maxEnergy = Math.min(10, userState.maxEnergy + 1);
-        userState.energy = userState.maxEnergy;
-        log.push(`   [ENERGY] ${userState.name} | Energia: ${userState.energy}/${userState.maxEnergy}`);
-        drawCard(userState, 1, log); // Sorteia 1 carta
-
-        // 2. Simulação de Jogada (Estratégia: Joga todas as cartas que puder, da mais barata para a mais cara)
-        // A lógica do usuário é jogar todas as cartas disponíveis ao mesmo tempo
-        userState.hand.sort((a, b) => a.cost - b.cost); // Ordena pela mais barata
-        let playedCard = true;
-        while(playedCard) {
-            playedCard = false;
-            // Tenta jogar a primeira carta (mais barata)
-            if (userState.hand.length > 0 && userState.hand[0].cost <= userState.energy) {
-                playCard(userState, 0, log);
-                playedCard = true; // Se jogou, tenta de novo
+        // 1. Redução do Cooldown
+        userState.deck.forEach(card => {
+            if (card.cooldown > 0) {
+                card.cooldown--;
+                log.push(`   [CD] ${userState.name} | ${card.name} CD: ${card.cooldown}`);
             }
+        });
+
+        // 2. Simulação de Jogada (Joga a primeira carta disponível)
+        const availableCards = checkAvailableCards(userState);
+        if (availableCards.length > 0) {
+            // Encontra o índice da carta disponível no DECK original
+            const cardToPlay = availableCards[0];
+            const cardIndexInDeck = userState.deck.findIndex(c => c.id === cardToPlay.id);
+            playCard(userState, cardIndexInDeck, log);
         }
         
         // 3. Fase de Ataque (Cartas no tabuleiro)
@@ -232,22 +228,20 @@ async function simulateTCCBattle(user, opponent, system) {
 
         // --- B. FASE DO OPONENTE ---
         
-        // 1. Recarga e Sorteio
-        opponentState.maxEnergy = Math.min(10, opponentState.maxEnergy + 1);
-        opponentState.energy = opponentState.maxEnergy;
-        log.push(`   [ENERGY] ${opponentState.name} | Energia: ${opponentState.energy}/${opponentState.maxEnergy}`);
-        drawCard(opponentState, 1, log); // Sorteia 1 carta
-
-        // 2. Simulação de Jogada (Estratégia: Joga todas as cartas que puder, da mais barata)
-        opponentState.hand.sort((a, b) => a.cost - b.cost); // Ordena pela mais barata
-        playedCard = true;
-        while(playedCard) {
-            playedCard = false;
-            // Tenta jogar a primeira carta (mais barata)
-            if (opponentState.hand.length > 0 && opponentState.hand[0].cost <= opponentState.energy) {
-                playCard(opponentState, 0, log);
-                playedCard = true; // Se jogou, tenta de novo
+        // 1. Redução do Cooldown
+        opponentState.deck.forEach(card => {
+            if (card.cooldown > 0) {
+                card.cooldown--;
+                log.push(`   [CD] ${opponentState.name} | ${card.name} CD: ${card.cooldown}`);
             }
+        });
+
+        // 2. Simulação de Jogada (Joga a primeira carta disponível)
+        const availableCardsOpponent = checkAvailableCards(opponentState);
+        if (availableCardsOpponent.length > 0) {
+            const cardToPlay = availableCardsOpponent[0];
+            const cardIndexInDeck = opponentState.deck.findIndex(c => c.id === cardToPlay.id);
+            playCard(opponentState, cardIndexInDeck, log);
         }
         
         // 3. Fase de Ataque
@@ -266,6 +260,11 @@ async function simulateTCCBattle(user, opponent, system) {
             }
         });
         
+        // Limpeza de cartas derrotadas (se não forem guardiões)
+        userState.board = userState.board.filter(c => c.hp > 0);
+        opponentState.board = opponentState.board.filter(c => c.hp > 0);
+
+
         // Log de vida ao final do turno
         log.push(`[Status] J-Guardião HP: ${userState.guardian.hp.toFixed(1)} | O-Guardião HP: ${opponentState.guardian.hp.toFixed(1)}`);
 
@@ -321,13 +320,12 @@ function performBoardAttacks(attackerState, targetState, system, gameState, log)
             // Perform Attack (usa o método do seu battleSystem)
             system.performAttack(card, target, attackContext);
             
-            // Remove cartas derrotadas do board
+            // Remove cartas derrotadas do board (se for carta, não guardião)
             if (!isTargetGuardian && target.hp <= 0) {
                 log.push(`   [DEFEAT] ${target.name} foi derrotado!`);
-                targetState.board = targetState.board.filter(c => c.hp > 0);
+                // A limpeza no final do turno já faz a remoção do array de board, 
+                // mas essa verificação pode ser útil para efeitos imediatos.
             }
-            
-            // Se o Guardião for derrotado, a batalha termina (verificado no loop principal)
         }
     }
 }
