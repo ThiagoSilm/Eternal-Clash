@@ -390,7 +390,7 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
       continue;
     }
 
-    // onAttackStart (Atacante)
+    // onAttackStart (Atacante) - GARANTIDO: Efeitos modificam ATK/DEF antes do dano
     runEffectsTrigger("onAttackStart", attacker, defender, attackCard, pushLog, rng, context);
 
     // 2. Calcular Dano
@@ -499,10 +499,7 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
   
-  // FIX: Log final de vitória apenas se houver vencedor
-  if (finalWinner === "player") pushLog(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-  else if (finalWinner === "opponent") pushLog(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-  else pushLog(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  // REMOVIDO: O log final de vitória para evitar duplicidade no ambiente de execução.
 
   return {
     win: finalWinner === "player",
