@@ -17,9 +17,17 @@ export default {
     
     // Configurações de batalha e usuário mock para demonstração
     user.name = user.name || message.author.username || "Heroi";
+    
+    // 💥 CORREÇÃO DE ESTATÍSTICAS: Usando os nomes do seu log e reduzindo o ataque base
     user.cards = user.cards || [
-      { id: "player_card1", name: "Soldado", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: [] },
+      // Leaffang: Attacker balanceado
+      { id: "player_card1", name: "Leaffang", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: [] },
+      // Graniteback: Tank mais defensivo
+      { id: "player_card2", name: "Graniteback", hp: 150, maxHp: 150, attack: 25, defense: 10, effects: [] },
+      // Voidclaw: Atacante rápido, alto dano (o dano pode vir dos efeitos)
+      { id: "player_card3", name: "Voidclaw", hp: 80, maxHp: 80, attack: 35, defense: 0, effects: [] },
     ];
+    // Garantindo que o Guardião tenha maxHp definido.
     user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 500, maxHp: 500, rageMax: 100, specialEffect: "eff001" };
     
     // 1️⃣ Regeneração automática de energia
@@ -99,12 +107,13 @@ async function simulateAutoBattle(user, opponent, system) {
   let turn = 1;
   let win = false;
   
-  // Clonar e inicializar o estado
-  // É crucial clonar as cartas para não alterar o estado do usuário/oponente fora da batalha
-  const userCards = user.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: true }));
-  const opponentCards = opponent.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: false }));
-  const userGuardian = { ...user.guardian };
-  const opponentGuardian = { ...opponent.guardian };
+  // Clonar e inicializar o estado: GARANTINDO QUE HP VOLTE AO MÁXIMO
+  const userCards = user.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: true, status: {} }));
+  const opponentCards = opponent.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: false, status: {} }));
+  
+  // CORREÇÃO: Usar maxHp para resetar o HP inicial do Guardião
+  const userGuardian = { ...user.guardian, hp: user.guardian.maxHp };
+  const opponentGuardian = { ...opponent.guardian, hp: opponent.guardian.maxHp };
   
   const gameState = {
     playerBoard: userCards,
@@ -123,20 +132,25 @@ async function simulateAutoBattle(user, opponent, system) {
     log.push(`\n--- Turno ${turn} ---`);
     
     // Lista de todas as cartas em ordem de iniciativa (simplificado: Jogador -> Oponente)
-    const allCards = [...userCards, ...opponentCards];
+    const allCards = [...userCards, ...opponentCards].filter(c => c.hp > 0);
     
     for (const card of allCards) {
       if (card.hp <= 0) continue;
       
       const isPlayer = card.isPlayer;
-      // Use listas filtradas para garantir que apenas cartas vivas sejam alvo de efeitos globais
-      const allies = userCards.filter(c => c.hp > 0);
-      const enemies = opponentCards.filter(c => c.hp > 0);
+      
+      // Cartas e Guardião Alvos vivos (do lado oposto)
+      const liveEnemies = isPlayer ? opponentCards.filter(c => c.hp > 0) : userCards.filter(c => c.hp > 0);
       const enemyGuardian = isPlayer ? opponentGuardian : userGuardian;
       
       // Encontra um alvo: prioriza cartas, depois o Guardião
-      const targetCard = enemies[Math.floor(Math.random() * enemies.length)]; // Alvo aleatório
-      const target = targetCard || enemyGuardian; // Se não houver cartas, ataca o guardião
+      // Alvo Aleatório (se houver cartas vivas)
+      let target = null;
+      if (liveEnemies.length > 0) {
+        target = liveEnemies[Math.floor(Math.random() * liveEnemies.length)];
+      } else if (enemyGuardian.hp > 0) {
+        target = enemyGuardian;
+      }
       
       if (target && target.hp > 0) {
         // Perform Attack (usa o método do seu battleSystem)
@@ -150,13 +164,17 @@ async function simulateAutoBattle(user, opponent, system) {
     }
     
     // Processar efeitos de status (no fim do turno)
-    // Efeitos 'afterTurn' (Regen, Aura, etc.)
+    // Efeitos 'afterTurn' (Regen, Aura, etc.) e Status DOT
     allCards.forEach(card => {
       if (card.hp > 0) {
         system.triggerEffects('afterTurn', [card], { card, allies: userCards, enemies: opponentCards, log });
         system.processStatusEffects(card, log);
       }
     });
+    
+    // Log de vida ao final do turno
+    log.push(`[Status] J-Guardião HP: ${userGuardian.hp.toFixed(1)} | O-Guardião HP: ${opponentGuardian.hp.toFixed(1)}`);
+    
     
     // Verificar o fim da batalha
     if (opponentGuardian.hp <= 0) {
@@ -167,7 +185,6 @@ async function simulateAutoBattle(user, opponent, system) {
       break;
     }
     
-    log.push(`[Status] J-Guardião HP: ${userGuardian.hp.toFixed(1)} | O-Guardião HP: ${opponentGuardian.hp.toFixed(1)}`);
     turn++;
   }
   
