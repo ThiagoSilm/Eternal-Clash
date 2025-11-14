@@ -1,4 +1,3 @@
-// src/systems/battleSystem.js
 import { getEffectById } from "./effectSystem.js";
 import { getCardTemplate } from "./cardSystem.js";
 
@@ -46,7 +45,7 @@ function pickFirstAlive(cards) {
 /* ----------------------
    EFEITOS (VERSÃO SEGURA)
 ---------------------- */
-function executeEffect(effect, card, owner, opponent, pushLog, rng) {
+function executeEffect(effect, card, owner, opponent, pushLog, rng, context = {}) {
   if (!effect) return;
   try {
     // Se a ação é função
@@ -56,10 +55,31 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng) {
     // Se a ação é string (JS)
     else if (typeof effect.action === "string") {
       try {
-        const fn = new Function("card", "owner", "opponent", "pushLog", "rng", effect.action);
-        fn(card, owner, opponent, pushLog, rng);
+        // FIX CRÍTICO: Injeção de Contexto para string effects
+        const allies = owner.field.filter(c => c.hp > 0);
+        const enemies = opponent ? opponent.field.filter(c => c.hp > 0) : [];
+
+        const fn = new Function(
+          "card", "owner", "opponent", "pushLog", "rng", 
+          "target", "attacker", "damage", "allies", "enemies",
+          effect.action
+        );
+        
+        fn(
+          card, 
+          owner, 
+          opponent, 
+          pushLog, 
+          rng, 
+          context.target || null,
+          context.attacker || null,
+          context.damage || 0,
+          allies,
+          enemies
+        );
       } catch (err) {
-        pushLog(`⚠️ Efeito "${effect.id}" ignorado: erro na execução da string.`);
+        // Log detalhado do erro para facilitar o debug dos scripts de efeito
+        pushLog(`⚠️ Efeito "${effect.id}" ignorado: erro na execução da string. Detalhe: ${err.message}`); 
       }
     }
   } catch (err) {
@@ -67,13 +87,25 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng) {
   }
 }
 
-function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng) {
+function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng, context = {}) {
   const effects = [];
+  
+  // Efeitos da Carta
   if (card && card.effects) effects.push(...card.effects.map(getEffectById).filter(Boolean));
+  
+  // Efeitos do Guardião
   if (combatant.guardian && combatant.guardian.effects) effects.push(...combatant.guardian.effects.map(getEffectById).filter(Boolean));
+  
+  // FIX: Coleta efeitos de campo/aura para triggers de turno
+  if (trigger === "onTurnEnd" || trigger === "onTurnStart") {
+      combatant.field.forEach(c => {
+          if (c.effects) effects.push(...c.effects.map(getEffectById).filter(Boolean));
+      });
+  }
+
   for (const eff of effects) {
     if (eff.type === trigger) {
-      executeEffect(eff, card || combatant, combatant, opponent, pushLog, rng);
+      executeEffect(eff, card || combatant, combatant, opponent, pushLog, rng, context);
     }
   }
 }
@@ -139,12 +171,13 @@ function checkDeathsAndHandle(combatant, pushLog) {
     if ((c.hp ?? 0) <= 0) {
       const phoenixEffectId = (c.effects || []).find((eid) => {
         const ee = getEffectById(eid);
-        return ee && ee.type === "onDeath" && (ee.id === "phoenixSoul" || ee.id === "phoenix_soul");
+        return ee && ee.type === "onDeath" && (ee.id === "eff029" || ee.id === "phoenixSoul" || ee.id === "phoenix_soul");
       });
 
       if (phoenixEffectId) {
         const eff = getEffectById(phoenixEffectId);
-        executeEffect(eff, c, combatant, null, pushLog);
+        // Passa contexto vazio para onDeath
+        executeEffect(eff, c, combatant, null, pushLog, null, {});
         if ((c.hp ?? 0) > 0) {
           pushLog(`🔁 ${c.name} revivido por ${eff.name ?? eff.id} com ${c.hp} HP.`);
           return true;
@@ -189,7 +222,8 @@ function tryActivateGuardianSpecial(combatant, opponent, pushLog, rng) {
   }
 
   pushLog(`💥 Guardião ${combatant.guardian.name} ativou ESPECIAL: ${eff.name ?? eff.id}`);
-  executeEffect(eff, combatant.guardian, combatant, opponent, pushLog, rng);
+  // Passa contexto vazio para ativação de Guardião
+  executeEffect(eff, combatant.guardian, combatant, opponent, pushLog, rng, {});
   combatant.rage = 0;
 }
 
@@ -271,7 +305,8 @@ function moveReadyToField(combatant, pushLog) {
   combatant.hand = combatant.hand.filter((c) => (c.turnTime ?? 0) > 0);
   combatant.field.push(...ready);
   for (const c of ready) {
-    runEffectsTrigger("onEnterField", combatant, null, c, pushLog);
+    // Passa contexto vazio para onEnterField
+    runEffectsTrigger("onEnterField", combatant, null, c, pushLog, null, {});
     pushLog(`⬆️ ${c.name} entrou em campo.`);
   }
 }
@@ -305,29 +340,45 @@ function getFirstAttacker(inputA, inputB) {
 ---------------------- */
 function resolveAttacks(attacker, defender, pushLog, rng) {
   for (const attackCard of attacker.field.filter((c) => (c.hp ?? 0) > 0 && !(c.stunned > 0))) {
-    runEffectsTrigger("onAttackStart", attacker, defender, attackCard, pushLog, rng);
-
+    
+    // 1. Determinar alvo
     const targetCard = defender.field.find((c) => (c.hp ?? 0) > 0) || null;
     const targetGuardian = defender.guardian && defender.guardian.hp > 0 ? defender.guardian : null;
     const targetUnit = targetCard || targetGuardian;
+    
+    // Inicialização do Contexto
+    const context = { target: targetUnit, attacker: attackCard, damage: 0 };
 
     if (!targetUnit) {
       pushLog(`🚫 ${attackCard.name} não encontrou alvos e encerra o ataque.`);
       continue;
     }
 
-    const { damage, evaded } = computeDamage(attackCard, targetUnit, defender, rng);
+    // onAttackStart (Atacante)
+    runEffectsTrigger("onAttackStart", attacker, defender, attackCard, pushLog, rng, context);
 
+    // 2. Calcular Dano
+    const { damage, evaded } = computeDamage(attackCard, targetUnit, defender, rng);
+    
+    // Atualiza o dano no contexto (crucial para onHit/afterDefense/afterAttack)
+    context.damage = damage; 
+
+    // 3. Aplicar Dano
     if (evaded) pushLog(`💨 ${targetUnit.name} evadiu o ataque de ${attackCard.name}.`);
     else {
       targetUnit.hp = Math.max(0, (targetUnit.hp ?? 0) - damage);
       pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack}) causou ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp)}).`);
     }
 
-    runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng);
+    // 4. onHit (Defensor)
+    runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng, context);
     checkDeathsAndHandle(defender, pushLog);
-    runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng);
-    runEffectsTrigger("afterDefense", defender, attacker, targetUnit, pushLog, rng);
+    
+    // 5. afterAttack (Atacante)
+    runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng, context);
+    
+    // 6. afterDefense (Defensor)
+    runEffectsTrigger("afterDefense", defender, attacker, targetUnit, pushLog, rng, context);
 
     if (checkWinCondition({ player1: attacker, player2: defender })) return;
   }
@@ -363,7 +414,9 @@ export function runBattle(userInput, opponentInput, options = {}) {
 
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
     tryActivateGuardianSpecial(attacker, defender, pushLog, rng);
-    runEffectsTrigger("onTurnStart", attacker, defender, null, pushLog, rng);
+    
+    // onTurnStart: Passa contexto vazio
+    runEffectsTrigger("onTurnStart", attacker, defender, null, pushLog, rng, {});
 
     drawCard(attacker, pushLog);
     processTurnTime(attacker, pushLog);
@@ -386,7 +439,8 @@ export function runBattle(userInput, opponentInput, options = {}) {
       break;
     }
 
-    runEffectsTrigger("onTurnEnd", attacker, defender, null, pushLog, rng);
+    // onTurnEnd: Passa contexto vazio
+    runEffectsTrigger("onTurnEnd", attacker, defender, null, pushLog, rng, {});
     activePlayerId = activePlayerId === A.id ? B.id : A.id;
     turn += 1;
   }
