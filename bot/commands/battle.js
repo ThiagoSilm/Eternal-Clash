@@ -16,11 +16,11 @@ export default {
     if (!user) return message.reply("⚠️ Usuário não carregado. Reinicie o comando.");
     
     // Configurações de batalha e usuário mock para demonstração
-    user.name = user.name || "Heroi";
+    user.name = user.name || message.author.username || "Heroi";
     user.cards = user.cards || [
       { id: "player_card1", name: "Soldado", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: [] },
     ];
-    user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 500, rageMax: 100, specialEffect: "eff001" };
+    user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 500, maxHp: 500, rageMax: 100, specialEffect: "eff001" };
     
     // 1️⃣ Regeneração automática de energia
     const regenMsg = regenerateEnergy(user);
@@ -45,6 +45,7 @@ export default {
     // 4️⃣ Rodar batalha - Agora usa a função simulada abaixo
     let battle;
     try {
+      // Passando o battleSystem como parâmetro
       battle = await simulateAutoBattle(user, opponent, battleSystem);
       const battleMessage = await displayBattleLog(message, battle); // exibe log em tempo real
       
@@ -78,7 +79,8 @@ async function displayBattleLog(message, battle) {
     const text = String(line);
     // Adaptação para evitar mensagens muito longas em um ambiente real
     if (battleMessage.content.length + text.length > 2000) {
-      await battleMessage.edit(`[Log Truncado]\n${text}`);
+      // Se a mensagem estiver muito longa, edite para mostrar apenas o final
+      await battleMessage.edit(`[Log Truncado. Por favor, verifique o log completo.]\n${text}`);
     } else {
       await battleMessage.edit(battleMessage.content + "\n" + text);
     }
@@ -98,8 +100,9 @@ async function simulateAutoBattle(user, opponent, system) {
   let win = false;
   
   // Clonar e inicializar o estado
-  const userCards = user.cards.map(c => ({ ...c, isPlayer: true }));
-  const opponentCards = opponent.cards.map(c => ({ ...c, isPlayer: false }));
+  // É crucial clonar as cartas para não alterar o estado do usuário/oponente fora da batalha
+  const userCards = user.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: true }));
+  const opponentCards = opponent.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: false }));
   const userGuardian = { ...user.guardian };
   const opponentGuardian = { ...opponent.guardian };
   
@@ -108,11 +111,12 @@ async function simulateAutoBattle(user, opponent, system) {
     enemyBoard: opponentCards,
     userGuardian,
     opponentGuardian,
-    log
+    log // Log está agora no gameState
   };
   
   // Inicia a batalha (Gatilhos 'onBattleStart')
-  system.startBattle({ playerBoard: userCards, enemyBoard: opponentCards }, userGuardian);
+  // Passando o log como parte do contexto
+  system.startBattle({ playerBoard: userCards, enemyBoard: opponentCards }, userGuardian, log);
   log.push(`\n⚔️ ${user.name} (Guardião HP: ${userGuardian.hp}) vs ${opponent.name} (Guardião HP: ${opponentGuardian.hp})!`);
   
   while (userGuardian.hp > 0 && opponentGuardian.hp > 0 && turn <= maxTurns) {
@@ -125,28 +129,32 @@ async function simulateAutoBattle(user, opponent, system) {
       if (card.hp <= 0) continue;
       
       const isPlayer = card.isPlayer;
-      const allies = isPlayer ? userCards : opponentCards;
-      const enemies = isPlayer ? opponentCards : userCards;
+      // Use listas filtradas para garantir que apenas cartas vivas sejam alvo de efeitos globais
+      const allies = userCards.filter(c => c.hp > 0);
+      const enemies = opponentCards.filter(c => c.hp > 0);
       const enemyGuardian = isPlayer ? opponentGuardian : userGuardian;
       
       // Encontra um alvo: prioriza cartas, depois o Guardião
-      const targetCard = enemies.find(c => c.hp > 0);
-      const target = targetCard || enemyGuardian;
+      const targetCard = enemies[Math.floor(Math.random() * enemies.length)]; // Alvo aleatório
+      const target = targetCard || enemyGuardian; // Se não houver cartas, ataca o guardião
       
       if (target && target.hp > 0) {
         // Perform Attack (usa o método do seu battleSystem)
         system.performAttack(card, target, {
-          allies,
-          enemies,
-          game: gameState
+          allies: isPlayer ? userCards : opponentCards, // todas as cartas aliadas
+          enemies: isPlayer ? opponentCards : userCards, // todas as cartas inimigas
+          game: gameState,
+          log // Passando o log array para o performAttack
         });
       }
     }
     
     // Processar efeitos de status (no fim do turno)
+    // Efeitos 'afterTurn' (Regen, Aura, etc.)
     allCards.forEach(card => {
       if (card.hp > 0) {
-        system.processStatusEffects(card);
+        system.triggerEffects('afterTurn', [card], { card, allies: userCards, enemies: opponentCards, log });
+        system.processStatusEffects(card, log);
       }
     });
     

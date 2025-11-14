@@ -32,15 +32,18 @@ export function BattleSystem() {
    * @param {object} card The card that is the source of the effect.
    * @param {object} context Global and local variables accessible within the effect's action.
    * * Context typically includes: 
-   * { target, allies, enemies, damage, attacker, game, grave, board }
+   * { target, allies, enemies, damage, attacker, game, grave, board, log }
    */
   const applyEffect = (effect, card, context = {}) => {
+    // Adicionado log ao context para que os efeitos possam registrar suas ações.
+    const log = context.log || console;
+    
     if (!effect || !effect.action) {
-      console.warn(`Attempted to apply invalid or null effect for card: ${card.id}`);
+      log.warn ? log.warn(`Attempted to apply invalid or null effect for card: ${card.id}`) : console.warn(`Attempted to apply invalid or null effect for card: ${card.id}`);
       return;
     }
     
-    console.log(`Applying effect [${effect.name}] on card ${card.id} (Type: ${effect.type})`);
+    log.push ? log.push(`   [EFFECT] ${card.name} ativa ${effect.name} (${effect.type})`) : console.log(`   [EFFECT] ${card.name} ativa ${effect.name} (${effect.type})`);
     
     // Prepare context variables for eval()
     const { target, allies, enemies, damage, attacker, game, grave, board } = context;
@@ -51,6 +54,7 @@ export function BattleSystem() {
       eval(effect.action);
     } catch (error) {
       console.error(`Error executing effect action for ${effect.id} (${effect.name}):`, error);
+      log.push ? log.push(`   [ERRO] Falha na execução de ${effect.name}.`) : console.error(`   [ERRO] Falha na execução de ${effect.name}.`);
     }
   };
   
@@ -58,7 +62,7 @@ export function BattleSystem() {
    * Triggers all passive effects of a given type for all cards in a list.
    * @param {string} effectType The trigger type (e.g., 'onAttackStart', 'afterTurn').
    * @param {object[]} cardList The list of cards to check for effects.
-   * @param {object} context The execution context for the effect.
+   * @param {object} context The execution context for the effect (inclui log).
    * @returns {void}
    */
   const triggerEffects = (effectType, cardList, context = {}) => {
@@ -69,7 +73,7 @@ export function BattleSystem() {
         const effect = getEffectById(effectId);
         
         if (effect && effect.type === effectType) {
-          // Pass the full context, including who the source card is
+          // Pass the full context, including who the source card is and the log array
           applyEffect(effect, card, context);
         }
       }
@@ -79,13 +83,16 @@ export function BattleSystem() {
   /**
    * Processes turn-end status effects (Poison, Burn, Curse, DoT, etc.).
    * @param {object} card The card whose status effects are being processed.
+   * @param {object[]} log The array to push logs into.
    * @returns {void}
    */
-  const processStatusEffects = (card) => {
+  const processStatusEffects = (card, log) => {
     if (!card.status) return;
     
     let damageDealt = 0;
-    let log = '';
+    let effectLog = '';
+    
+    // ... (Lógica de processamento de DOT, Burn, Poison, Curse permanece a mesma)
     
     // --- Handle DOT (Damage Over Time) ---
     if (card.status.dot && card.status.dot.damage > 0) {
@@ -93,48 +100,50 @@ export function BattleSystem() {
       card.hp -= dotDamage;
       damageDealt += dotDamage;
       card.status.dot.turns -= 1;
-      log += ` | DOT: ${dotDamage} (${card.status.dot.turns} turns left)`;
+      effectLog += ` | DOT: ${dotDamage.toFixed(1)} (${card.status.dot.turns} turns left)`;
       if (card.status.dot.turns <= 0) delete card.status.dot;
     }
     
     // --- Handle Burn (Placeholder: Simple 5% max HP damage) ---
     if (card.status.burn) {
-      const burnDamage = card.maxHp * 0.05 * card.status.burn; // 5% per stack
+      const burnDamage = (card.maxHp || 100) * 0.05 * card.status.burn; // 5% per stack
       card.hp -= burnDamage;
       damageDealt += burnDamage;
-      log += ` | Burn: ${burnDamage} dmg (Stacks: ${card.status.burn})`;
-      // Burn usually doesn't count down automatically, it's removed by external effects or time
+      effectLog += ` | Burn: ${burnDamage.toFixed(1)} dmg (Stacks: ${card.status.burn})`;
+      // Burn usually doesn't count down automatically
     }
     
     // --- Handle Poison (Placeholder: Simple 3% max HP damage per turn, decreasing stacks) ---
     if (card.status.poison) {
-      const poisonDamage = card.maxHp * 0.03 * card.status.poison;
+      const poisonDamage = (card.maxHp || 100) * 0.03 * card.status.poison;
       card.hp -= poisonDamage;
       damageDealt += poisonDamage;
       card.status.poison -= 1;
-      log += ` | Poison: ${poisonDamage} dmg (Turns left: ${card.status.poison})`;
+      effectLog += ` | Poison: ${poisonDamage.toFixed(1)} dmg (Turns left: ${card.status.poison})`;
       if (card.status.poison <= 0) delete card.status.poison;
     }
     
     // --- Handle Curse (Placeholder: Simple 10% max HP damage, permanent until removed) ---
     if (card.status.curse) {
-      const curseDamage = card.maxHp * 0.10;
+      const curseDamage = (card.maxHp || 100) * 0.10;
       card.hp -= curseDamage;
       damageDealt += curseDamage;
-      log += ` | Curse: ${curseDamage} dmg`;
-      // Curse is usually permanent or removed by cleanse effects
+      effectLog += ` | Curse: ${curseDamage.toFixed(1)} dmg`;
+      // Curse is usually permanent
     }
     
     if (damageDealt > 0) {
-      console.log(`Status effects applied to ${card.id}: Total ${damageDealt.toFixed(1)} damage.${log}`);
+      log.push(`> 🌡️ ${card.name} sofreu ${damageDealt.toFixed(1)} de dano de Status. ${effectLog}`);
     }
     
     // Cleanup: remove temporary status flags
-    delete card.status.skipTurn;
-    delete card.status.stun;
-    delete card.status.evade;
-    delete card.status.silence;
-    delete card.status.spellBlocked;
+    if (card.status) {
+      delete card.status.skipTurn;
+      delete card.status.stun;
+      delete card.status.evade;
+      delete card.status.silence;
+      delete card.status.spellBlocked;
+    }
     
     // Ensure HP doesn't drop below zero instantly if status effect kills
     if (card.hp < 0) card.hp = 0;
@@ -143,11 +152,11 @@ export function BattleSystem() {
   // --- Main Battle/Turn Functions (Simplified for demonstration) ---
   
   const startBattle = (boardState, guardian) => {
-    console.log("Battle Started. Initializing turn 1.");
     // In a real game, this would set up turn order, draw initial hands, etc.
     const allCards = [...boardState.playerBoard, ...boardState.enemyBoard];
     
     // Example of a global effect check (e.g., Grave Lock on game start)
+    // Removed the console.log from here as it wasn't logging to the array
     triggerEffects('onBattleStart', allCards, { game: boardState });
     
     return {
@@ -164,11 +173,14 @@ export function BattleSystem() {
    * Simulates a card attacking a target.
    * @param {object} attackerCard The attacking card.
    * @param {object} targetCard The target card.
-   * @param {object} context The current game context (boards, etc.)
+   * @param {object} context The current game context (boards, log, etc.)
    * @returns {number} The actual damage dealt.
    */
   const performAttack = (attackerCard, targetCard, context) => {
+    const log = context.log; // Assumes log array is passed in context
     if (attackerCard.hp <= 0 || targetCard.hp <= 0) return 0;
+    
+    const targetName = targetCard.name || "Guardião";
     
     // 1. Trigger 'onAttackStart' effects (Attack buffs, Stun/Poison/Burn application)
     triggerEffects('onAttackStart', [attackerCard], { card: attackerCard, target: targetCard, ...context });
@@ -187,6 +199,7 @@ export function BattleSystem() {
       const shieldAbsorbed = Math.min(rawDamage, targetCard.shield);
       rawDamage -= shieldAbsorbed;
       targetCard.shield -= shieldAbsorbed;
+      log.push(`> 🛡️ ${targetName} absorveu ${shieldAbsorbed.toFixed(1)} com escudo.`);
     }
     
     // 4. Apply Damage
@@ -196,7 +209,8 @@ export function BattleSystem() {
     // Store last damage on the target for 'onHit' effects that need it (like Mirror Shield)
     targetCard.lastDamage = rawDamage;
     
-    console.log(`> ${attackerCard.name} attacked ${targetCard.name}. DMG: ${rawDamage.toFixed(1)} (HP Left: ${targetCard.hp.toFixed(1)})`);
+    // Log do ataque
+    log.push(`> ⚔️ ${attackerCard.name} atacou ${targetName}. Dano: ${rawDamage.toFixed(1)} (HP Left: ${targetCard.hp.toFixed(1)})`);
     
     // 5. Trigger 'onHit' effects (Reflect, Counter, Stun chance post-hit)
     triggerEffects('onHit', [targetCard], { card: targetCard, attacker: attackerCard, damage: rawDamage, ...context });
