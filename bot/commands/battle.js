@@ -21,7 +21,7 @@ export default {
     // 💥 CORREÇÃO DE ESTATÍSTICAS: Usando os nomes do seu log e reduzindo o ataque base
     user.cards = user.cards || [
       // Leaffang: Attacker balanceado
-      { id: "player_card1", name: "Leaffang", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: [] },
+      { id: "player_card1", name: "Leaffang", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: ["eff001", "eff002", "eff003"] },
       // Graniteback: Tank mais defensivo
       { id: "player_card2", name: "Graniteback", hp: 150, maxHp: 150, attack: 25, defense: 10, effects: [] },
       // Voidclaw: Atacante rápido, alto dano (o dano pode vir dos efeitos)
