@@ -45,10 +45,9 @@ function pickFirstAlive(cards) {
   return (cards || []).find((c) => (Number(c.hp) || 0) > 0) || null;
 }
 
-// NOVO: Loga o estado completo do combatente
+// NOVO: Loga o estado completo do combatente (USADO APENAS NO TURNO 1)
 function logCombatantState(combatant, pushLog, isInitialLog = false) {
-  // Se não for o log inicial, logar apenas o essencial
-  if (!isInitialLog && combatant.field.length === 0 && combatant.hand.length > 0) return;
+  if (!isInitialLog) return;
   
   const handNames = combatant.hand.map(c => `${c.name} (T: ${c.turnTime})`);
   const fieldNames = combatant.field.map(c => `${c.name} (HP: ${Math.max(0, Number(c.hp) || 0)})`);
@@ -224,6 +223,13 @@ function checkDeathsAndHandle(combatant, pushLog) {
   if ((Number(combatant.guardian?.hp) || 0) <= 0 && combatant.guardian) {
     if (!combatant.isGuardianDefeated) {
       pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
+      
+      // ESTÉTICA: Frase dramática ao morrer
+      const isCompletelyDefeated = sumHP(combatant.field) <= 0 && sumHP(combatant.hand) <= 0;
+      if (isCompletelyDefeated) {
+        pushLog(`💔 ${combatant.guardian.name}: Eu não tenho mais nenhuma carta... mas isso não é uma derrota. É apenas o começo. 💔`);
+      }
+      
       combatant.isGuardianDefeated = true; 
     }
   }
@@ -362,7 +368,7 @@ function processTurnTime(combatant, pushLog) {
 function checkWinCondition(state) {
   const { player1, player2 } = state;
   
-  // REGRA DE VOLTA: Vitória por Limpeza Total (Guardião + Campo + Mão)
+  // REGRA: Vitória por Limpeza Total (Guardião + Campo + Mão)
   const p1Alive = sumHP(player1.field) > 0 || sumHP(player1.hand) > 0 || (Number(player1.guardian?.hp) || 0) > 0;
   const p2Alive = sumHP(player2.field) > 0 || sumHP(player2.hand) > 0 || (Number(player2.guardian?.hp) || 0) > 0;
   
@@ -463,17 +469,12 @@ export function runBattle(userInput, opponentInput, options = {}) {
 
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
     
-    // NOVO: Loga o estado do atacante e defensor no início do turno
-    // Log detalhado apenas no Turno 1
+    // NOVO: Loga o estado do atacante e defensor APENAS no Turno 1
     if (turn === 1) {
         logCombatantState(attacker, pushLog, true);
         logCombatantState(defender, pushLog, true);
-    } else {
-        // Loga o estado apenas se houver unidades no campo ou se a mão estiver cheia
-        // para dar uma noção de status sem floodar.
-        if (attacker.field.length > 0 || attacker.hand.length === MAX_HAND_SIZE) logCombatantState(attacker, pushLog);
-        if (defender.field.length > 0 || defender.hand.length === MAX_HAND_SIZE) logCombatantState(defender, pushLog);
     }
+    // A partir do Turno 2, o log é mais conciso, contando apenas as ações e mortes.
 
     tryActivateGuardianSpecial(attacker, defender, pushLog, rng);
     
@@ -520,7 +521,7 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
   
-  // Log final de vitória (MANTIDO para o log interno, mas sem a repetição visual)
+  // Log final de vitória
   if (finalWinner === "player") log.push(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
   else if (finalWinner === "opponent") log.push(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
   else log.push(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
