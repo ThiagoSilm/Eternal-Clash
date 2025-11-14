@@ -44,32 +44,26 @@ function pickFirstAlive(cards) {
 }
 
 /* ----------------------
-   EFEITOS
+   EFEITOS (VERSÃO SEGURA)
 ---------------------- */
 function executeEffect(effect, card, owner, opponent, pushLog, rng) {
+  if (!effect) return;
   try {
+    // Se a ação é função
     if (typeof effect.action === "function") {
       effect.action(card, owner, opponent, pushLog, rng);
-    } else if (typeof effect.action === "string") {
-      // Limpa 'export' e 'import'
-      const cleanedCode = effect.action
-        .replace(/\bexport\b/g, "")
-        .replace(/\bimport\b/g, "");
-      
-      // Cria função segura com proxy para proteger undefined
-      const safeWrapper = `
-        const handler = { get: (t, p) => (t && t[p] !== undefined ? t[p] : undefined), set: (t,p,v) => { if(t) t[p]=v; return true; } };
-        const cardSafe = new Proxy(card, handler);
-        const ownerSafe = new Proxy(owner, handler);
-        const opponentSafe = new Proxy(opponent, handler);
-        ${cleanedCode}
-      `;
-      const fn = new Function("card", "owner", "opponent", "pushLog", "rng", safeWrapper);
-      fn(card, owner, opponent, pushLog, rng);
+    }
+    // Se a ação é string (JS)
+    else if (typeof effect.action === "string") {
+      try {
+        const fn = new Function("card", "owner", "opponent", "pushLog", "rng", effect.action);
+        fn(card, owner, opponent, pushLog, rng);
+      } catch (err) {
+        pushLog(`⚠️ Efeito "${effect.id}" ignorado: erro na execução da string.`);
+      }
     }
   } catch (err) {
-    console.warn(`⚠️ Efeito ${effect.id} pulado por erro:`, err.message);
-    if (pushLog) pushLog(`⚠️ Efeito ${effect.id} ignorado: ${err.message}`);
+    pushLog(`⚠️ Efeito "${effect.id}" ignorado: ${err.message}`);
   }
 }
 
@@ -375,6 +369,11 @@ export function runBattle(userInput, opponentInput, options = {}) {
     processTurnTime(attacker, pushLog);
 
     resolveAttacks(attacker, defender, pushLog, rng);
+    const postAttackCheck = checkWinCondition({ player1: A, player2: B });
+    if (postAttackCheck) {
+      winner = postAttackCheck === "player" ? "player" : postAttackCheck === "opponent" ? "opponent" : "draw";
+      break;
+    }
 
     processOverTimeFor(defender, pushLog);
     checkDeathsAndHandle(defender, pushLog);
