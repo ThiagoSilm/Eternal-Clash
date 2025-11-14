@@ -345,12 +345,23 @@ function processTurnTime(combatant, pushLog) {
 ---------------------- */
 function checkWinCondition(state) {
   const { player1, player2 } = state;
-  // FIX: Usar Number() para garantir que NaN é 0
+  
+  // NOVA REGRA CRÍTICA: Se o Guardião for derrotado, o jogo termina imediatamente.
+  const p1GuardianDefeated = player1.guardian && (Number(player1.guardian.hp) || 0) <= 0;
+  const p2GuardianDefeated = player2.guardian && (Number(player2.guardian.hp) || 0) <= 0;
+
+  if (p1GuardianDefeated && !p2GuardianDefeated) return "opponent";
+  if (p2GuardianDefeated && !p1GuardianDefeated) return "player";
+
+  // Se ambos os guardiões estiverem vivos, usa a regra original (total wipe)
   const p1Alive = sumHP(player1.field) > 0 || sumHP(player1.hand) > 0 || (Number(player1.guardian?.hp) || 0) > 0;
   const p2Alive = sumHP(player2.field) > 0 || sumHP(player2.hand) > 0 || (Number(player2.guardian?.hp) || 0) > 0;
+  
+  // Cenários onde o Guardião já foi removido (pode não acontecer no seu jogo)
   if (!p1Alive && p2Alive) return "opponent";
   if (!p2Alive && p1Alive) return "player";
   if (!p1Alive && !p2Alive) return "draw";
+  
   return null;
 }
 
