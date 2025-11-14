@@ -74,21 +74,22 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng, context = {}
     // Se a ação é string (JS)
     else if (typeof effect.action === "string") {
       try {
-        // FIX: Injeção de Contexto para string effects e visibilidade de log
+        // FIX CRÍTICO: Injeção de Contexto para string effects
         const allies = owner.field.filter(c => (Number(c.hp) || 0) > 0);
         const enemies = opponent ? opponent.field.filter(c => (Number(c.hp) || 0) > 0) : [];
 
+        // Injeta todas as variáveis necessárias para as strings de efeito
         const fn = new Function(
           "card", "owner", "opponent", "pushLog", "rng", 
           "target", "attacker", "damage", "allies", "enemies",
-          effect.action
+          effect.action // O script JS real
         );
         
         fn(
           card, 
           owner, 
           opponent, 
-          pushLog, // ESTE pushLog AGORA APARECE NO LOG PRINCIPAL
+          pushLog, 
           rng, 
           context.target || null,
           context.attacker || null,
@@ -338,9 +339,17 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
    Hand/Field
 ---------------------- */
 function drawCard(combatant, pushLog) {
-  if (!combatant || combatant.deck.length === 0 || combatant.hand.length >= MAX_HAND_SIZE) return null;
+  if (!combatant || combatant.deck.length === 0) return null; // Remove check for MAX_HAND_SIZE
+  
+  // Condição para logar o draw (apenas se a mão não estiver cheia)
+  if (combatant.hand.length >= MAX_HAND_SIZE) {
+    // Não puxa, mas também não loga nada, mantendo o silêncio.
+    return null; 
+  }
+
   const card = combatant.deck.shift();
   combatant.hand.push(card);
+  // Logamos apenas se a carta foi puxada
   pushLog(`🃏 ${combatant.nameForLog} puxou ${card.name}.`);
   return card;
 }
@@ -469,7 +478,7 @@ export function runBattle(userInput, opponentInput, options = {}) {
 
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
     
-    // NOVO: Loga o estado do atacante e defensor APENAS no Turno 1 (Máxima Concisão)
+    // Loga o estado do atacante e defensor APENAS no Turno 1 (Máxima Concisão)
     if (turn === 1) {
         logCombatantState(attacker, pushLog, true);
         logCombatantState(defender, pushLog, true);
@@ -480,7 +489,7 @@ export function runBattle(userInput, opponentInput, options = {}) {
     // onTurnStart: Passa contexto vazio
     runEffectsTrigger("onTurnStart", attacker, defender, null, pushLog, rng, {});
 
-    drawCard(attacker, pushLog);
+    drawCard(attacker, pushLog); // O DrawCard loga a ação internamente
     processTurnTime(attacker, pushLog);
 
     resolveAttacks(attacker, defender, pushLog, rng);
@@ -520,12 +529,7 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
   
-  // FIX CRÍTICO: Removido pushLog final para evitar duplicação de mensagem de vitória no ambiente externo.
-  // A mensagem de vitória final é retornada no objeto e será exibida pelo host.
-  // if (finalWinner === "player") log.push(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-  // else if (finalWinner === "opponent") log.push(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-  // else log.push(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-
+  // Nenhuma mensagem de log final, dependemos do sistema externo para exibir o resultado.
 
   return {
     win: finalWinner === "player",
