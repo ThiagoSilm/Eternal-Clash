@@ -51,7 +51,6 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng) {
     if (typeof effect.action === "function") {
       effect.action(card, owner, opponent, pushLog, rng);
     } else if (typeof effect.action === "string") {
-      // Avalia string como função
       const fn = new Function(
         "card",
         "owner",
@@ -370,11 +369,6 @@ export function runBattle(userInput, opponentInput, options = {}) {
     processTurnTime(attacker, pushLog);
 
     resolveAttacks(attacker, defender, pushLog, rng);
-    const postAttackCheck = checkWinCondition({ player1: A, player2: B });
-    if (postAttackCheck) {
-      winner = postAttackCheck === "player" ? "player" : postAttackCheck === "opponent" ? "opponent" : "draw";
-      break;
-    }
 
     processOverTimeFor(defender, pushLog);
     checkDeathsAndHandle(defender, pushLog);
