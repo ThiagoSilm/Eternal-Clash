@@ -51,14 +51,23 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng) {
     if (typeof effect.action === "function") {
       effect.action(card, owner, opponent, pushLog, rng);
     } else if (typeof effect.action === "string") {
+      // Limpa 'export' e 'import' problemáticos do código
+      const cleanedCode = effect.action
+        .replace(/\bexport\b/g, "")
+        .replace(/\bimport\b/g, "");
+      
+      // Cria função segura
       const fn = new Function(
         "card",
         "owner",
         "opponent",
         "pushLog",
         "rng",
-        effect.action.includes("function") ? effect.action + "; return effect(card, owner, opponent, pushLog, rng);" : effect.action
+        cleanedCode.includes("function") ?
+        cleanedCode + "; return effect(card, owner, opponent, pushLog, rng);" :
+        cleanedCode
       );
+      
       fn(card, owner, opponent, pushLog, rng);
     }
   } catch (err) {
