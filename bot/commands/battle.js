@@ -28,7 +28,7 @@ export default {
       { id: "player_card3", name: "Voidclaw", hp: 80, maxHp: 80, attack: 35, defense: 0, effects: [] },
     ];
     // Garantindo que o Guardião tenha maxHp definido.
-    // 🔴 AUMENTANDO O HP DO GUARDIÃO PARA 10000 🔴
+    // 🔴 HP DO GUARDIÃO AJUSTADO PARA 10000 🔴
     user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 10000, maxHp: 10000, rageMax: 100, specialEffect: "eff001" };
     
     // 1️⃣ Regeneração automática de energia
@@ -104,7 +104,7 @@ async function displayBattleLog(message, battle) {
 // -----------------------------
 async function simulateAutoBattle(user, opponent, system) {
   const log = [];
-  const maxTurns = 15;
+  const maxTurns = 30; // 🔴 AUMENTADO PARA 30 TURNOS 🔴
   let turn = 1;
   let win = false;
   
