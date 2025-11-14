@@ -1,12 +1,51 @@
 /**
  * bot/commands/battle.js
- * Comando de batalha com correção de importação e implementação do loop de combate.
+ * Comando de batalha com lógica de TCC (Trading Card Game) implementada.
  */
 import { BattleSystem } from "../../src/systems/battleSystem.js";
 import { spendEnergy, addXP, addGold, regenerateEnergy } from "../../src/systems/economySystem.js";
 
-// 1. CORREÇÃO: Inicializa o sistema de batalha a partir da função de fábrica exportada.
+// 1. Inicializa o sistema de batalha a partir da função de fábrica exportada.
 const battleSystem = BattleSystem();
+
+// Função utilitária para embaralhar
+const shuffle = (array) => {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+};
+
+// Dados de carta com custo para a lógica TCC
+const BASE_PLAYER_CARDS = [
+    { id: "p1", name: "Leaffang", hp: 500, maxHp: 500, attack: 40, defense: 5, effects: [], cost: 3 },
+    { id: "p2", name: "Graniteback", hp: 600, maxHp: 600, attack: 35, defense: 10, effects: [], cost: 2 },
+    { id: "p3", name: "Voidclaw", hp: 450, maxHp: 450, attack: 45, defense: 0, effects: [], cost: 4 },
+];
+
+const BASE_OPPONENT_CARDS = [
+    { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, maxHp: 120, attack: 35, defense: 0, effects: ["eff013"], cost: 2 },
+    { id: "lesser_demon", name: "Demônio Menor", hp: 90, maxHp: 90, attack: 25, defense: 0, effects: ["eff046"], cost: 1 }
+];
+
+// O Deck deve ter 10 cartas no total
+const createFullDeck = (baseCards, isPlayer) => {
+    let deck = [];
+    const maxCards = 10;
+    
+    // Duplica cartas base para atingir 10
+    for (let i = 0; i < maxCards; i++) {
+        const baseCard = baseCards[i % baseCards.length];
+        deck.push({ 
+            ...baseCard, 
+            id: `${isPlayer ? 'P' : 'E'}_${baseCard.id}_${i}`, 
+            isPlayer,
+            status: {} 
+        });
+    }
+    return shuffle(deck);
+};
 
 export default {
   name: "battle",
@@ -15,27 +54,16 @@ export default {
   async execute(message, args, user) {
     if (!user) return message.reply("⚠️ Usuário não carregado. Reinicie o comando.");
     
-    // Configurações de batalha e usuário mock para demonstração
     user.name = user.name || message.author.username || "Heroi";
     
-    // 💥 AJUSTE DE ESTATÍSTICAS: Aumentando o ataque base das cartas do jogador para garantir a vitória.
-    user.cards = user.cards || [
-      // Leaffang: Attacker balanceado (30 -> 40)
-      { id: "player_card1", name: "Leaffang", hp: 100, maxHp: 100, attack: 40, defense: 5, effects: [] },
-      // Graniteback: Tank mais defensivo (25 -> 35)
-      { id: "player_card2", name: "Graniteback", hp: 150, maxHp: 150, attack: 35, defense: 10, effects: [] },
-      // Voidclaw: Atacante rápido, alto dano (35 -> 45)
-      { id: "player_card3", name: "Voidclaw", hp: 80, maxHp: 80, attack: 45, defense: 0, effects: [] },
-    ];
-    // Garantindo que o Guardião tenha maxHp definido.
-    // 🔴 HP DO GUARDIÃO AJUSTADO PARA 10000 🔴
+    // 🔴 HP DO GUARDIÃO FIXADO EM 10000 🔴
     user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 10000, maxHp: 10000, rageMax: 100, specialEffect: "eff001" };
     
     // 1️⃣ Regeneração automática de energia
     const regenMsg = regenerateEnergy(user);
     if (regenMsg) await message.reply(`⚡ ${regenMsg}`);
     
-    // 2️⃣ Custo de energia
+    // 2️⃣ Custo de energia (apenas verificando o custo)
     const energyCost = 4;
     if (!spendEnergy(user, energyCost))
       return message.reply(`❌ Energia insuficiente. Você precisa de **${energyCost}** de energia. (Atual: ${user.energy || 0})`);
@@ -44,18 +72,13 @@ export default {
     const opponent = {
       id: "cpu_shadow",
       name: "CPU - Oponente Sombrio",
-      cards: [
-        { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, maxHp: 120, attack: 35, defense: 0, effects: ["eff013"] },
-        { id: "lesser_demon", name: "Demônio Menor", hp: 90, maxHp: 90, attack: 25, defense: 0, effects: ["eff046"] }
-      ],
       guardian: { id: "G02", name: "Guardião Sombrio", hp: 400, maxHp: 400, rageMax: 100, specialEffect: "eff037" }
     };
     
-    // 4️⃣ Rodar batalha - Agora usa a função simulada abaixo
+    // 4️⃣ Rodar batalha - Nova lógica TCC
     let battle;
     try {
-      // Passando o battleSystem como parâmetro
-      battle = await simulateAutoBattle(user, opponent, battleSystem);
+      battle = await simulateTCCBattle(user, opponent, battleSystem);
       const battleMessage = await displayBattleLog(message, battle); // exibe log em tempo real
       
       // 5️⃣ Mensagem final e recompensas
@@ -72,7 +95,7 @@ export default {
       }
       
     } catch (err) {
-      console.error("❌ Erro no simulateAutoBattle:", err);
+      console.error("❌ Erro no simulateTCCBattle:", err);
       return message.reply("⚠️ Erro interno ao processar a batalha.");
     }
   }
@@ -88,10 +111,10 @@ async function displayBattleLog(message, battle) {
     const text = String(line);
     // Adaptação para evitar mensagens muito longas em um ambiente real
     if (battleMessage.content.length + text.length > 2000) {
-      // Se a mensagem estiver muito longa, edite para mostrar apenas o final
-      await battleMessage.edit(`[Log Truncado. Por favor, verifique o log completo.]\n${text}`);
+        // Se a mensagem estiver muito longa, edite para mostrar apenas o final
+        await battleMessage.edit(`[Log Truncado. Por favor, verifique o log completo.]\n${text}`);
     } else {
-      await battleMessage.edit(battleMessage.content + "\n" + text);
+        await battleMessage.edit(battleMessage.content + "\n" + text);
     }
     await new Promise(r => setTimeout(r, 1200)); // delay para simular gameplay
   }
@@ -100,103 +123,211 @@ async function displayBattleLog(message, battle) {
 }
 
 // -----------------------------
-// NOVO: Função que simula o loop completo da batalha, substituindo 'runBattle'
+// NOVO: Funções de suporte TCC
 // -----------------------------
-async function simulateAutoBattle(user, opponent, system) {
-  const log = [];
-  const maxTurns = 30;
-  let turn = 1;
-  let win = false;
-  
-  // Clonar e inicializar o estado: GARANTINDO QUE HP VOLTE AO MÁXIMO
-  const userCards = user.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: true, status: {} }));
-  const opponentCards = opponent.cards.map(c => ({ ...c, hp: c.maxHp, isPlayer: false, status: {} }));
-  
-  // CORREÇÃO: Usar maxHp para resetar o HP inicial do Guardião
-  const userGuardian = { ...user.guardian, hp: user.guardian.maxHp };
-  const opponentGuardian = { ...opponent.guardian, hp: opponent.guardian.maxHp };
-  
-  const gameState = {
-    playerBoard: userCards,
-    enemyBoard: opponentCards,
-    userGuardian,
-    opponentGuardian,
-    log // Log está agora no gameState
-  };
-  
-  // Inicia a batalha (Gatilhos 'onBattleStart')
-  // Passando o log como parte do contexto
-  system.startBattle({ playerBoard: userCards, enemyBoard: opponentCards }, userGuardian, log);
-  log.push(`\n⚔️ ${user.name} (Guardião HP: ${userGuardian.hp}) vs ${opponent.name} (Guardião HP: ${opponentGuardian.hp})!`);
-  
-  while (userGuardian.hp > 0 && opponentGuardian.hp > 0 && turn <= maxTurns) {
-    log.push(`\n--- Turno ${turn} ---`);
+
+const drawCard = (playerState, amount = 1, log) => {
+    for (let i = 0; i < amount; i++) {
+        if (playerState.deck.length > 0) {
+            const card = playerState.deck.shift(); // Remove do deck
+            playerState.hand.push(card); // Adiciona à mão
+            log.push(`   [DRAW] ${playerState.name} compra ${card.name}. (${playerState.hand.length} na mão)`);
+        } else {
+            log.push(`   [DRAW] ${playerState.name} não tem mais cartas no deck.`);
+            // Implementar dano de fadiga, se necessário
+        }
+    }
+};
+
+const playCard = (playerState, cardIndex, log) => {
+    const card = playerState.hand[cardIndex];
+    if (card && playerState.energy >= card.cost) {
+        // Remove da mão e adiciona ao board
+        playerState.hand.splice(cardIndex, 1);
+        playerState.board.push(card);
+        playerState.energy -= card.cost;
+        log.push(`   [PLAY] ${playerState.name} joga **${card.name}** (Custo: ${card.cost}) | Energia restante: ${playerState.energy}`);
+        return true;
+    }
+    return false;
+};
+
+// -----------------------------
+// NOVO: Função que simula o loop TCC completo
+// -----------------------------
+async function simulateTCCBattle(user, opponent, system) {
+    const log = [];
+    const maxTurns = 30; 
+    let turn = 1;
+    let win = false;
     
-    // Lista de todas as cartas em ordem de iniciativa (simplificado: Jogador -> Oponente)
-    const allCards = [...userCards, ...opponentCards].filter(c => c.hp > 0);
+    // --- 1. Inicialização do Estado ---
     
-    for (const card of allCards) {
-      if (card.hp <= 0) continue;
-      
-      const isPlayer = card.isPlayer;
-      
-      // Cartas e Guardião Alvos vivos (do lado oposto)
-      const liveEnemies = isPlayer ? opponentCards.filter(c => c.hp > 0) : userCards.filter(c => c.hp > 0);
-      const enemyGuardian = isPlayer ? opponentGuardian : userGuardian;
-      
-      // Encontra um alvo: prioriza cartas, depois o Guardião
-      // Alvo Aleatório (se houver cartas vivas)
-      let target = null;
-      if (liveEnemies.length > 0) {
-        target = liveEnemies[Math.floor(Math.random() * liveEnemies.length)];
-      } else if (enemyGuardian.hp > 0) {
-        target = enemyGuardian;
-      }
-      
-      if (target && target.hp > 0) {
-        // Perform Attack (usa o método do seu battleSystem)
-        system.performAttack(card, target, {
-          allies: isPlayer ? userCards : opponentCards, // todas as cartas aliadas
-          enemies: isPlayer ? opponentCards : userCards, // todas as cartas inimigas
-          game: gameState,
-          log // Passando o log array para o performAttack
+    // Estado do Jogador
+    const playerDeck = createFullDeck(BASE_PLAYER_CARDS, true);
+    const userState = {
+        name: user.name,
+        guardian: { ...user.guardian, hp: user.guardian.maxHp },
+        deck: playerDeck,
+        hand: [],
+        board: [],
+        energy: 0,
+        maxEnergy: 0,
+    };
+    
+    // Estado do Oponente
+    const opponentDeck = createFullDeck(BASE_OPPONENT_CARDS, false);
+    const opponentState = {
+        name: opponent.name,
+        guardian: { ...opponent.guardian, hp: opponent.guardian.maxHp },
+        deck: opponentDeck,
+        hand: [],
+        board: [],
+        energy: 0,
+        maxEnergy: 0,
+    };
+
+    // --- 2. Fase de Início de Jogo (Sorteio Inicial) ---
+    drawCard(userState, 3, log); // Sorteio inicial do jogador (3 cartas)
+    drawCard(opponentState, 3, log); // Sorteio inicial do oponente (3 cartas)
+    
+    const gameState = { user: userState, opponent: opponentState, log };
+    system.startBattle(
+        { playerBoard: userState.board, enemyBoard: opponentState.board }, 
+        userState.guardian, 
+        log
+    );
+    log.push(`\n⚔️ ${userState.name} (Guardião HP: ${userState.guardian.hp}) vs ${opponentState.name} (Guardião HP: ${opponentState.guardian.hp})!`);
+
+    
+    // --- 3. Loop de Turnos ---
+
+    while (userState.guardian.hp > 0 && opponentState.guardian.hp > 0 && turn <= maxTurns) {
+        log.push(`\n--- Turno ${turn} ---`);
+
+        // --- A. FASE DO JOGADOR ---
+        
+        // 1. Recarga e Sorteio (Max Energy até 10)
+        userState.maxEnergy = Math.min(10, userState.maxEnergy + 1);
+        userState.energy = userState.maxEnergy;
+        log.push(`   [ENERGY] ${userState.name} | Energia: ${userState.energy}/${userState.maxEnergy}`);
+        drawCard(userState, 1, log); // Sorteia 1 carta
+
+        // 2. Simulação de Jogada (Estratégia: Joga todas as cartas que puder, da mais barata para a mais cara)
+        // A lógica do usuário é jogar todas as cartas disponíveis ao mesmo tempo
+        userState.hand.sort((a, b) => a.cost - b.cost); // Ordena pela mais barata
+        let playedCard = true;
+        while(playedCard) {
+            playedCard = false;
+            // Tenta jogar a primeira carta (mais barata)
+            if (userState.hand.length > 0 && userState.hand[0].cost <= userState.energy) {
+                playCard(userState, 0, log);
+                playedCard = true; // Se jogou, tenta de novo
+            }
+        }
+        
+        // 3. Fase de Ataque (Cartas no tabuleiro)
+        log.push(`   [ATK] ${userState.name} ataca:`);
+        performBoardAttacks(userState, opponentState, system, gameState, log);
+
+        // --- B. FASE DO OPONENTE ---
+        
+        // 1. Recarga e Sorteio
+        opponentState.maxEnergy = Math.min(10, opponentState.maxEnergy + 1);
+        opponentState.energy = opponentState.maxEnergy;
+        log.push(`   [ENERGY] ${opponentState.name} | Energia: ${opponentState.energy}/${opponentState.maxEnergy}`);
+        drawCard(opponentState, 1, log); // Sorteia 1 carta
+
+        // 2. Simulação de Jogada (Estratégia: Joga todas as cartas que puder, da mais barata)
+        opponentState.hand.sort((a, b) => a.cost - b.cost); // Ordena pela mais barata
+        playedCard = true;
+        while(playedCard) {
+            playedCard = false;
+            // Tenta jogar a primeira carta (mais barata)
+            if (opponentState.hand.length > 0 && opponentState.hand[0].cost <= opponentState.energy) {
+                playCard(opponentState, 0, log);
+                playedCard = true; // Se jogou, tenta de novo
+            }
+        }
+        
+        // 3. Fase de Ataque
+        log.push(`   [ATK] ${opponentState.name} ataca:`);
+        performBoardAttacks(opponentState, userState, system, gameState, log);
+
+
+        // --- C. FASE DE FIM DE TURNO ---
+        const allCards = [...userState.board, ...opponentState.board].filter(c => c.hp > 0);
+        allCards.forEach(card => {
+            if (card.hp > 0) {
+                const allies = card.isPlayer ? userState.board : opponentState.board;
+                const enemies = card.isPlayer ? opponentState.board : userState.board;
+                system.triggerEffects('afterTurn', [card], { card, allies, enemies, log });
+                system.processStatusEffects(card, log);
+            }
         });
-      }
+        
+        // Log de vida ao final do turno
+        log.push(`[Status] J-Guardião HP: ${userState.guardian.hp.toFixed(1)} | O-Guardião HP: ${opponentState.guardian.hp.toFixed(1)}`);
+
+        // Verificar o fim da batalha
+        if (opponentState.guardian.hp <= 0) {
+            win = true;
+            break;
+        } else if (userState.guardian.hp <= 0) {
+            win = false;
+            break;
+        }
+        
+        turn++;
     }
+
+    log.push("\n--- Fim da Batalha ---");
     
-    // Processar efeitos de status (no fim do turno)
-    // Efeitos 'afterTurn' (Regen, Aura, etc.) e Status DOT
-    allCards.forEach(card => {
-      if (card.hp > 0) {
-        system.triggerEffects('afterTurn', [card], { card, allies: userCards, enemies: opponentCards, log });
-        system.processStatusEffects(card, log);
-      }
-    });
+    const rewards = win ? { xp: 50 + (turn * 2), gold: 30 } : { xp: 0, gold: 0 };
+
+    return { win, log, rewards, };
+}
+
+/**
+ * Lógica de ataque para todas as cartas em campo.
+ */
+function performBoardAttacks(attackerState, targetState, system, gameState, log) {
+    const liveAttackers = attackerState.board.filter(c => c.hp > 0);
+    const liveDefenders = targetState.board.filter(c => c.hp > 0);
     
-    // Log de vida ao final do turno
-    log.push(`[Status] J-Guardião HP: ${userGuardian.hp.toFixed(1)} | O-Guardião HP: ${opponentGuardian.hp.toFixed(1)}`);
-    
-    
-    // Verificar o fim da batalha
-    if (opponentGuardian.hp <= 0) {
-      win = true;
-      break;
-    } else if (userGuardian.hp <= 0) {
-      win = false;
-      break;
+    // Prioriza atacar cartas, se não houver, ataca o Guardião
+    for (const card of liveAttackers) {
+        let target = null;
+        
+        // Alvo Aleatório (se houver cartas vivas)
+        if (liveDefenders.length > 0) {
+            target = liveDefenders[Math.floor(Math.random() * liveDefenders.length)];
+        } else if (targetState.guardian.hp > 0) {
+            target = targetState.guardian;
+        }
+        
+        if (target && target.hp > 0) {
+            const isTargetGuardian = target.id.startsWith('G');
+            const targetName = isTargetGuardian ? `${targetState.name} Guardião` : target.name;
+
+            // Define o contexto de ataque
+            const attackContext = { 
+                allies: attackerState.board,
+                enemies: targetState.board,
+                game: gameState,
+                log,
+            };
+            
+            // Perform Attack (usa o método do seu battleSystem)
+            system.performAttack(card, target, attackContext);
+            
+            // Remove cartas derrotadas do board
+            if (!isTargetGuardian && target.hp <= 0) {
+                log.push(`   [DEFEAT] ${target.name} foi derrotado!`);
+                targetState.board = targetState.board.filter(c => c.hp > 0);
+            }
+            
+            // Se o Guardião for derrotado, a batalha termina (verificado no loop principal)
+        }
     }
-    
-    turn++;
-  }
-  
-  log.push("\n--- Fim da Batalha ---");
-  
-  // Definir recompensas
-  const rewards = win ? { xp: 50 + (turn * 2), gold: 30 } : { xp: 0, gold: 0 };
-  
-  return {
-    win,
-    log,
-    rewards,
-  };
 }
