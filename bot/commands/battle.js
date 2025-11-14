@@ -18,14 +18,14 @@ export default {
     // Configurações de batalha e usuário mock para demonstração
     user.name = user.name || message.author.username || "Heroi";
     
-    // 💥 CORREÇÃO DE ESTATÍSTICAS: Usando os nomes do seu log e reduzindo o ataque base
+    // 💥 AJUSTE DE ESTATÍSTICAS: Aumentando o ataque base das cartas do jogador para garantir a vitória.
     user.cards = user.cards || [
-      // Leaffang: Attacker balanceado
-      { id: "player_card1", name: "Leaffang", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: ["eff001", "eff002", "eff003"] },
-      // Graniteback: Tank mais defensivo
-      { id: "player_card2", name: "Graniteback", hp: 150, maxHp: 150, attack: 25, defense: 10, effects: [] },
-      // Voidclaw: Atacante rápido, alto dano (o dano pode vir dos efeitos)
-      { id: "player_card3", name: "Voidclaw", hp: 80, maxHp: 80, attack: 35, defense: 0, effects: [] },
+      // Leaffang: Attacker balanceado (30 -> 40)
+      { id: "player_card1", name: "Leaffang", hp: 100, maxHp: 100, attack: 40, defense: 5, effects: [] },
+      // Graniteback: Tank mais defensivo (25 -> 35)
+      { id: "player_card2", name: "Graniteback", hp: 150, maxHp: 150, attack: 35, defense: 10, effects: [] },
+      // Voidclaw: Atacante rápido, alto dano (35 -> 45)
+      { id: "player_card3", name: "Voidclaw", hp: 80, maxHp: 80, attack: 45, defense: 0, effects: [] },
     ];
     // Garantindo que o Guardião tenha maxHp definido.
     // 🔴 HP DO GUARDIÃO AJUSTADO PARA 10000 🔴
@@ -104,7 +104,7 @@ async function displayBattleLog(message, battle) {
 // -----------------------------
 async function simulateAutoBattle(user, opponent, system) {
   const log = [];
-  const maxTurns = 30; // 🔴 AUMENTADO PARA 30 TURNOS 🔴
+  const maxTurns = 30;
   let turn = 1;
   let win = false;
   
