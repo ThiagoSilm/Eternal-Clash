@@ -203,8 +203,14 @@ function checkDeathsAndHandle(combatant, pushLog) {
   });
 
   if (died.length > 0) died.forEach((d) => pushLog(`⚰️ ${d.name} foi para o cemitério.`));
-  // FIX: Garantir checagem de morte do Guardião
-  if ((Number(combatant.guardian?.hp) || 0) <= 0 && combatant.guardian) pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
+  
+  // FIX CRÍTICO (Anti-Redundância): Logar a morte do Guardião apenas uma vez
+  if ((Number(combatant.guardian?.hp) || 0) <= 0 && combatant.guardian) {
+    if (!combatant.isGuardianDefeated) {
+      pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
+      combatant.isGuardianDefeated = true; 
+    }
+  }
 
   combatant.hp = sumTotalHP(combatant);
 }
@@ -294,6 +300,8 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
     overTime: deepClone(input.overTime || []),
     rage: input.rage ?? 0,
     rageMax: guardianData?.rageMax ?? 100,
+    // FIX: Adicionar flag para evitar log duplicado de morte do Guardião
+    isGuardianDefeated: (Number(guardianData?.hp) || 0) <= 0,
     hp: 0,
   };
 
@@ -392,7 +400,7 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
     runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng, context);
     checkDeathsAndHandle(defender, pushLog);
     
-    // Se o defensor foi derrotado, não há mais afterDefense ou afterAttack
+    // FIX CRÍTICO: Checa a condição de vitória imediatamente após a morte/limpeza de campo
     if (checkWinCondition({ player1: attacker, player2: defender })) return;
     
     // 5. afterAttack (Atacante)
@@ -401,6 +409,7 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
     // 6. afterDefense (Defensor)
     runEffectsTrigger("afterDefense", defender, attacker, targetUnit, pushLog, rng, context);
 
+    // Checa novamente caso algum afterEffect cause mais mortes
     if (checkWinCondition({ player1: attacker, player2: defender })) return;
   }
 }
@@ -443,6 +452,8 @@ export function runBattle(userInput, opponentInput, options = {}) {
     processTurnTime(attacker, pushLog);
 
     resolveAttacks(attacker, defender, pushLog, rng);
+    
+    // FIX CRÍTICO: A saída mais garantida
     const postAttackCheck = checkWinCondition({ player1: A, player2: B });
     if (postAttackCheck) {
       winner = postAttackCheck === "player" ? "player" : postAttackCheck === "opponent" ? "opponent" : "draw";
@@ -451,6 +462,14 @@ export function runBattle(userInput, opponentInput, options = {}) {
 
     processOverTimeFor(defender, pushLog);
     checkDeathsAndHandle(defender, pushLog);
+    
+    // Checa após DOT e limpeza final
+    const postDOTCheck = checkWinCondition({ player1: A, player2: B });
+    if (postDOTCheck) {
+      winner = postDOTCheck === "player" ? "player" : postDOTCheck === "opponent" ? "opponent" : "draw";
+      break;
+    }
+
 
     if (isAutoMode && turn >= AUTO_MODE_TURN_START) {
       pushLog(`⏩ Auto Mode ativado no Turno ${turn}. Simulação acelerada.`);
@@ -468,6 +487,11 @@ export function runBattle(userInput, opponentInput, options = {}) {
 
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
+  
+  // FIX: Log final de vitória apenas se houver vencedor
+  if (finalWinner === "player") pushLog(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  else if (finalWinner === "opponent") pushLog(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  else pushLog(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
 
   return {
     win: finalWinner === "player",
