@@ -45,6 +45,18 @@ function pickFirstAlive(cards) {
   return (cards || []).find((c) => (Number(c.hp) || 0) > 0) || null;
 }
 
+// NOVO: Loga o estado completo do combatente
+function logCombatantState(combatant, pushLog) {
+  const handNames = combatant.hand.map(c => `${c.name} (T: ${c.turnTime})`);
+  const fieldNames = combatant.field.map(c => `${c.name} (HP: ${Math.max(0, Number(c.hp) || 0)})`);
+  pushLog(`📋 Estado de ${combatant.nameForLog}:`);
+  pushLog(`  Mão [${combatant.hand.length}/${MAX_HAND_SIZE}]: ${handNames.join(', ') || 'Vazia'}`);
+  pushLog(`  Campo [${combatant.field.length}]: ${fieldNames.join(', ') || 'Vazio'}`);
+  if (combatant.guardian) {
+    pushLog(`  Guardião: ${combatant.guardian.name} (HP: ${Math.max(0, Number(combatant.guardian.hp) || 0)}, Raiva: ${combatant.rage}/${combatant.rageMax})`);
+  }
+}
+
 /* ----------------------
    EFEITOS (VERSÃO SEGURA)
 ---------------------- */
@@ -446,6 +458,11 @@ export function runBattle(userInput, opponentInput, options = {}) {
     }
 
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
+    
+    // NOVO: Loga o estado do atacante e defensor no início do turno
+    logCombatantState(attacker, pushLog);
+    logCombatantState(defender, pushLog);
+
     tryActivateGuardianSpecial(attacker, defender, pushLog, rng);
     
     // onTurnStart: Passa contexto vazio
@@ -491,10 +508,10 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
   
-  // Log final de vitória
-  if (finalWinner === "player") pushLog(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-  else if (finalWinner === "opponent") pushLog(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
-  else pushLog(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  // Log final de vitória (MANTIDO para o log interno, mas sem a repetição visual)
+  if (finalWinner === "player") log.push(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  else if (finalWinner === "opponent") log.push(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  else log.push(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
 
   return {
     win: finalWinner === "player",
