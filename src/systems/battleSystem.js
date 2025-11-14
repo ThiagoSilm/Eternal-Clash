@@ -51,28 +51,25 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng) {
     if (typeof effect.action === "function") {
       effect.action(card, owner, opponent, pushLog, rng);
     } else if (typeof effect.action === "string") {
-      // Limpa 'export' e 'import' problemáticos do código
+      // Limpa 'export' e 'import'
       const cleanedCode = effect.action
         .replace(/\bexport\b/g, "")
         .replace(/\bimport\b/g, "");
       
-      // Cria função segura
-      const fn = new Function(
-        "card",
-        "owner",
-        "opponent",
-        "pushLog",
-        "rng",
-        cleanedCode.includes("function") ?
-        cleanedCode + "; return effect(card, owner, opponent, pushLog, rng);" :
-        cleanedCode
-      );
-      
+      // Cria função segura com proxy para proteger undefined
+      const safeWrapper = `
+        const handler = { get: (t, p) => (t && t[p] !== undefined ? t[p] : undefined), set: (t,p,v) => { if(t) t[p]=v; return true; } };
+        const cardSafe = new Proxy(card, handler);
+        const ownerSafe = new Proxy(owner, handler);
+        const opponentSafe = new Proxy(opponent, handler);
+        ${cleanedCode}
+      `;
+      const fn = new Function("card", "owner", "opponent", "pushLog", "rng", safeWrapper);
       fn(card, owner, opponent, pushLog, rng);
     }
   } catch (err) {
-    console.error(`⚠️ ERRO na ação do efeito ${effect.id}:`, err.message);
-    if (pushLog) pushLog(`⚠️ ERRO na ação do efeito ${effect.id}: ${err.message}`);
+    console.warn(`⚠️ Efeito ${effect.id} pulado por erro:`, err.message);
+    if (pushLog) pushLog(`⚠️ Efeito ${effect.id} ignorado: ${err.message}`);
   }
 }
 
