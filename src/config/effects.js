@@ -1,4 +1,4 @@
-[
+export const EFFECTS_DATA = [
   { "id": "eff001", "name": "Buff Attack Small", "type": "onAttackStart", "valueBase": 0.15, "valuePerLevel": 0.03, "level": 10, "xpBase": 100, "xpMax": 100, "desc": "Increases your attack by 15%.", "action": "card.attack *= (1 + 0.15);" },
   { "id": "eff002", "name": "Buff Attack Big", "type": "onAttackStart", "valueBase": 0.40, "valuePerLevel": 0.05, "level": 10, "xpBase": 500, "xpMax": 500, "desc": "Increases your attack by 40%.", "action": "card.attack *= (1 + 0.40);" },
   { "id": "eff003", "name": "Buff Defense", "type": "afterDefense", "valueBase": 0.25, "valuePerLevel": 0.04, "level": 10, "xpBase": 200, "xpMax": 200, "desc": "Increases your defense by 25%.", "action": "card.defense *= (1 + 0.25);" },
