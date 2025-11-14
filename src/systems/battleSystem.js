@@ -346,18 +346,10 @@ function processTurnTime(combatant, pushLog) {
 function checkWinCondition(state) {
   const { player1, player2 } = state;
   
-  // NOVA REGRA CRÍTICA: Se o Guardião for derrotado, o jogo termina imediatamente.
-  const p1GuardianDefeated = player1.guardian && (Number(player1.guardian.hp) || 0) <= 0;
-  const p2GuardianDefeated = player2.guardian && (Number(player2.guardian.hp) || 0) <= 0;
-
-  if (p1GuardianDefeated && !p2GuardianDefeated) return "opponent";
-  if (p2GuardianDefeated && !p1GuardianDefeated) return "player";
-
-  // Se ambos os guardiões estiverem vivos, usa a regra original (total wipe)
+  // REGRA DE VOLTA: Vitória por Limpeza Total (Guardião + Campo + Mão)
   const p1Alive = sumHP(player1.field) > 0 || sumHP(player1.hand) > 0 || (Number(player1.guardian?.hp) || 0) > 0;
   const p2Alive = sumHP(player2.field) > 0 || sumHP(player2.hand) > 0 || (Number(player2.guardian?.hp) || 0) > 0;
   
-  // Cenários onde o Guardião já foi removido (pode não acontecer no seu jogo)
   if (!p1Alive && p2Alive) return "opponent";
   if (!p2Alive && p1Alive) return "player";
   if (!p1Alive && !p2Alive) return "draw";
@@ -407,17 +399,17 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
       pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack}) causou ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp)}).`);
     }
 
-    // 4. onHit (Defensor)
+    // 4. onHit (Defensor) - passa atacante, alvo e dano
     runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng, context);
     checkDeathsAndHandle(defender, pushLog);
     
-    // FIX CRÍTICO: Checa a condição de vitória imediatamente após a morte/limpeza de campo
+    // Checa a condição de vitória
     if (checkWinCondition({ player1: attacker, player2: defender })) return;
     
-    // 5. afterAttack (Atacante)
+    // 5. afterAttack (Atacante) - passa alvo e dano
     runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng, context);
     
-    // 6. afterDefense (Defensor)
+    // 6. afterDefense (Defensor) - passa atacante, alvo e dano
     runEffectsTrigger("afterDefense", defender, attacker, targetUnit, pushLog, rng, context);
 
     // Checa novamente caso algum afterEffect cause mais mortes
@@ -464,7 +456,7 @@ export function runBattle(userInput, opponentInput, options = {}) {
 
     resolveAttacks(attacker, defender, pushLog, rng);
     
-    // FIX CRÍTICO: A saída mais garantida
+    // Checa a condição de vitória após ataques
     const postAttackCheck = checkWinCondition({ player1: A, player2: B });
     if (postAttackCheck) {
       winner = postAttackCheck === "player" ? "player" : postAttackCheck === "opponent" ? "opponent" : "draw";
@@ -499,7 +491,10 @@ export function runBattle(userInput, opponentInput, options = {}) {
   const finalWinner = checkWinCondition({ player1: A, player2: B }) || winner;
   const rewards = finalWinner === "player" ? { xp: 1500, gold: 800 } : { xp: 100, gold: 50 };
   
-  // REMOVIDO: O log final de vitória para evitar duplicidade no ambiente de execução.
+  // Log final de vitória
+  if (finalWinner === "player") pushLog(`🏆 **Você venceu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  else if (finalWinner === "opponent") pushLog(`💀 **Você perdeu!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
+  else pushLog(`🤝 **Empate!**\n✨ XP ganho: **${rewards.xp}**\n💰 Ouro ganho: **${rewards.gold}**`);
 
   return {
     win: finalWinner === "player",
