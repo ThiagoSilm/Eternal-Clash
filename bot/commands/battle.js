@@ -1,5 +1,12 @@
-import { runBattle } from "../../src/systems/battleSystem.js";
+/**
+ * bot/commands/battle.js
+ * Comando de batalha com correção de importação e implementação do loop de combate.
+ */
+import { BattleSystem } from "../../src/systems/battleSystem.js";
 import { spendEnergy, addXP, addGold, regenerateEnergy } from "../../src/systems/economySystem.js";
+
+// 1. CORREÇÃO: Inicializa o sistema de batalha a partir da função de fábrica exportada.
+const battleSystem = BattleSystem();
 
 export default {
   name: "battle",
@@ -8,6 +15,13 @@ export default {
   async execute(message, args, user) {
     if (!user) return message.reply("⚠️ Usuário não carregado. Reinicie o comando.");
     
+    // Configurações de batalha e usuário mock para demonstração
+    user.name = user.name || "Heroi";
+    user.cards = user.cards || [
+      { id: "player_card1", name: "Soldado", hp: 100, maxHp: 100, attack: 30, defense: 5, effects: [] },
+    ];
+    user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 500, rageMax: 100, specialEffect: "eff001" };
+    
     // 1️⃣ Regeneração automática de energia
     const regenMsg = regenerateEnergy(user);
     if (regenMsg) await message.reply(`⚡ ${regenMsg}`);
@@ -15,23 +29,23 @@ export default {
     // 2️⃣ Custo de energia
     const energyCost = 4;
     if (!spendEnergy(user, energyCost))
-      return message.reply(`❌ Energia insuficiente. Você precisa de **${energyCost}** de energia.`);
+      return message.reply(`❌ Energia insuficiente. Você precisa de **${energyCost}** de energia. (Atual: ${user.energy || 0})`);
     
-    // 3️⃣ Preparar o oponente padrão (pode ser expandido para RNG ou NPCs)
+    // 3️⃣ Preparar o oponente padrão (mapa 1-1)
     const opponent = {
       id: "cpu_shadow",
       name: "CPU - Oponente Sombrio",
       cards: [
-        { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, attack: 35, effects: ["eff013"] },
-        { id: "lesser_demon", name: "Demônio Menor", hp: 90, attack: 25, effects: ["eff046"] }
+        { id: "shadow_beast", name: "Monstro das Sombras", hp: 120, maxHp: 120, attack: 35, defense: 0, effects: ["eff013"] },
+        { id: "lesser_demon", name: "Demônio Menor", hp: 90, maxHp: 90, attack: 25, defense: 0, effects: ["eff046"] }
       ],
-      guardian: { id: "G02", name: "Guardião Sombrio", hp: 400, rageMax: 100, specialEffect: "eff037" }
+      guardian: { id: "G02", name: "Guardião Sombrio", hp: 400, maxHp: 400, rageMax: 100, specialEffect: "eff037" }
     };
     
-    // 4️⃣ Rodar batalha
+    // 4️⃣ Rodar batalha - Agora usa a função simulada abaixo
     let battle;
     try {
-      battle = runBattle(user, opponent, { autoMode: false }); // gera batalha
+      battle = await simulateAutoBattle(user, opponent, battleSystem);
       const battleMessage = await displayBattleLog(message, battle); // exibe log em tempo real
       
       // 5️⃣ Mensagem final e recompensas
@@ -48,23 +62,115 @@ export default {
       }
       
     } catch (err) {
-      console.error("❌ Erro no runBattle:", err);
+      console.error("❌ Erro no simulateAutoBattle:", err);
       return message.reply("⚠️ Erro interno ao processar a batalha.");
     }
   }
 };
 
 // -----------------------------
-// Função externa para exibir log
+// Função auxiliar para exibir log
 // -----------------------------
 async function displayBattleLog(message, battle) {
   const battleMessage = await message.reply(`⚔️ Iniciando a batalha...\n🔄 Preparando o inimigo...`);
   
   for (const line of battle.log) {
     const text = String(line);
-    await battleMessage.edit(battleMessage.content + "\n" + text);
+    // Adaptação para evitar mensagens muito longas em um ambiente real
+    if (battleMessage.content.length + text.length > 2000) {
+      await battleMessage.edit(`[Log Truncado]\n${text}`);
+    } else {
+      await battleMessage.edit(battleMessage.content + "\n" + text);
+    }
     await new Promise(r => setTimeout(r, 1200)); // delay para simular gameplay
   }
   
   return battleMessage;
+}
+
+// -----------------------------
+// NOVO: Função que simula o loop completo da batalha, substituindo 'runBattle'
+// -----------------------------
+async function simulateAutoBattle(user, opponent, system) {
+  const log = [];
+  const maxTurns = 15;
+  let turn = 1;
+  let win = false;
+  
+  // Clonar e inicializar o estado
+  const userCards = user.cards.map(c => ({ ...c, isPlayer: true }));
+  const opponentCards = opponent.cards.map(c => ({ ...c, isPlayer: false }));
+  const userGuardian = { ...user.guardian };
+  const opponentGuardian = { ...opponent.guardian };
+  
+  const gameState = {
+    playerBoard: userCards,
+    enemyBoard: opponentCards,
+    userGuardian,
+    opponentGuardian,
+    log
+  };
+  
+  // Inicia a batalha (Gatilhos 'onBattleStart')
+  system.startBattle({ playerBoard: userCards, enemyBoard: opponentCards }, userGuardian);
+  log.push(`\n⚔️ ${user.name} (Guardião HP: ${userGuardian.hp}) vs ${opponent.name} (Guardião HP: ${opponentGuardian.hp})!`);
+  
+  while (userGuardian.hp > 0 && opponentGuardian.hp > 0 && turn <= maxTurns) {
+    log.push(`\n--- Turno ${turn} ---`);
+    
+    // Lista de todas as cartas em ordem de iniciativa (simplificado: Jogador -> Oponente)
+    const allCards = [...userCards, ...opponentCards];
+    
+    for (const card of allCards) {
+      if (card.hp <= 0) continue;
+      
+      const isPlayer = card.isPlayer;
+      const allies = isPlayer ? userCards : opponentCards;
+      const enemies = isPlayer ? opponentCards : userCards;
+      const enemyGuardian = isPlayer ? opponentGuardian : userGuardian;
+      
+      // Encontra um alvo: prioriza cartas, depois o Guardião
+      const targetCard = enemies.find(c => c.hp > 0);
+      const target = targetCard || enemyGuardian;
+      
+      if (target && target.hp > 0) {
+        // Perform Attack (usa o método do seu battleSystem)
+        system.performAttack(card, target, {
+          allies,
+          enemies,
+          game: gameState
+        });
+      }
+    }
+    
+    // Processar efeitos de status (no fim do turno)
+    allCards.forEach(card => {
+      if (card.hp > 0) {
+        system.processStatusEffects(card);
+      }
+    });
+    
+    // Verificar o fim da batalha
+    if (opponentGuardian.hp <= 0) {
+      win = true;
+      break;
+    } else if (userGuardian.hp <= 0) {
+      win = false;
+      break;
+    }
+    
+    log.push(`[Status] J-Guardião HP: ${userGuardian.hp.toFixed(1)} | O-Guardião HP: ${opponentGuardian.hp.toFixed(1)}`);
+    turn++;
+  }
+  
+  log.push("\n--- Fim da Batalha ---");
+  
+  // Definir recompensas
+  const rewards = win ? { xp: 50 + (turn * 2), gold: 30 } : { xp: 0, gold: 0 };
+  
+  return {
+    win,
+    log,
+    rewards,
+  };
 }
