@@ -28,18 +28,21 @@ function deepClone(obj) {
 }
 
 function sumHP(cards) {
-  return (cards || []).reduce((s, c) => s + Math.max(0, c.hp ?? 0), 0);
+  // FIX: Garantir que NaN/null/undefined HP seja tratado como 0
+  return (cards || []).reduce((s, c) => s + Math.max(0, Number(c.hp) || 0), 0);
 }
 
 function sumTotalHP(combatant) {
   let total = sumHP(combatant.field);
   total += sumHP(combatant.hand);
-  if (combatant.guardian) total += Math.max(0, combatant.guardian.hp ?? 0);
+  // FIX: Garantir que NaN/null/undefined HP do guardian seja tratado como 0
+  if (combatant.guardian) total += Math.max(0, Number(combatant.guardian.hp) || 0);
   return total;
 }
 
 function pickFirstAlive(cards) {
-  return (cards || []).find((c) => (c.hp ?? 0) > 0) || null;
+  // FIX: Considerar apenas cartas onde o HP é um número positivo
+  return (cards || []).find((c) => (Number(c.hp) || 0) > 0) || null;
 }
 
 /* ----------------------
@@ -50,14 +53,15 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng, context = {}
   try {
     // Se a ação é função
     if (typeof effect.action === "function") {
+      // Funções nativas não precisam de injeção de string
       effect.action(card, owner, opponent, pushLog, rng);
     }
     // Se a ação é string (JS)
     else if (typeof effect.action === "string") {
       try {
-        // FIX CRÍTICO: Injeção de Contexto para string effects
-        const allies = owner.field.filter(c => c.hp > 0);
-        const enemies = opponent ? opponent.field.filter(c => c.hp > 0) : [];
+        // FIX: Injeção de Contexto para string effects
+        const allies = owner.field.filter(c => (Number(c.hp) || 0) > 0);
+        const enemies = opponent ? opponent.field.filter(c => (Number(c.hp) || 0) > 0) : [];
 
         const fn = new Function(
           "card", "owner", "opponent", "pushLog", "rng", 
@@ -79,7 +83,7 @@ function executeEffect(effect, card, owner, opponent, pushLog, rng, context = {}
         );
       } catch (err) {
         // Log detalhado do erro para facilitar o debug dos scripts de efeito
-        pushLog(`⚠️ Efeito "${effect.id}" ignorado: erro na execução da string. Detalhe: ${err.message}`); 
+        pushLog(`⚠️ Efeito "${effect.id}" ignorado: erro na execução da string. Detalhe: ${err.message}`);
       }
     }
   } catch (err) {
@@ -96,15 +100,17 @@ function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng, con
   // Efeitos do Guardião
   if (combatant.guardian && combatant.guardian.effects) effects.push(...combatant.guardian.effects.map(getEffectById).filter(Boolean));
   
-  // FIX: Coleta efeitos de campo/aura para triggers de turno
-  if (trigger === "onTurnEnd" || trigger === "onTurnStart") {
+  // FIX: Coleta efeitos de campo/aura para triggers de turno e entrada/saída
+  if (trigger === "onTurnEnd" || trigger === "onTurnStart" || trigger === "onEnterField") {
       combatant.field.forEach(c => {
-          if (c.effects) effects.push(...c.effects.map(getEffectById).filter(Boolean));
+          // Garante que a carta ainda está viva antes de rodar a Aura
+          if ((Number(c.hp) || 0) > 0 && c.effects) effects.push(...c.effects.map(getEffectById).filter(Boolean));
       });
   }
 
   for (const eff of effects) {
     if (eff.type === trigger) {
+      // Passa o contexto relevante
       executeEffect(eff, card || combatant, combatant, opponent, pushLog, rng, context);
     }
   }
@@ -114,19 +120,22 @@ function runEffectsTrigger(trigger, combatant, opponent, card, pushLog, rng, con
    Dano
 ---------------------- */
 function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
-  const evadeChance = defenderCard.evadeChance ?? 0;
+  // FIX: Garante que evadeChance é numérico
+  const evadeChance = Number(defenderCard.evadeChance) || 0;
   if (evadeChance > 0 && rng.rand() < evadeChance) {
     defenderCard.lastDamage = 0;
     return { damage: 0, evaded: true };
   }
 
-  const atk = Math.max(0, attackerCard.attack ?? 100);
+  // FIX: Garante que attack e defense são numéricos, usando 100 como default para attack
+  const atk = Math.max(0, Number(attackerCard.attack) || 100);
   const base = Math.round(atk * (0.85 + rng.rand() * 0.3));
-  const def = defenderCard.defense ?? 0;
+  const def = Number(defenderCard.defense) || 0;
   let reduced = Math.max(0, Math.round(base - def * 0.2));
   let remaining = reduced;
 
-  if (defenderCard.shield && defenderCard.shield > 0) {
+  // FIX: Garante que shield é numérico
+  if (Number(defenderCard.shield) > 0) {
     const absorbed = Math.min(defenderCard.shield, remaining);
     defenderCard.shield -= absorbed;
     remaining -= absorbed;
@@ -146,13 +155,13 @@ function computeDamage(attackerCard, defenderCard, defenderCombatant, rng) {
 function processOverTimeFor(combatant, pushLog) {
   if (!combatant.overTime || combatant.overTime.length === 0) return;
   const remaining = [];
-  const target = pickFirstAlive(combatant.field) || (combatant.guardian && combatant.guardian.hp > 0 ? combatant.guardian : null);
+  const target = pickFirstAlive(combatant.field) || (combatant.guardian && (Number(combatant.guardian.hp) || 0) > 0 ? combatant.guardian : null);
   if (!target) return;
 
   for (const eff of combatant.overTime) {
     if (eff.turns > 0) {
       const damage = eff.value ?? 0;
-      target.hp = Math.max(0, target.hp - damage);
+      target.hp = Math.max(0, (Number(target.hp) || 0) - damage); // FIX: Safe subtraction
       pushLog(`🔥 ${target.name} sofreu ${damage} de dano por tempo (${Math.max(0, target.hp)} HP restantes).`);
       eff.turns -= 1;
     }
@@ -168,7 +177,8 @@ function processOverTimeFor(combatant, pushLog) {
 function checkDeathsAndHandle(combatant, pushLog) {
   const died = [];
   combatant.field = (combatant.field || []).filter((c) => {
-    if ((c.hp ?? 0) <= 0) {
+    // FIX: Garantir que a checagem de morte funcione corretamente com NaN
+    if ((Number(c.hp) || 0) <= 0) {
       const phoenixEffectId = (c.effects || []).find((eid) => {
         const ee = getEffectById(eid);
         return ee && ee.type === "onDeath" && (ee.id === "eff029" || ee.id === "phoenixSoul" || ee.id === "phoenix_soul");
@@ -178,7 +188,7 @@ function checkDeathsAndHandle(combatant, pushLog) {
         const eff = getEffectById(phoenixEffectId);
         // Passa contexto vazio para onDeath
         executeEffect(eff, c, combatant, null, pushLog, null, {});
-        if ((c.hp ?? 0) > 0) {
+        if ((Number(c.hp) || 0) > 0) {
           pushLog(`🔁 ${c.name} revivido por ${eff.name ?? eff.id} com ${c.hp} HP.`);
           return true;
         }
@@ -193,7 +203,8 @@ function checkDeathsAndHandle(combatant, pushLog) {
   });
 
   if (died.length > 0) died.forEach((d) => pushLog(`⚰️ ${d.name} foi para o cemitério.`));
-  if (combatant.guardian && (combatant.guardian.hp ?? 0) <= 0) pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
+  // FIX: Garantir checagem de morte do Guardião
+  if ((Number(combatant.guardian?.hp) || 0) <= 0 && combatant.guardian) pushLog(`⚰️ Guardião ${combatant.guardian.name} foi derrotado.`);
 
   combatant.hp = sumTotalHP(combatant);
 }
@@ -205,7 +216,8 @@ function tryActivateGuardianSpecial(combatant, opponent, pushLog, rng) {
   if (!combatant.guardian) return;
   combatant.rage = combatant.rage ?? 0;
   const rageMax = combatant.guardian.rageMax ?? 100;
-  if ((combatant.guardian.hp ?? 0) <= 0 || combatant.rage < rageMax) return;
+  // FIX: Checagem de HP do Guardião
+  if ((Number(combatant.guardian.hp) || 0) <= 0 || combatant.rage < rageMax) return;
 
   const specialId = combatant.guardian.specialEffect ?? combatant.guardian.special ?? null;
   if (!specialId) {
@@ -234,8 +246,12 @@ function createCombatCard(cardTemplate, rng) {
   const card = deepClone(cardTemplate);
   card.uniqueId = card.uniqueId ?? `${card.id}_${Math.floor((rng?.rand?.() ?? Math.random()) * 1e9)}`;
   card.turnTime = card.turnTime ?? BASE_CARD_TURN_TIME;
-  card.hp = card.hp ?? card.maxHp ?? 200;
-  card.maxHp = card.maxHp ?? card.hp;
+  // FIX: Inicializa HP, MaxHP, Defense e Attack como números válidos
+  card.hp = Number(card.hp) || Number(card.maxHp) || 200;
+  card.maxHp = Number(card.maxHp) || Number(card.hp) || 200;
+  card.attack = Number(card.attack) || 100;
+  card.defense = Number(card.defense) || 0;
+  
   card.shield = card.shield ?? 0;
   card.stunned = card.stunned ?? 0;
   card.silenced = card.silenced ?? false;
@@ -262,8 +278,8 @@ function makeCombatantFromInput(input = {}, role = "player", rng) {
   const deck = cardsToUse.map((c) => createCombatCard(c, rng));
   const guardianData = input.guardian ? deepClone(input.guardian) : null;
   if (guardianData) {
-    guardianData.hp = guardianData.hp ?? guardianData.maxHp ?? 1000;
-    guardianData.maxHp = guardianData.maxHp ?? guardianData.hp;
+    guardianData.hp = Number(guardianData.hp) || Number(guardianData.maxHp) || 1000;
+    guardianData.maxHp = Number(guardianData.maxHp) || Number(guardianData.hp) || 1000;
   }
 
   const combatant = {
@@ -321,8 +337,9 @@ function processTurnTime(combatant, pushLog) {
 ---------------------- */
 function checkWinCondition(state) {
   const { player1, player2 } = state;
-  const p1Alive = sumHP(player1.field) > 0 || sumHP(player1.hand) > 0 || (player1.guardian?.hp ?? 0) > 0;
-  const p2Alive = sumHP(player2.field) > 0 || sumHP(player2.hand) > 0 || (player2.guardian?.hp ?? 0) > 0;
+  // FIX: Usar Number() para garantir que NaN é 0
+  const p1Alive = sumHP(player1.field) > 0 || sumHP(player1.hand) > 0 || (Number(player1.guardian?.hp) || 0) > 0;
+  const p2Alive = sumHP(player2.field) > 0 || sumHP(player2.hand) > 0 || (Number(player2.guardian?.hp) || 0) > 0;
   if (!p1Alive && p2Alive) return "opponent";
   if (!p2Alive && p1Alive) return "player";
   if (!p1Alive && !p2Alive) return "draw";
@@ -330,8 +347,8 @@ function checkWinCondition(state) {
 }
 
 function getFirstAttacker(inputA, inputB) {
-  const sumAttackA = (inputA.cards || []).reduce((s, c) => s + (typeof c === "object" ? c.attack ?? 0 : getCardTemplate(c)?.attack ?? 0), 0);
-  const sumAttackB = (inputB.cards || []).reduce((s, c) => s + (typeof c === "object" ? c.attack ?? 0 : getCardTemplate(c)?.attack ?? 0), 0);
+  const sumAttackA = (inputA.cards || []).reduce((s, c) => s + (typeof c === "object" ? Number(c.attack) || 0 : Number(getCardTemplate(c)?.attack) || 0), 0);
+  const sumAttackB = (inputB.cards || []).reduce((s, c) => s + (typeof c === "object" ? Number(c.attack) || 0 : Number(getCardTemplate(c)?.attack) || 0), 0);
   return sumAttackB > sumAttackA ? inputB.id ?? "opponent" : inputA.id ?? "player";
 }
 
@@ -339,11 +356,11 @@ function getFirstAttacker(inputA, inputB) {
    Ataques
 ---------------------- */
 function resolveAttacks(attacker, defender, pushLog, rng) {
-  for (const attackCard of attacker.field.filter((c) => (c.hp ?? 0) > 0 && !(c.stunned > 0))) {
+  for (const attackCard of attacker.field.filter((c) => (Number(c.hp) || 0) > 0 && !(c.stunned > 0))) {
     
     // 1. Determinar alvo
-    const targetCard = defender.field.find((c) => (c.hp ?? 0) > 0) || null;
-    const targetGuardian = defender.guardian && defender.guardian.hp > 0 ? defender.guardian : null;
+    const targetCard = defender.field.find((c) => (Number(c.hp) || 0) > 0) || null;
+    const targetGuardian = defender.guardian && (Number(defender.guardian.hp) || 0) > 0 ? defender.guardian : null;
     const targetUnit = targetCard || targetGuardian;
     
     // Inicialização do Contexto
@@ -366,13 +383,17 @@ function resolveAttacks(attacker, defender, pushLog, rng) {
     // 3. Aplicar Dano
     if (evaded) pushLog(`💨 ${targetUnit.name} evadiu o ataque de ${attackCard.name}.`);
     else {
-      targetUnit.hp = Math.max(0, (targetUnit.hp ?? 0) - damage);
+      // FIX: Garante que HP seja sempre um número válido antes de subtrair
+      targetUnit.hp = Math.max(0, (Number(targetUnit.hp) || 0) - damage);
       pushLog(`💥 ${attackCard.name} (ATK: ${attackCard.attack}) causou ${damage} de dano em ${targetUnit.name} (HP: ${Math.max(0, targetUnit.hp)}).`);
     }
 
     // 4. onHit (Defensor)
     runEffectsTrigger("onHit", defender, attacker, targetUnit, pushLog, rng, context);
     checkDeathsAndHandle(defender, pushLog);
+    
+    // Se o defensor foi derrotado, não há mais afterDefense ou afterAttack
+    if (checkWinCondition({ player1: attacker, player2: defender })) return;
     
     // 5. afterAttack (Atacante)
     runEffectsTrigger("afterAttack", attacker, defender, attackCard, pushLog, rng, context);
