@@ -46,9 +46,13 @@ function pickFirstAlive(cards) {
 }
 
 // NOVO: Loga o estado completo do combatente
-function logCombatantState(combatant, pushLog) {
+function logCombatantState(combatant, pushLog, isInitialLog = false) {
+  // Se não for o log inicial, logar apenas o essencial
+  if (!isInitialLog && combatant.field.length === 0 && combatant.hand.length > 0) return;
+  
   const handNames = combatant.hand.map(c => `${c.name} (T: ${c.turnTime})`);
   const fieldNames = combatant.field.map(c => `${c.name} (HP: ${Math.max(0, Number(c.hp) || 0)})`);
+  
   pushLog(`📋 Estado de ${combatant.nameForLog}:`);
   pushLog(`  Mão [${combatant.hand.length}/${MAX_HAND_SIZE}]: ${handNames.join(', ') || 'Vazia'}`);
   pushLog(`  Campo [${combatant.field.length}]: ${fieldNames.join(', ') || 'Vazio'}`);
@@ -460,8 +464,16 @@ export function runBattle(userInput, opponentInput, options = {}) {
     pushLog(`\n--- 🕐 Turno ${turn}: ${attacker.nameForLog} ---`);
     
     // NOVO: Loga o estado do atacante e defensor no início do turno
-    logCombatantState(attacker, pushLog);
-    logCombatantState(defender, pushLog);
+    // Log detalhado apenas no Turno 1
+    if (turn === 1) {
+        logCombatantState(attacker, pushLog, true);
+        logCombatantState(defender, pushLog, true);
+    } else {
+        // Loga o estado apenas se houver unidades no campo ou se a mão estiver cheia
+        // para dar uma noção de status sem floodar.
+        if (attacker.field.length > 0 || attacker.hand.length === MAX_HAND_SIZE) logCombatantState(attacker, pushLog);
+        if (defender.field.length > 0 || defender.hand.length === MAX_HAND_SIZE) logCombatantState(defender, pushLog);
+    }
 
     tryActivateGuardianSpecial(attacker, defender, pushLog, rng);
     
