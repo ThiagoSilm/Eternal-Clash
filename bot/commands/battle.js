@@ -28,7 +28,8 @@ export default {
       { id: "player_card3", name: "Voidclaw", hp: 80, maxHp: 80, attack: 35, defense: 0, effects: [] },
     ];
     // Garantindo que o Guardião tenha maxHp definido.
-    user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 500, maxHp: 500, rageMax: 100, specialEffect: "eff001" };
+    // 🔴 AUMENTANDO O HP DO GUARDIÃO PARA 10000 🔴
+    user.guardian = user.guardian || { id: "G01", name: "Guardião Aliado", hp: 10000, maxHp: 10000, rageMax: 100, specialEffect: "eff001" };
     
     // 1️⃣ Regeneração automática de energia
     const regenMsg = regenerateEnergy(user);
