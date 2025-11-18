@@ -1,134 +1,121 @@
 // src/systems/itemSystem.js
-
+//--------------------------------------------------------------
+// ITEM SYSTEM EXPANDIDO
+//--------------------------------------------------------------
 import { getShopCatalog } from "./shopSystem.js";
 import { addEnergy, addGold, addXP } from "./economySystem.js";
 
-// ----------------------------------------------------
-// 🔹 BUFF SYSTEM INTERNO
-// ----------------------------------------------------
-
-/**
- * Adiciona um buff ao usuário.
- * @param {object} user 
- * @param {string} type Tipo do buff: 'xp', 'attack', 'defense'
- * @param {number} multiplier Valor do multiplicador
- * @param {number} duration Duração em batalhas
- */
+//--------------------------------------------------------------
+// BUFF CORE
+//--------------------------------------------------------------
 function addBuff(user, type, multiplier, duration) {
     if (!user.buffs) user.buffs = {};
-    if (!user.buffs[type]) user.buffs[type] = [];
+    user.buffs[type] ??= [];
     user.buffs[type].push({ multiplier, duration });
 }
 
-/**
- * Atualiza buffs após uma batalha, diminuindo duração e removendo expirados.
- * @param {object} user 
- */
 export function updateBuffsAfterBattle(user) {
     if (!user.buffs) return;
     for (const type in user.buffs) {
-        user.buffs[type] = user.buffs[type].filter(buff => {
-            buff.duration -= 1;
-            return buff.duration > 0;
-        });
+        user.buffs[type] = user.buffs[type].filter(b => (--b.duration) > 0);
     }
 }
 
-/**
- * Retorna multiplicador ativo de determinado tipo.
- * @param {object} user 
- * @param {string} type 
- * @returns {number}
- */
 export function getActiveMultiplier(user, type) {
-    if (!user.buffs || !user.buffs[type]) return 1;
-    return user.buffs[type].reduce((acc, b) => acc * b.multiplier, 1);
+    if (!user.buffs?.[type]) return 1;
+    return user.buffs[type].reduce((a, b) => a * b.multiplier, 1);
 }
 
-// ----------------------------------------------------
-// 🔹 INVENTÁRIO E ITENS
-// ----------------------------------------------------
+//--------------------------------------------------------------
+// EQUIPAMENTOS
+//--------------------------------------------------------------
+export function equipItem(user, itemId) {
+    const catalog = getShopCatalog();
+    const meta = catalog.find(i => i.id === itemId);
+    if (!meta || meta.type !== "equipment") throw new Error("Item não é equipável.");
 
+    if (!user.items?.[itemId]) throw new Error("Você não possui esse item.");
+    if (!user.equipment) user.equipment = {};
+
+    user.equipment[meta.slot] = itemId;
+    return `🔧 Você equipou **${meta.name}** no slot *${meta.slot}*.`;
+}
+
+export function getEquippedStats(user) {
+    if (!user.equipment) return { atk: 0, def: 0, hp: 0 };
+    const catalog = getShopCatalog();
+
+    return Object.values(user.equipment).reduce((acc, itemId) => {
+        const it = catalog.find(i => i.id === itemId);
+        if (it?.stats) {
+            acc.atk += it.stats.atk || 0;
+            acc.def += it.stats.def || 0;
+            acc.hp  += it.stats.hp  || 0;
+        }
+        return acc;
+    }, { atk:0, def:0, hp:0 });
+}
+
+//--------------------------------------------------------------
+// INVENTÁRIO
+//--------------------------------------------------------------
 export function listUserItems(user) {
-    const userItems = user.items || {};
-    if (Object.keys(userItems).length === 0) return "Seu inventário de itens está vazio. Compre algo na `!shop`!";
-    
-    const allItems = getShopCatalog();
-    let response = "🎒 **Seu Inventário de Itens:**\n---";
-    
-    for (const itemId in userItems) {
-        const quantity = userItems[itemId];
-        if (quantity > 0) {
-            const itemMetadata = allItems.find(i => i.id === itemId);
-            const name = itemMetadata ? itemMetadata.name : itemId;
-            response += `\n**[${itemId}] ${name}** — x${quantity}`;
-        }
+    const items = user.items || {};
+    if (!Object.keys(items).length) return "Seu inventário está vazio.";
+
+    const catalog = getShopCatalog();
+    let out = "🎒 **Inventário:**\n---";
+
+    for (const id in items) {
+        const meta = catalog.find(i => i.id === id);
+        out += `\n**${meta?.name || id}** — x${items[id]}`;
     }
-    return response;
+    return out;
 }
 
-export function consumeItem(user, itemIdentifier, quantity = 1) {
-    if (quantity <= 0) throw new Error("Quantidade inválida.");
-    
-    const allItems = getShopCatalog();
-    const itemMetadata = allItems.find(i =>
-        i.id === itemIdentifier || i.name.toLowerCase().includes(itemIdentifier.toLowerCase())
+//--------------------------------------------------------------
+// USO DE ITENS
+//--------------------------------------------------------------
+export function consumeItem(user, identifier, qty = 1) {
+    const catalog = getShopCatalog();
+    const meta = catalog.find(i =>
+        i.id === identifier || i.name.toLowerCase().includes(identifier.toLowerCase())
     );
-    if (!itemMetadata) throw new Error(`Item "${itemIdentifier}" não encontrado no catálogo.`);
-    
-    if (!user.items) user.items = {};
-    const totalOwned = user.items[itemMetadata.id] || 0;
-    if (totalOwned < quantity) throw new Error(`Você só tem ${totalOwned} de "${itemMetadata.name}".`);
-    if (!['consumable', 'buff'].includes(itemMetadata.type))
-        throw new Error(`O item "${itemMetadata.name}" não é consumível (Tipo: ${itemMetadata.type}).`);
-    
-    if (!user.tower) user.tower = { attempts: 0, floor: 1, lastAttemptReset: 0 };
-    if (!user.buffs) user.buffs = {};
-    
-    let successMessage = `Usou ${quantity}x **${itemMetadata.name}**.\nEfeito(s) Aplicado(s):\n`;
-    for (let i = 0; i < quantity; i++) {
-        successMessage += applyEffect(user, itemMetadata.effect) + '\n';
-    }
-    
-    user.items[itemMetadata.id] -= quantity;
-    if (user.items[itemMetadata.id] <= 0) delete user.items[itemMetadata.id];
-    
-    return successMessage.trim();
+    if (!meta) throw new Error("Item não encontrado.");
+    if (!user.items?.[meta.id]) throw new Error("Você não tem esse item.");
+    if ((user.items[meta.id] ?? 0) < qty) throw new Error("Quantidade insuficiente.");
+
+    if (!["consumable", "buff"].includes(meta.type))
+        throw new Error("Esse item não é consumível.");
+
+    let msg = `Usou ${qty}x **${meta.name}**:\n`;
+    for (let i = 0; i < qty; i++) msg += applyEffect(user, meta.effect) + "\n";
+
+    user.items[meta.id] -= qty;
+    if (user.items[meta.id] <= 0) delete user.items[meta.id];
+
+    return msg.trim();
 }
 
-function applyEffect(user, effect) {
-    if (!effect) return "Nenhum efeito encontrado para este item.";
-    
-    switch (effect.resource) {
-        case 'energy': {
-            const added = addEnergy(user, effect.amount);
-            return added ? `⚡ Energia restaurada: +${effect.amount}.` : "⚡ Energia já estava no máximo.";
-        }
-        case 'towerAttempt': {
-            user.tower.attempts += effect.amount;
-            return `🏰 Tentativa de Torre adicionada: +${effect.amount}.`;
-        }
-        case 'xp_multiplier': {
-            addBuff(user, 'xp', effect.multiplier, effect.duration);
-            return `🔥 Booster de XP (x${effect.multiplier}) ativado por ${effect.duration} batalhas.`;
-        }
-        case 'attack_multiplier': {
-            addBuff(user, 'attack', effect.multiplier, effect.duration);
-            return `⚔️ Buff de Ataque (x${effect.multiplier}) ativado por ${effect.duration} batalhas.`;
-        }
-        case 'defense_multiplier': {
-            addBuff(user, 'defense', effect.multiplier, effect.duration);
-            return `🛡️ Buff de Defesa (x${effect.multiplier}) ativado por ${effect.duration} batalhas.`;
-        }
-        case 'gold': {
-            addGold(user, effect.amount);
-            return `💰 Recebeu ${effect.amount} de ouro.`;
-        }
-        case 'xp': {
-            addXP(user, effect.amount);
-            return `✨ Recebeu ${effect.amount} de XP.`;
-        }
-        default:
-            return `Efeito desconhecido (${effect.resource}) aplicado.`;
+function applyEffect(user, eff) {
+    if (!eff) return "Sem efeito.";
+
+    switch (eff.resource) {
+        case "energy": addEnergy(user, eff.amount); return `⚡ +${eff.amount} energia.`;
+        case "gold":   addGold(user, eff.amount);   return `💰 +${eff.amount} ouro.`;
+        case "xp":     addXP(user, eff.amount);     return `✨ +${eff.amount} XP.`;
+
+        case "towerAttempt":
+            user.tower ??= { attempts: 0, floor: 1 };
+            user.tower.attempts += eff.amount;
+            return `🏰 +${eff.amount} tentativa de torre.`;
+
+        case "xp_multiplier":
+        case "attack_multiplier":
+        case "defense_multiplier":
+            addBuff(user, eff.resource.replace("_multiplier",""), eff.multiplier, eff.duration);
+            return `🔥 Buff ${eff.resource} ativado.`;
+
+        default: return `Efeito desconhecido: ${eff.resource}`;
     }
 }

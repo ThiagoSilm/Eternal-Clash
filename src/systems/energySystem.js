@@ -1,90 +1,131 @@
-import { markUserDirty } from "./userCacheSystem.js";
-import { loadUserCached } from "./userCacheSystem.js";
+import { markUserDirty, loadUserCached } from "./userCacheSystem.js";
 
-// --- Configurações ---
-const REGEN_RATE_MS = 5 * 60 * 1000; // 5 minutos por ponto de energia
+// -----------------------
+// CONFIG
+// -----------------------
+const REGEN_RATE_MS = 5 * 60 * 1000;
 const MAX_ENERGY_DEFAULT = 100;
 
-/**
- * Calcula a energia atual do usuário, aplicando a regeneração.
- * Se houver regeneração, o objeto user é marcado como sujo.
- * @param {string} userId - O ID do usuário.
- * @returns {object} O objeto de energia atualizado.
- */
+// -----------------------
+// FUNÇÃO BASE
+// -----------------------
+function ensureEnergy(user) {
+  const now = Date.now();
+  if (!user.energy) {
+    user.energy = {
+      current: MAX_ENERGY_DEFAULT,
+      max: MAX_ENERGY_DEFAULT,
+      lastRegen: now,
+      regenBoost: 1,
+      regenPaused: false,
+      overcharge: 0
+    };
+    markUserDirty(user.id);
+  }
+  return user.energy;
+}
+
+// -----------------------
+// CALCULAR ENERGIA
+// -----------------------
 function calculateCurrentEnergy(user) {
   const now = Date.now();
+  const e = ensureEnergy(user);
   
-  // Garante a estrutura mínima
-  if (!user.energy) {
-    user.energy = { current: MAX_ENERGY_DEFAULT, max: MAX_ENERGY_DEFAULT, lastRegen: now };
-    markUserDirty(user.id);
-    return user.energy;
-  }
+  if (e.regenPaused) return e; // Buff que congela regeneração
   
-  const energy = user.energy;
-  const timeElapsed = now - (energy.lastRegen || now);
-  const max = energy.max || MAX_ENERGY_DEFAULT;
+  const rate = REGEN_RATE_MS / (e.regenBoost || 1);
+  const elapsed = now - e.lastRegen;
+  const regen = Math.floor(elapsed / rate);
   
-  // Calcula pontos de energia regenerados
-  const regeneratedPoints = Math.floor(timeElapsed / REGEN_RATE_MS);
-  
-  if (regeneratedPoints > 0) {
-    const newCurrent = Math.min(max, (energy.current || 0) + regeneratedPoints);
+  if (regen > 0) {
+    const before = e.current;
+    e.current = Math.min(e.max + e.overcharge, e.current + regen);
     
-    // Se a energia está cheia, a última regeneração é agora
-    if (newCurrent === max) {
-      energy.lastRegen = now;
-    } else {
-      // Se não está cheia, ajusta o lastRegen para o tempo exato da última regeneração aplicada
-      energy.lastRegen = (energy.lastRegen || now) + (regeneratedPoints * REGEN_RATE_MS);
-    }
+    if (e.current === before) return e;
     
-    energy.current = newCurrent;
+    const applied = e.current - before;
+    e.lastRegen += applied * rate;
     markUserDirty(user.id);
   }
-  
-  return energy;
+  return e;
 }
 
-/**
- * Retorna o status formatado da energia.
- * @param {string} userId - O ID do usuário.
- * @returns {string} Status de energia.
- */
+// -----------------------
+// STATUS FORMATADO
+// -----------------------
 export function getEnergyStatus(userId) {
   const user = loadUserCached(userId);
-  const energy = calculateCurrentEnergy(user);
+  const e = calculateCurrentEnergy(user);
   
-  const timeToNextPoint = REGEN_RATE_MS - ((Date.now() - energy.lastRegen) % REGEN_RATE_MS);
-  const minutes = Math.floor(timeToNextPoint / 60000);
-  const seconds = Math.floor((timeToNextPoint % 60000) / 1000);
+  const cap = `${e.current}/${e.max}${e.overcharge > 0 ? ` (+${e.overcharge} OC)` : ""}`;
+  if (e.current >= e.max + e.overcharge) return `${cap} (Máximo)`;
   
-  const status = `${energy.current} / ${energy.max}`;
+  const rate = REGEN_RATE_MS / (e.regenBoost || 1);
+  const next = rate - ((Date.now() - e.lastRegen) % rate);
+  const m = Math.floor(next / 60000);
+  const s = Math.floor((next % 60000) / 1000);
   
-  if (energy.current < energy.max) {
-    return `${status} (Próxima em ${minutes}m ${seconds}s)`;
-  }
-  return `${status} (Máximo)`;
+  return `${cap} (Próxima em ${m}m ${s}s)`;
 }
 
-/**
- * Gasta energia do usuário.
- * @param {object} user - O objeto usuário.
- * @param {number} amount - Quantidade a gastar.
- * @returns {boolean} True se o gasto foi bem-sucedido.
- */
+// -----------------------
+// GASTAR ENERGIA
+// -----------------------
 export function spendEnergy(user, amount) {
-  const energy = calculateCurrentEnergy(user);
-  if ((energy.current || 0) >= amount) {
-    energy.current -= amount;
-    
-    // Se a energia estava no máximo antes de gastar, define o lastRegen como agora
-    if (energy.current + amount === energy.max) {
-      energy.lastRegen = Date.now();
+  const e = calculateCurrentEnergy(user);
+  if (e.current < amount) return false;
+  
+  const wasMax = e.current === e.max;
+  e.current -= amount;
+  
+  if (wasMax) e.lastRegen = Date.now();
+  markUserDirty(user.id);
+  return true;
+}
+
+// -----------------------
+// ADICIONAR ENERGIA (normal ou overcharge)
+// -----------------------
+export function addEnergy(user, amount, allowOvercharge = false) {
+  const e = calculateCurrentEnergy(user);
+  
+  if (!allowOvercharge) {
+    e.current = Math.min(e.max, e.current + amount);
+  } else {
+    const total = e.current + e.overcharge + amount;
+    if (total <= e.max) e.current = total;
+    else {
+      e.current = e.max;
+      e.overcharge = total - e.max;
     }
-    
-    markUserDirty(user.id);
-    return true;
   }
-  return false;
+  
+  markUserDirty(user.id);
+  return true;
+}
+
+// -----------------------
+// MODIFICAR LIMITE MÁXIMO
+// -----------------------
+export function modifyMaxEnergy(user, amount) {
+  const e = ensureEnergy(user);
+  e.max = Math.max(1, e.max + amount);
+  if (e.current > e.max) e.current = e.max;
+  markUserDirty(user.id);
+}
+
+// -----------------------
+// BOOSTS DE REGENERAÇÃO
+// -----------------------
+export function setRegenBoost(user, multiplier) {
+  const e = ensureEnergy(user);
+  e.regenBoost = multiplier;
+  markUserDirty(user.id);
+}
+
+export function pauseRegen(user, state = true) {
+  const e = ensureEnergy(user);
+  e.regenPaused = state;
+  markUserDirty(user.id);
 }

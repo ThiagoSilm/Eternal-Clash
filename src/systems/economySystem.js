@@ -1,193 +1,220 @@
 import { markUserDirty } from "./userCacheSystem.js";
 
-// --- Configurações ---
-const DEFAULT_MAX_ENERGY = 100;
-const REGEN_RATE_MS = 5 * 60 * 1000; // 5 minutos por ponto de energia
+// =========================================================
+// CONFIG
+// =========================================================
+export const DEFAULT_MAX_ENERGY = 100;
+export const REGEN_RATE_MS = 5 * 60 * 1000; // 5 min per 1 energy
 
-// -------------------------------------------------------------------
-// 💰 FUNÇÕES DE CÁLCULO E ADIÇÃO DE RECURSOS
-// -------------------------------------------------------------------
+// Moedas oficiais do jogo
+export const CURRENCY_TYPES = {
+  GOLD: "gold",
+  GEMS: "gems",
+  COUPONS: "coupons",
+  BOUND_GEMS: "boundGems", // gemas vinculadas (não podem ser trocadas)
+  EVENT_TOKEN: "eventToken" // tokens temporários
+};
 
-/**
- * Calcula a XP necessária para o próximo nível.
- */
-export function getXPForNextLevel(currentLevel) {
-  return Math.floor(1000 * Math.pow(currentLevel, 2.2));
+// tipos de energia
+export const ENERGY_TYPES = {
+  ADVENTURE: "adventure",
+  ARENA: "arena",
+  RAID: "raid"
+};
+
+// =========================================================
+// 🔥 1. MULTIPLICADORES GLOBAIS E INDIVIDUAIS
+// =========================================================
+export const globalEconomyModifiers = {
+  gold: 1,
+  xp: 1,
+  gems: 1
+};
+
+export function applyMultiplier(base, mult) {
+  return Math.floor(base * mult);
 }
 
-/**
- * Adiciona XP ao usuário, verifica e aplica subida de nível.
- * @returns {string | null} Mensagem de subida de nível se ocorreu.
- */
+export function getUserMultiplier(user, type) {
+  let mult = 1;
+  
+  // VIP
+  if (user.vipLevel) mult += user.vipLevel * 0.05;
+  
+  // buffs temporários
+  if (user.buffs?.[type]) mult *= user.buffs[type];
+  
+  // global events
+  if (globalEconomyModifiers[type]) mult *= globalEconomyModifiers[type];
+  
+  return mult;
+}
+
+// =========================================================
+// 🔥 2. XP E LEVEL UP
+// =========================================================
+export function getXPForNextLevel(level) {
+  return Math.floor(1000 * Math.pow(level, 2.2));
+}
+
 export function addXP(user, amount) {
-  user.level = user.level || 1;
-  user.xp = user.xp || 0;
+  amount = applyMultiplier(amount, getUserMultiplier(user, "xp"));
+  
+  user.level ??= 1;
+  user.xp ??= 0;
   user.xp += amount;
-
-  let levelUpMessage = null;
-
+  
+  let msg = null;
+  
   while (true) {
-    const xpForNext = getXPForNextLevel(user.level);
-    if (user.xp >= xpForNext) {
-      user.xp -= xpForNext;
+    const need = getXPForNextLevel(user.level);
+    if (user.xp >= need) {
+      user.xp -= need;
       user.level++;
-      const msg = `✨ Subiu para o nível ${user.level}!`;
-      levelUpMessage = levelUpMessage ? `${levelUpMessage}\n${msg}` : msg;
+      msg = msg ?
+        msg + `\n✨ Subiu para o nível ${user.level}!` :
+        `✨ Subiu para o nível ${user.level}!`;
     } else break;
   }
-  markUserDirty(user.id);
-  return levelUpMessage;
-}
-
-/**
- * Adiciona Ouro.
- */
-export function addGold(user, amount) {
-  user.gold = (user.gold || 0) + amount;
-  markUserDirty(user.id);
-}
-
-/**
- * Adiciona Gemas.
- */
-export function addGems(user, amount) {
-  user.gems = (user.gems || 0) + amount;
-  markUserDirty(user.id);
-}
-
-/**
- * Adiciona Cupons.
- */
-export function addCoupons(user, amount) {
-  user.coupons = (user.coupons || 0) + amount;
-  markUserDirty(user.id);
-}
-
-/**
- * Adiciona energia ao usuário, respeitando o limite máximo (user.energy.max).
- * @param {object} user - Objeto usuário.
- * @param {number} amount - Quantidade de energia a adicionar.
- * @returns {number} Energia realmente adicionada.
- */
-export function addEnergy(user, amount) {
-  if (typeof amount !== 'number' || amount <= 0) return 0;
   
-  // Inicializa a estrutura de energia se necessário
-  if (!user.energy) user.energy = { current: 0, max: DEFAULT_MAX_ENERGY };
+  markUserDirty(user.id);
+  return msg;
+}
 
-  const maxEnergy = user.energy.max ?? DEFAULT_MAX_ENERGY;
-  const current = user.energy.current || 0;
+// =========================================================
+// 🔥 3. WALLET — SISTEMA UNIVERSAL DE MOEDAS
+// =========================================================
+export function addCurrency(user, type, amount) {
+  if (!CURRENCY_TYPES[type.toUpperCase()]) return false;
   
-  const newTotal = Math.min(current + amount, maxEnergy);
-  const actualAdded = newTotal - current;
+  amount = applyMultiplier(amount, getUserMultiplier(user, type));
   
-  if (actualAdded > 0) {
-    user.energy.current = newTotal;
-    markUserDirty(user.id);
-  }
-  return actualAdded;
-}
-
-
-// -------------------------------------------------------------------
-// 📉 FUNÇÕES DE GASTO DE RECURSOS (Retorna boolean em caso de falha)
-// -------------------------------------------------------------------
-
-/**
- * Tenta gastar Ouro do usuário.
- * @returns {boolean} True se o gasto foi bem-sucedido, False caso contrário.
- */
-export function spendGold(user, amount) {
-  if ((user.gold || 0) < amount) return false;
-  user.gold -= amount;
+  user[type] = (user[type] || 0) + amount;
   markUserDirty(user.id);
   return true;
 }
 
-/**
- * Tenta gastar Gemas do usuário.
- * @returns {boolean} True se o gasto foi bem-sucedido, False caso contrário.
- */
-export function spendGems(user, amount) {
-  if ((user.gems || 0) < amount) return false;
-  user.gems -= amount;
-  markUserDirty(user.id);
-  return true;
-}
-
-/**
- * Tenta gastar Cupons do usuário.
- * @returns {boolean} True se o gasto foi bem-sucedido, False caso contrário.
- */
-export function spendCoupons(user, amount) {
-  if ((user.coupons || 0) < amount) return false;
-  user.coupons -= amount;
-  markUserDirty(user.id);
-  return true;
-}
-
-/**
- * Tenta gastar energia do usuário.
- * @returns {boolean} True se o gasto foi bem-sucedido, False caso contrário.
- */
-export function spendEnergy(user, amount) {
-  // Acesso seguro à estrutura de energia padronizada
-  if (!user.energy || (user.energy.current || 0) < amount) return false;
-  user.energy.current -= amount;
-  markUserDirty(user.id);
-  return true;
-}
-
-/**
- * Função genérica para gastar qualquer moeda, usando o padrão de retorno boolean.
- * @param {object} user - Objeto usuário.
- * @param {string} type - Tipo da moeda ('gold', 'gems', 'coupons', 'energy').
- * @param {number} amount - Quantidade a ser gasta.
- * @returns {boolean} True se o gasto foi bem-sucedido, False se falhou ou moeda inválida.
- */
 export function spendCurrency(user, type, amount) {
-  switch (type.toLowerCase()) {
-    case 'gold': return spendGold(user, amount);
-    case 'gems':
-    case 'gem': return spendGems(user, amount);
-    case 'coupons':
-    case 'coupon': return spendCoupons(user, amount);
-    case 'energy': return spendEnergy(user, amount);
-    default: return false;
+  if (!CURRENCY_TYPES[type.toUpperCase()]) return false;
+  
+  if ((user[type] || 0) < amount) return false;
+  
+  user[type] -= amount;
+  markUserDirty(user.id);
+  return true;
+}
+
+// wrappers
+export const addGold = (u, v) => addCurrency(u, "gold", v);
+export const spendGold = (u, v) => spendCurrency(u, "gold", v);
+
+export const addGems = (u, v) => addCurrency(u, "gems", v);
+export const spendGems = (u, v) => spendCurrency(u, "gems", v);
+
+export const addCoupons = (u, v) => addCurrency(u, "coupons", v);
+export const spendCoupons = (u, v) => spendCurrency(u, "coupons", v);
+
+// =========================================================
+// 🔥 4. LIMITE DIÁRIO / DAILY CAPS
+// =========================================================
+export function addWithDailyCap(user, type, amount, capField, capLimit) {
+  user.dailyCaps ??= {};
+  user.dailyCaps[capField] ??= 0;
+  
+  const available = capLimit - user.dailyCaps[capField];
+  if (available <= 0) return 0;
+  
+  const given = Math.min(amount, available);
+  user.dailyCaps[capField] += given;
+  
+  addCurrency(user, type, given);
+  return given;
+}
+
+// =========================================================
+// 🔥 5. ENERGIAS MÚLTIPLAS
+// =========================================================
+export function ensureEnergy(user) {
+  user.energy ??= {};
+  for (const k of Object.keys(ENERGY_TYPES)) {
+    const type = ENERGY_TYPES[k];
+    if (!user.energy[type]) {
+      user.energy[type] = {
+        current: DEFAULT_MAX_ENERGY,
+        max: DEFAULT_MAX_ENERGY,
+        lastRegen: Date.now()
+      };
+    }
   }
 }
 
-// -------------------------------------------------------------------
-// ⚙️ FUNÇÕES DE REGENERAÇÃO (Baseada em tempo)
-// -------------------------------------------------------------------
+export function spendEnergy(user, type, amount) {
+  ensureEnergy(user);
+  
+  const e = user.energy[type];
+  if (e.current < amount) return false;
+  
+  e.current -= amount;
+  markUserDirty(user.id);
+  return true;
+}
 
-/**
- * Verifica e aplica a regeneração de energia baseada no tempo desde a última verificação.
- * @returns {string | null} Mensagem de regeneração se ocorreu, ou null.
- */
+export function addEnergy(user, type, amount) {
+  ensureEnergy(user);
+  
+  const e = user.energy[type];
+  const added = Math.min(e.max - e.current, amount);
+  e.current += added;
+  
+  markUserDirty(user.id);
+  return added;
+}
+
 export function regenerateEnergy(user) {
-  // Inicializa a estrutura de energia se necessário
-  if (!user.energy) user.energy = { current: DEFAULT_MAX_ENERGY, max: DEFAULT_MAX_ENERGY, lastRegen: Date.now() };
-
+  ensureEnergy(user);
   const now = Date.now();
-  const lastRegen = user.energy.lastRegen || now;
+  let totalRegen = [];
   
-  // quantos pontos poderiam ser regenerados desde o último tick
-  const elapsed = now - lastRegen;
-  const regenPoints = Math.floor(elapsed / REGEN_RATE_MS);
-  
-  if (regenPoints > 0) {
-    const current = user.energy.current || 0;
-    const max = user.energy.max ?? DEFAULT_MAX_ENERGY;
+  for (const type of Object.values(ENERGY_TYPES)) {
+    const e = user.energy[type];
+    const elapsed = now - e.lastRegen;
     
-    user.energy.current = Math.min(max, current + regenPoints);
+    const points = Math.floor(elapsed / REGEN_RATE_MS);
+    if (points <= 0) continue;
     
-    // Ajusta lastRegen para o tempo exato onde o último ponto foi ganho.
-    user.energy.lastRegen = now - (elapsed % REGEN_RATE_MS);
+    const before = e.current;
+    e.current = Math.min(e.max, e.current + points);
+    e.lastRegen = now - (elapsed % REGEN_RATE_MS);
     
-    markUserDirty(user.id);
-    return `Sua energia foi regenerada em ${regenPoints} ponto(s)! ⚡ (${user.energy.current}/${max})`;
+    if (e.current > before) {
+      totalRegen.push(`${type}: +${e.current - before}`);
+    }
   }
   
-  return null; // ainda não passou tempo suficiente
+  if (totalRegen.length === 0) return null;
+  
+  markUserDirty(user.id);
+  return `⚡ Energia regenerada:\n${totalRegen.join("\n")}`;
+}
+
+// =========================================================
+// 🔥 6. RECOMPENSAS OFFLINE
+// =========================================================
+export function claimOfflineRewards(user) {
+  const now = Date.now();
+  const last = user.lastOfflineReward || now;
+  const hours = Math.floor((now - last) / (60 * 60 * 1000));
+  
+  if (hours < 1) return null;
+  
+  const gold = hours * 20;
+  const xp = hours * 15;
+  
+  addGold(user, gold);
+  addXP(user, xp);
+  
+  user.lastOfflineReward = now;
+  markUserDirty(user.id);
+  
+  return `⏳ Você recebeu **${gold} ouro** e **${xp} XP** por ${hours}h offline.`;
 }

@@ -1,20 +1,23 @@
 // src/systems/summonSystem.js
 //------------------------------------------------------------
-//  SISTEMA DE INVOCAÇÃO
+//  SISTEMA DE INVOCAÇÃO — EXPANDIDO
 //------------------------------------------------------------
 
 import { 
   getCardTemplate, 
   giveCardToUser, 
-  getCardList 
+  getCardList,
+  addShardsToUser
 } from "./cardSystem.js";
 
 import { spendCurrency } from "./economySystem.js";
+import { markUserDirty } from "./userCacheSystem.js";
+
 import altars from "../../data/altars.json" assert { type: "json" };
 import boosters from "../../data/boosters.json" assert { type: "json" };
 
 // ----------------------------------------------------
-//  CONFIGURAÇÕES
+//  CONFIGURAÇÕES INICIAIS
 // ----------------------------------------------------
 const dropRatesBase = { 1: 45, 2: 30, 3: 15, 4: 7, 5: 3 };
 
@@ -24,18 +27,56 @@ const summonCosts = {
   coupons: { single: 1,    multi: 5 },
 };
 
+// pity system configurável
+const pityConfig = {
+  pityMax: 50,            // garante 5★ no máximo com 50 summons
+  pityIncrement: 0.3,     // +0.3% a cada summon sem 5★
+};
+
+// rate-up configurável
+const rateUpConfig = {
+  active: false,
+  rateUpId: null,
+  rateUpBonus: 12, // aumenta chance de cair a carta rate-up
+};
+
 // ----------------------------------------------------
-//  CALCULA DROP RATES COM BASE EM ALTAR / EVENTOS
+//  SALVAR HISTÓRICO DE SUMMON
+// ----------------------------------------------------
+function logSummon(user, cardId, rarity) {
+  user.summonLog = user.summonLog || [];
+  user.summonLog.push({
+    cardId,
+    rarity,
+    at: Date.now()
+  });
+
+  if (user.summonLog.length > 200)
+    user.summonLog.shift();
+
+  markUserDirty(user.id);
+}
+
+// ----------------------------------------------------
+//  CALCULAR DROP RATES MODIFICADOS
 // ----------------------------------------------------
 function getDropRates(type, user, options = {}) {
   const rates = { ...dropRatesBase };
 
-  // Boost de altar
+  // altar boost
   if (options.altarId && altars[options.altarId]) {
     const altar = altars[options.altarId];
-    Object.entries(altar.dropBoost || {}).forEach(([rar, boost]) => {
+    for (const [rar, boost] of Object.entries(altar.dropBoost || {}))
       rates[rar] = (rates[rar] || 0) + boost;
-    });
+  }
+
+  // pity boost incremental
+  user.pity = user.pity || 0;
+  rates[5] += user.pity * pityConfig.pityIncrement;
+
+  // rate up se ativo
+  if (rateUpConfig.active) {
+    rates[5] += rateUpConfig.rateUpBonus;
   }
 
   return rates;
@@ -51,9 +92,15 @@ function determineRarity(type, user, options = {}) {
 
   for (let rarity = 1; rarity <= 5; rarity++) {
     cumulative += rates[rarity] || 0;
-    if (roll <= cumulative) return rarity;
+    if (roll <= cumulative) {
+      // reset pity se cair 5★
+      if (rarity === 5) user.pity = 0;
+      else user.pity++;
+      return rarity;
+    }
   }
 
+  user.pity++;
   return 1;
 }
 
@@ -63,84 +110,106 @@ function determineRarity(type, user, options = {}) {
 function getAvailableCards(rarity, type, options = {}) {
   let list = getCardList().filter(c => c.rarity === rarity);
 
-  // Excluir guardiões se não permitido
-  if (options.allowGuardians === false) {
+  if (options.allowGuardians === false)
     list = list.filter(c => !c.isGuardian && c.type !== "guardian");
-  }
 
-  // Filtrar por tipo (normal, p2w, shard)
-  if (options.cardType) {
+  if (options.cardType)
     list = list.filter(c => c.type === options.cardType);
-  }
 
   return list;
 }
 
 // ----------------------------------------------------
-//  INVOCAR CARTA ÚNICA
+//  PROCESSAR DUPLICATAS → SHARDS
+// ----------------------------------------------------
+function handleDuplicate(user, card) {
+  if (card.type === "shard") return;
+
+  const shards = Math.floor(10 + card.rarity * 5);
+  addShardsToUser(user, card.id, shards);
+
+  return `💠 Duplicata convertida em **${shards} shards** de ${card.name}!`;
+}
+
+// ----------------------------------------------------
+//  INVOCAR CARTA INDIVIDUAL
 // ----------------------------------------------------
 export function summonCard(user, currency = "gold", options = {}) {
   const cost = summonCosts[currency]?.single || 0;
 
-  if (!options.skipCost && cost > 0) {
-    if (!spendCurrency(user, currency, cost)) {
-      return `💰 Você não tem ${cost} ${currency} para invocar.`;
-    }
-  }
+  if (!options.skipCost && cost > 0)
+    if (!spendCurrency(user, currency, cost))
+      return `💰 Você não tem ${cost} ${currency}.`;
 
   const rarity = determineRarity(currency, user, options);
-  const available = getAvailableCards(rarity, currency, options);
+  const pool = getAvailableCards(rarity, currency, options);
+  if (!pool.length) return `⚠️ Nenhuma carta R${rarity}.`;
 
-  if (!available.length) {
-    return `⚠️ Nenhuma carta disponível na raridade ${rarity}★.`;
+  // rate up: se raridade for 5★, usa chance extra pra escolher o rateUpId
+  let chosen;
+  if (
+    rateUpConfig.active && 
+    rarity === 5 && 
+    rateUpConfig.rateUpId &&
+    Math.random() < 0.55 // 55% de chance de pegar o rate up
+  ) {
+    chosen = getCardTemplate(rateUpConfig.rateUpId);
+  } else {
+    chosen = pool[Math.floor(Math.random() * pool.length)];
   }
 
-  const chosen = available[Math.floor(Math.random() * available.length)];
-  giveCardToUser(user, chosen.id);
+  const received = giveCardToUser(user, chosen.id);
 
-  // Opções futuras: shards, fragmentos, p2w
+  logSummon(user, chosen.id, rarity);
+
+  let msg = `✨ Você invocou **${chosen.name}** (${rarity}★)!`;
+
+  // duplicata
+  if (received.duplicate) {
+    msg += "\n" + handleDuplicate(user, chosen);
+  }
+
+  // fragmentos extras
   if (options.giveShards && chosen.type !== "shard") {
-    // 10% chance de dropar fragmento
-    if (Math.random() < 0.1) {
+    if (Math.random() < 0.12) {
       const shard = getCardList().find(c => c.type === "shard" && c.shardOf === chosen.id);
-      if (shard) giveCardToUser(user, shard.id);
+      if (shard) {
+        giveCardToUser(user, shard.id);
+        msg += `\n🔹 Fragmento bônus: **${shard.name}**`;
+      }
     }
   }
 
-  return `✨ Você invocou **${chosen.name}** (${rarity}★)!`;
+  return msg;
 }
 
 // ----------------------------------------------------
-//  INVOCAR MÚLTIPLAS CARTAS
+//  MULTI SUMMON
 // ----------------------------------------------------
 export function summonMultiple(user, currency = "gold", count = 5, options = {}) {
   const cost = summonCosts[currency]?.multi;
 
-  if (cost && !options.skipCost) {
-    if (!spendCurrency(user, currency, cost)) {
-      return `💰 Você não tem ${cost} ${currency} para invocação múltipla.`;
-    }
-  }
+  if (cost && !options.skipCost)
+    if (!spendCurrency(user, currency, cost))
+      return `💰 Você não tem ${cost} ${currency}.`;
 
   const results = [];
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < count; i++)
     results.push(summonCard(user, currency, { ...options, skipCost: true }));
-  }
 
   return results.join("\n");
 }
 
 // ----------------------------------------------------
-//  BOOSTERS / PACOTES ESPECIAIS
+//  BOOSTERS
 // ----------------------------------------------------
 export function summonBooster(user, boosterId) {
   const booster = boosters.find(b => b.id === boosterId);
   if (!booster) return `❌ Booster inválido.`;
 
-  const BOOSTER_COST = booster.costGems || 675;
-  if (!spendCurrency(user, "gems", BOOSTER_COST)) {
-    return `💰 Você não tem ${BOOSTER_COST} gems para abrir o booster.`;
-  }
+  const cost = booster.costGems || 675;
+  if (!spendCurrency(user, "gems", cost))
+    return `💰 Sem gems.`;
 
   const received = new Set();
   const results = [];
@@ -148,28 +217,31 @@ export function summonBooster(user, boosterId) {
   function addCard(cardId) {
     if (received.has(cardId)) return;
     received.add(cardId);
+
     const info = giveCardToUser(user, cardId);
     const card = getCardTemplate(cardId);
-    results.push(card?.name || "Carta Desconhecida");
+
+    if (info.duplicate)
+      results.push(`${card.name} (Duplicata → Shards!)`);
+    else
+      results.push(card.name);
   }
 
-  // Carta tema obrigatória
   if (booster.themeCardId) addCard(booster.themeCardId);
 
-  // Outras cartas do pacote
-  for (let id of booster.cardIds) {
+  for (const id of booster.cardIds) {
     if (results.length >= (booster.maxCards || 5)) break;
     addCard(id);
   }
 
-  return `🎁 Booster aberto! Você recebeu:\n- ${results.join("\n- ")}`;
+  return `🎁 Booster aberto!\n- ${results.join("\n- ")}`;
 }
 
 // ----------------------------------------------------
-//  SUPORTE: PEGAR ID ALEATÓRIO POR RARIDADE
+//  PEGAR ID ALEATÓRIO POR RARIDADE
 // ----------------------------------------------------
 export function getRandomCardIdByRarity(rarity, options = {}) {
   const list = getAvailableCards(rarity, null, options);
-  if (!list.length) throw new Error(`Nenhuma carta da raridade ${rarity} disponível.`);
+  if (!list.length) throw new Error(`Nenhuma carta R${rarity}.`);
   return list[Math.floor(Math.random() * list.length)].id;
 }
