@@ -3,7 +3,7 @@
 import { markUserDirty } from "./userCacheSystem.js";
 import { addGold, addXP } from "./economySystem.js";
 import { giveShardToUser } from "./cardSystem.js";
-import { initBattle, runTurn } from "./battleSystem.js";
+import { initBattle, runBattle } from "./battleSystem.js";
 
 // ----------------------------------------------
 // 🔧 CONFIGURAÇÃO
@@ -139,13 +139,9 @@ export function climbFloor(user) {
         logEvent = event.description;
     }
     
+    // Inicializa batalha e roda todo o loop de batalha
     const state = initBattle(user, enemy, { auto: true });
-    
-    let turn = 0;
-    while (state.player.hp > 0 && state.enemy.hp > 0 && turn < 60) {
-        runTurn(state);
-        turn++;
-    }
+    runBattle(state); // substitui o loop manual
     
     const win = state.enemy.hp <= 0;
     let rewardMsg = "";
@@ -157,6 +153,7 @@ export function climbFloor(user) {
         addGold(user, reward.gold);
         addXP(user, reward.xp);
         reward.shards.forEach(s => giveShardToUser(user, s.id, 1));
+        
         rewardMsg = `🎁 Recompensa: +${reward.gold} Ouro, +${reward.xp} XP`;
         if (reward.shards.length) rewardMsg += `, +${reward.shards.map(s => `${s.id} (${s.rarity}★)`).join(", ")}`;
     } else {
