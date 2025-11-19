@@ -374,6 +374,27 @@ export function findUserCardByUnique(user, uid) {
   return user.cards?.find(c => c.uniqueId === uid) || null;
 }
 
+// ---------- NOVAS FUNÇÕES DE SHARD ----------
+export function addShardsToUser(user, shardId, quantity = 1) {
+  if (!user.cards) user.cards = [];
+  const existing = user.cards.find(c => c.type === "shard" && c.shardOf === shardId);
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    const template = getCardTemplate(shardId);
+    if (!template) return null;
+    const shard = createShard(template);
+    shard.quantity = quantity;
+    user.cards.push(shard);
+  }
+  markUserDirty(user.id);
+  return true;
+}
+
+export function giveShardToUser(user, shardId, quantity = 1) {
+  return addShardsToUser(user, shardId, quantity);
+}
+
 // ---------- EXPORTS DEFAULT ----------
 export default {
   getCardTemplate,
@@ -392,5 +413,7 @@ export default {
   findUserCardByUnique,
   applyGrowth,
   getElement,
-  getGrade
+  getGrade,
+  addShardsToUser,
+  giveShardToUser
 };
