@@ -1,6 +1,6 @@
 // src/systems/cardSystem.js
 //------------------------------------------------------------
-//  SISTEMA DE CARTAS — EXPANSÃO
+//  SISTEMA DE CARTAS/GUARDIÕES — EXPANSÃO E INTEGRAÇÃO
 //------------------------------------------------------------
 import fs from "fs";
 import path from "path";
@@ -11,24 +11,35 @@ import { spendGold } from "./economySystem.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const CARD_DEFINITIONS_PATH = path.join(__dirname, "../../data/cards.json");
 
-function loadCardDefinitions() {
-  if (!fs.existsSync(CARD_DEFINITIONS_PATH)) {
-    console.warn("cards.json não encontrado! Criando arquivo vazio.");
-    fs.writeFileSync(CARD_DEFINITIONS_PATH, "[]");
+// --- Caminhos de Dados ---
+const CARD_DEFINITIONS_PATH = path.join(__dirname, "../../data/cards.json");
+const GUARDIAN_DEFINITIONS_PATH = path.join(__dirname, "../../data/guardians.json"); // NOVO
+
+// --- Carregamento de Dados ---
+function loadDefinitions(filePath, defaultContent = "[]", entityName = "definições") {
+  if (!fs.existsSync(filePath)) {
+    console.warn(`${path.basename(filePath)} não encontrado! Criando arquivo vazio.`);
+    fs.writeFileSync(filePath, defaultContent);
   }
   try {
-    const raw = fs.readFileSync(CARD_DEFINITIONS_PATH, "utf-8");
+    const raw = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(raw);
   } catch (err) {
-    console.error("Erro ao carregar cards.json:", err);
+    console.error(`Erro ao carregar ${path.basename(filePath)}:`, err);
     return [];
   }
 }
-export const cardDefinitions = loadCardDefinitions();
+
+// Cartas (c001, c002, etc.)
+export const cardDefinitions = loadDefinitions(CARD_DEFINITIONS_PATH, "[]", "cards");
 export const cardIndex = new Map();
 for (const c of cardDefinitions) cardIndex.set(c.id, c);
+
+// Guardiões (g001, g002, etc.)
+export const guardianDefinitions = loadDefinitions(GUARDIAN_DEFINITIONS_PATH, "[]", "guardians"); // NOVO
+export const guardianIndex = new Map(); // NOVO
+for (const g of guardianDefinitions) guardianIndex.set(g.id, { ...g, type: "guardian" }); // Define type: "guardian"
 
 // ---------- META: grades & elements ----------
 export const GRADES = {
@@ -74,24 +85,36 @@ export function applyGrowth(base, level, growth = 0.05, curve = "linear", grade 
   return Math.floor(base * (1 + (level - 1) * g) * gradeHpMult(grade));
 }
 
-// ---------- GETTERS ----------
-export function getCardTemplate(id) { return cardIndex.get(id) || null; }
-export function getCardList() { return cardDefinitions; }
+// ---------- GETTERS (UNIFICADOS) ----------
+/** Retorna o template de Carta ou Guardião pelo ID. */
+export function getCardTemplate(id) { 
+  return cardIndex.get(id) || guardianIndex.get(id) || null; 
+}
+
+/** Retorna a lista de Cartas ou a lista de Guardiões (se a opção for passada). */
+export function getCardList(options = {}) { 
+  if (options.includeGuardians) return [...cardDefinitions, ...guardianDefinitions];
+  return cardDefinitions;
+}
 
 // ---------- BASE INSTANCE ----------
 function createBaseInstance(template) {
+  // Ajuste para usar 'level' para Guardiões e 'rarity' para Cartas normais
+  const levelOrRarity = template.level ?? template.rarity ?? 1;
+  const isGuardian = template.type === "guardian" || template.id.startsWith("g");
+
   return {
     uniqueId: uuidv4(),
     id: template.id,
     name: template.name,
-    rarity: template.rarity ?? 1,
+    rarity: isGuardian ? levelOrRarity : levelOrRarity, // Manter o nome 'rarity' na instância para compatibilidade
+    level: levelOrRarity, 
     grade: template.grade || "common",
     type: template.type ?? "card",
     image: template.image || null,
-    element: template.element || "neutral",
+    element: template.element || template.faction || "neutral", // Guardião usa Faction como Element
     growth: template.growth ?? 0.05,
     growthCurve: template.growthCurve || "linear",
-    level: 1,
     xp: 0,
     xpToNext: template.xpToNext || 100,
     tags: template.tags || [],
@@ -101,6 +124,7 @@ function createBaseInstance(template) {
 // ---------- FACTORIES ----------
 function createNormalCard(template) {
   const base = createBaseInstance(template);
+  // Nota: Cartas normais usam 'hp' e 'attack' do template
   const hp = applyGrowth(template.hp || 100, base.level, base.growth, base.growthCurve, base.grade);
   const attack = Math.floor((template.attack || 10) * (rarityMultiplier(base.grade)));
   return {
@@ -121,16 +145,22 @@ function createNormalCard(template) {
 
 function createGuardian(template) {
   const base = createBaseInstance(template);
-  const hp = applyGrowth(template.hp || 1000, base.level, base.growth, base.growthCurve, base.grade);
+  // Guardiões usam 'maxHp' do template diretamente, sem growth (já está pré-calculado pelo level)
+  const maxHpTemplate = template.maxHp || 1000;
+  
+  // Guardiões usam passives e effects do template (passives é a lista de efeitos passivos)
+  const allEffects = [...(template.passive || []), ...(template.effects || [])]; 
+
   return {
     ...base,
     isGuardian: true,
-    guardianType: template.guardianType ?? "G00",
-    guardianMaxHp: hp,
-    guardianCurrentHp: hp,
-    attack: template.attack || 0,
-    effects: [...(template.effects || [])],
-    perks: template.passives || [],
+    guardianLevel: template.level, // Novo campo para clareza
+    guardianMaxHp: maxHpTemplate,
+    guardianCurrentHp: maxHpTemplate,
+    // Ataque/Habilidades são definidos em tempo real pelo sistema de combate (assumido)
+    attack: 0, 
+    effects: allEffects, 
+    perks: template.perks || [], // Adiciona perks para compatibilidade
     runeSlots: { core: null, support: null, burst: null },
   };
 }
@@ -156,17 +186,37 @@ function createP2WCard(template) {
 export function giveCardToUser(user, cardId) {
   const template = getCardTemplate(cardId);
   if (!template) return null;
+  
+  // Checagem de duplicata
+  let duplicate = false;
+  if (template.type === "guardian") {
+    // Lógica simples: Se o usuário já possui um guardião com este ID, é duplicata.
+    duplicate = user.cards?.some(c => c.id === cardId && c.type === "guardian");
+  }
+
   let instance;
   switch (template.type) {
-    case "guardian": instance = createGuardian(template); break;
-    case "shard": instance = createShard(template); break;
-    case "p2w": instance = createP2WCard(template); break;
-    default: instance = createNormalCard(template); break;
+    case "guardian": 
+      // Não cria a instância se for duplicata (apenas retorna info, a lógica de shards fica no summon)
+      if (duplicate) return { duplicate: true, instance: template };
+      instance = createGuardian(template); 
+      break;
+    case "shard": 
+      // Shards são adicionados via addShardsToUser, não via push
+      return addShardsToUser(user, cardId, 1);
+    case "p2w": 
+      instance = createP2WCard(template); 
+      break;
+    default: 
+      instance = createNormalCard(template); 
+      break;
   }
+  
   if (!user.cards) user.cards = [];
   user.cards.push(instance);
   markUserDirty(user.id);
-  return instance;
+  
+  return { duplicate, instance }; // Retorna o status de duplicata
 }
 
 // ---------- REMOVE ----------
@@ -190,7 +240,8 @@ export function tryMeld(user, baseUid, donorUid) {
   const card = user.cards?.find(c => c.uniqueId === baseUid);
   const donor = user.cards?.find(c => c.uniqueId === donorUid);
   if (!card || !donor) return { success: false, message: "Cartas inválidas." };
-  if (card.type !== "card") return { success: false, message: "Apenas cartas normais podem receber meld." };
+  // Guardiões não recebem meld
+  if (card.type !== "card") return { success: false, message: "Apenas cartas normais podem receber meld." }; 
   if (!card.unlockedEvolution) return { success: false, message: "Evolução bloqueada." };
   if (donor.type !== "card") return { success: false, message: "Carta doadora inválida." };
   const donorTemplate = getCardTemplate(donor.id);
@@ -268,10 +319,15 @@ export function applyPerksToEntity(entity) {
   if (!entity || !entity.perks || !entity.perks.length) return;
   for (const p of entity.perks) {
     if (!p || !p.type) continue;
+    // ... (restante da lógica de perks)
     if (p.type === "flatAtk") entity.attack = (entity.attack || 0) + (p.value || 0);
     if (p.type === "percentHp") {
-      entity.maxHp = Math.floor((entity.maxHp || 1) * (1 + (p.value || 0)));
-      entity.hp = Math.min(entity.hp || entity.maxHp, entity.maxHp);
+      // Ajustar para Guardiões, usando guardianMaxHp
+      const hpKey = entity.type === "guardian" ? "guardianMaxHp" : "maxHp";
+      const currentHpKey = entity.type === "guardian" ? "guardianCurrentHp" : "hp";
+
+      entity[hpKey] = Math.floor((entity[hpKey] || 1) * (1 + (p.value || 0)));
+      entity[currentHpKey] = Math.min(entity[currentHpKey] || entity[hpKey], entity[hpKey]);
     }
     if (p.type === "regen") { entity.regen = (entity.regen || 0) + (p.value || 0); }
     // aura example (apply if entity.team present)
@@ -287,7 +343,8 @@ export function applyPerksToEntity(entity) {
 
 // ---------- EVOLUÇÃO / ASCENSION ----------
 export function canEvolve(card) {
-  if (!card || !card.evolutionSteps || !card.evolutionSteps.length) return false;
+  if (!card || card.type === "guardian") return false; // Guardiões não evoluem via steps
+  if (!card.evolutionSteps || !card.evolutionSteps.length) return false;
   const step = card.evolutionSteps[0];
   return (card.level || 1) >= (step.levelReq || 10);
 }
@@ -295,6 +352,7 @@ export function canEvolve(card) {
 export function evolveCard(user, uid) {
   const card = user.cards?.find(c => c.uniqueId === uid);
   if (!card) return { success: false, message: "Carta não encontrada." };
+  if (card.type === "guardian") return { success: false, message: "Guardiões não usam o sistema de Evolução (Ascensão de Guardião é separada)." };
   if (!card.evolutionSteps || !card.evolutionSteps.length) return { success: false, message: "Sem evolução disponível." };
   const step = card.evolutionSteps.shift();
   const cost = step.cost || Math.round(1000 * Math.pow(card.rarity || 1, 2));
@@ -318,7 +376,7 @@ export function evolveCard(user, uid) {
 export function formatCardInfo(card) {
   if (!card) return "Carta inexistente.";
   if (card.type === "guardian") {
-    return `🛡️ Guardião ${card.name} (Lv ${card.level})\nHP: ${card.guardianCurrentHp}/${card.guardianMaxHp}\nElemento: ${card.element}\nGrade: ${card.grade}`;
+    return `🛡️ Guardião ${card.name} (Lv ${card.level} - ${card.rarity}★)\nHP: ${card.guardianCurrentHp}/${card.guardianMaxHp}\nElemento: ${card.element}\nGrade: ${card.grade}\nEfeitos Passivos: ${(card.effects||[]).join(", ") || "Nenhum"}`;
   }
   if (card.type === "shard") {
     return `🧩 Fragmento de ${card.shardOf}\nQuantidade: ${card.quantity}`;
@@ -332,7 +390,35 @@ export function formatCardInfo(card) {
 // recalcula stats quando level/grade/runas/perks mudam
 export function recalcCardStats(card) {
   if (!card) return;
-  // base hp/atk from template fallback
+  
+  if (card.type === "guardian") {
+    // Guardiões não recalculam ATK/HP Base via growth, apenas via Perks/Runas.
+    // Lógica simplificada: Apenas aplica Perks e Runas ao HP Máximo Base do Guardião
+    let percentHpBonus = 0;
+    
+    // Runes & Perks HP Bonus (ATK é tipicamente 0, mas mantemos o código)
+    card.runeSlots = card.runeSlots || { core: null, support: null, burst: null };
+    for (const s of ["core","support","burst"]) {
+      const r = card.runeSlots[s];
+      if (!r || !r.modifiers) continue;
+      for (const m of r.modifiers) {
+        if (!m) continue;
+        const scale = 1 + ((r.level || 1) - 1) * (m.scalePerLevel || 0);
+        if (m.type === "percentHp") percentHpBonus += (m.value || 0) * scale;
+      }
+    }
+    for (const p of card.perks || []) {
+      if (p.type === "percentHp") percentHpBonus += p.value || 0;
+    }
+    
+    // Reaplicar ao HP Base do Guardião
+    const baseHpTemplate = getCardTemplate(card.id)?.maxHp || 1000;
+    card.guardianMaxHp = Math.floor(baseHpTemplate * (1 + percentHpBonus));
+    card.guardianCurrentHp = Math.min(card.guardianCurrentHp || card.guardianMaxHp, card.guardianMaxHp);
+    return;
+  }
+  
+  // Lógica para Cartas Normais
   card.baseHp = card.baseHp || (getCardTemplate(card.id)?.hp) || 100;
   card.baseAttack = card.baseAttack || (getCardTemplate(card.id)?.attack) || 10;
 
@@ -381,10 +467,12 @@ export function addShardsToUser(user, shardId, quantity = 1) {
   if (existing) {
     existing.quantity += quantity;
   } else {
-    const template = getCardTemplate(shardId);
+    // Tenta obter o template da carta para criar o shard
+    const template = getCardTemplate(shardId); 
     if (!template) return null;
     const shard = createShard(template);
     shard.quantity = quantity;
+    shard.shardOf = shardId; // Garante que o ID da carta esteja correto
     user.cards.push(shard);
   }
   markUserDirty(user.id);
@@ -397,11 +485,16 @@ export function giveShardToUser(user, shardId, quantity = 1) {
 
 // --- ADICIONAR NO FINAL DE cardSystem.js ---
 // ---------- GET RANDOM CARD BY RARITY ----------
+/** Obtém um ID de carta randômico pela raridade/nível. */
 export function getRandomCardIdByRarity(rarity, options = {}) {
-  let list = getCardList().filter(c => c.rarity === rarity);
+  let list = getCardList().filter(c => {
+    // Usa rarity para cards e level para guardians, se ambos estiverem no pool
+    const itemRarity = c.rarity || c.level; 
+    return itemRarity === rarity;
+  });
   
   if (options.allowGuardians === false)
-    list = list.filter(c => !c.isGuardian && c.type !== "guardian");
+    list = list.filter(c => !c.id.startsWith("g"));
   
   if (options.cardType)
     list = list.filter(c => c.type === options.cardType);
@@ -431,5 +524,8 @@ export default {
   getGrade,
   addShardsToUser,
   giveShardToUser,
-  getRandomCardIdByRarity // <<< adicionado
+  getRandomCardIdByRarity,
+  // Novos exports de dados
+  cardDefinitions,
+  guardianDefinitions
 };

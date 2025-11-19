@@ -1,0 +1,278 @@
+[
+  {
+    "id": "g001",
+    "name": "Fire Sentinel",
+    "level": 5,
+    "faction": "Faen",
+    "maxHp": 20500,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["burnAuraG5", "fireResist"],
+    "active": {
+      "name": "Flame Strike",
+      "cost": 30,
+      "cooldown": 3,
+      "summon": { "name": "Fire Elemental (G5)", "hp": 1500, "atk": 800, "turns": 4 }
+    },
+    "ultimate": {
+      "name": "Inferno",
+      "cost": 100,
+      "summon": { "name": "Inferno Spirit (G5)", "hp": 3000, "atk": 1500, "turns": 3 },
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g002",
+    "name": "Earth Warden",
+    "level": 5,
+    "faction": "Gorath",
+    "maxHp": 22000,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["massiveShieldG5", "damageReduction"],
+    "active": {
+      "name": "Stone Grasp",
+      "cost": 35,
+      "cooldown": 4,
+      "effectId": "effG003" // Debuff: Reduz ATK de 2 alvos por 2 turnos
+    },
+    "ultimate": {
+      "name": "Terra Null",
+      "cost": 100,
+      "effectId": "effG004", // Cura 30% do próprio HP e concede Armadura Maciça a todos os aliados
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g003",
+    "name": "Shadow Weaver",
+    "level": 5,
+    "faction": "Morrath",
+    "maxHp": 20000,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["shadowLeechG5", "critChanceUp"],
+    "active": {
+      "name": "Death Bolt",
+      "cost": 40,
+      "cooldown": 3,
+      "effectId": "effG005" // Dano massivo a um alvo + aplica Veneno
+    },
+    "ultimate": {
+      "name": "Void Gate",
+      "cost": 100,
+      "summon": { "name": "Void Fiend (G5)", "hp": 1000, "atk": 2500, "turns": 2 },
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g004",
+    "name": "Archon of Light",
+    "level": 5,
+    "faction": "Human",
+    "maxHp": 21000,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["allyShieldG5", "healingAura"],
+    "active": {
+      "name": "Radiant Stun",
+      "cost": 30,
+      "cooldown": 5,
+      "effectId": "effG007" // Efeito de Controle: Stun em 1 alvo por 1 turno
+    },
+    "ultimate": {
+      "name": "Divine Intervention",
+      "cost": 100,
+      "summon": { "name": "Angel of Light (G5)", "hp": 500, "atk": 100, "turns": 5 },
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g005",
+    "name": "Ironclad Warlord",
+    "level": 3,
+    "faction": "Gorath",
+    "maxHp": 11500,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["tauntAuraG3"],
+    "active": {
+      "name": "Shield Bash",
+      "cost": 25,
+      "cooldown": 3,
+      "effectId": "effG009" // Aplica Taunt (Provocar) em si mesmo e ganha Escudo
+    },
+    "ultimate": {
+      "name": "Indomitable Will",
+      "cost": 100,
+      "effectId": "effG010", // Dano AoE escalando com o próprio HP
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g006",
+    "name": "Flame Spirit",
+    "level": 3,
+    "faction": "Faen",
+    "maxHp": 10500,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["cleanseAuraG3"],
+    "active": {
+      "name": "Purifying Flame",
+      "cost": 30,
+      "cooldown": 4,
+      "effectId": "effG011" // Cura 2 alvos e remove 1 debuff de cada
+    },
+    "ultimate": {
+      "name": "Wildfire Summon",
+      "cost": 100,
+      "summon": { "name": "Small Flame", "hp": 500, "atk": 300, "turns": 3 },
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g007",
+    "name": "Plague Herald",
+    "level": 3,
+    "faction": "Morrath",
+    "maxHp": 10000,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["diseaseAuraG3"],
+    "active": {
+      "name": "Infect",
+      "cost": 35,
+      "cooldown": 3,
+      "effectId": "effG012" // Aplica Veneno/DOT massivo em um alvo
+    },
+    "ultimate": {
+      "name": "Wasting Plague",
+      "cost": 100,
+      "effectId": "effG013", // Aplica Weakness (Redução de Dano) e DOT em área
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g008",
+    "name": "Royal Banneret",
+    "level": 3,
+    "faction": "Human",
+    "maxHp": 11000,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["attackBuffAuraG3"],
+    "active": {
+      "name": "Call to Arms",
+      "cost": 25,
+      "cooldown": 4,
+      "effectId": "effG014" // Buff de ATK em 3 alvos
+    },
+    "ultimate": {
+      "name": "Rallying Cry",
+      "cost": 100,
+      "effectId": "effG015", // Cura pequena em toda a equipe e Buff de ATK global
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g009",
+    "name": "Spore Shaman",
+    "level": 1,
+    "faction": "Faen",
+    "maxHp": 2800,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["minorRegenG1"],
+    "active": {
+      "name": "Healing Spores",
+      "cost": 20,
+      "cooldown": 3,
+      "effectId": "effG016" // Cura simples em um único alvo
+    },
+    "ultimate": {
+      "name": "Toxic Bloom",
+      "cost": 100,
+      "effectId": "effG017", // Aplica DOT fraco em 2 alvos
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g010",
+    "name": "Bone Harvester",
+    "level": 1,
+    "faction": "Morrath",
+    "maxHp": 2500,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["minorLifestealG1"],
+    "active": {
+      "name": "Siphon Strike",
+      "cost": 25,
+      "cooldown": 3,
+      "effectId": "effG018" // Dano baixo com roubo de vida (Lifesteal)
+    },
+    "ultimate": {
+      "name": "Death Grip",
+      "cost": 100,
+      "effectId": "effG019", // Dano de explosão em um alvo único
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g011",
+    "name": "Sky Breaker",
+    "level": 4,
+    "faction": "Gorath",
+    "maxHp": 17500,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["critImmunityG4"],
+    "active": {
+      "name": "Crushing Blow",
+      "cost": 30,
+      "cooldown": 4,
+      "effectId": "effG020" // Stun (Atordoamento) em 1 alvo e dano moderado
+    },
+    "ultimate": {
+      "name": "Seismic Slam",
+      "cost": 100,
+      "effectId": "effG021", // Dano e chance de Stun AoE ou Slow
+      "chargePerTurn": 10
+    },
+    "effects": []
+  },
+  {
+    "id": "g012",
+    "name": "Grand Inquisitor",
+    "level": 4,
+    "faction": "Human",
+    "maxHp": 16500,
+    "startEnergy": 0,
+    "energyMax": 100,
+    "passive": ["executionerG4"], // Bônus de Dano contra alvos com HP baixo
+    "active": {
+      "name": "Holy Verdict",
+      "cost": 35,
+      "cooldown": 3,
+      "effectId": "effG022" // Dano alto em um único alvo
+    },
+    "ultimate": {
+      "name": "Purge the Wicked",
+      "cost": 100,
+      "effectId": "effG023", // Dano de Execução (maior dano se o alvo estiver com HP < 30%)
+      "chargePerTurn": 10
+    },
+    "effects": []
+  }
+]
