@@ -181,9 +181,11 @@ export function getCurrentMapId(user) {
 }
 
 export function getMazeMapInfo(user, mapId) {
-  const state = getMazeState(user, mapId);
   const map = mazeConfig.maps[mapId];
-
+  if (!map || !map.unlocked) return null; // ❌ Retorna null se mapa inválido ou bloqueado
+  
+  const state = getMazeState(user, mapId);
+  
   return {
     totalHouses: map.maxHouses,
     currentHouse: state.position,

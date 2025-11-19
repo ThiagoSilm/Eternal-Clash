@@ -8,8 +8,8 @@ function createXPBar(current, max, size = 10) {
   const ratio = Math.min(current / max, 1);
   const filled = Math.round(ratio * size);
   const empty = size - filled;
-
-  const gradient = ["🟥","🟧","🟨","🟩","🟦","🟪","✨"]; // degradê colorido
+  
+  const gradient = ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "✨"]; // degradê colorido
   let bar = "";
   for (let i = 0; i < filled; i++) {
     bar += gradient[i % gradient.length];
@@ -19,14 +19,17 @@ function createXPBar(current, max, size = 10) {
 }
 
 // Barra de energia animada
-function createEnergyBar(current, max, size = 10) {
+function createEnergyBar(current = 0, max = 10, size = 10) {
+  current = Number(current) || 0;
+  max = Number(max) || 1; // evitar divisão por zero
+  
   const ratio = Math.min(current / max, 1);
   const filled = Math.round(ratio * size);
   const empty = size - filled;
-
+  
   let bar = "";
   for (let i = 0; i < filled; i++) {
-    bar += i % 2 === 0 ? "⚡" : "🔥"; // alterna emojis para efeito visual
+    bar += i % 2 === 0 ? "⚡" : "🔥";
   }
   bar += "⚪".repeat(empty);
   return bar + ` (${current}/${max})`;
@@ -41,12 +44,12 @@ function formatDeck(deck) {
     if (card.rarity === "raro") rarityEmoji = "🟪";
     else if (card.rarity === "épico") rarityEmoji = "🟧";
     else if (card.rarity === "lendário") rarityEmoji = "🟥";
-
+    
     let typeEmoji = "⚔️"; // ataque
     if (card.type === "magia") typeEmoji = "🪄";
     else if (card.type === "defesa") typeEmoji = "🛡️";
     else if (card.type === "suporte") typeEmoji = "🩹";
-
+    
     return `\`${i + 1}.\` ${rarityEmoji}${typeEmoji} **${card.name}**`;
   }).join("\n");
 }
@@ -55,12 +58,12 @@ export default {
   name: "status",
   description: "Mostra HUD de RPG interativo do jogador.",
   usage: "[status]",
-
+  
   async execute(message, args, user) {
     try {
       const userId = message.author.id;
       const username = message.author.username;
-
+      
       // -----------------------
       // Energia
       // -----------------------
@@ -70,7 +73,7 @@ export default {
         const energy = getEnergyStatus(userId) ?? 0;
         energyStatus = createEnergyBar(energy, maxEnergy);
       } catch {}
-
+      
       // -----------------------
       // Status diário
       // -----------------------
@@ -78,7 +81,7 @@ export default {
       try {
         dailyStatus = getDailyStatus(userId) ?? "⚠️ (indefinido)";
       } catch {}
-
+      
       // -----------------------
       // Deck
       // -----------------------
@@ -87,35 +90,28 @@ export default {
         const deck = viewDeck(user, "main");
         deckStatus = formatDeck(deck);
       } catch {}
-
+      
       // -----------------------
       // XP
       // -----------------------
-      const level = user.level ?? 1;
-      const currentXP = user.xp ?? 0;
+      const level = Number(user.level) || 1;
+      const currentXP = Number(user.xp) || 0;
       const xpForNext = 100 * level;
       const xpBar = createXPBar(currentXP, xpForNext);
-
+      
       // -----------------------
       // Embed ultra HUD
       // -----------------------
       const embed = new EmbedBuilder()
         .setTitle(`🎮 HUD de ${username}`)
         .setDescription("💥 Status RPG interativo completo 💥")
-        .addFields(
-          { name: "📈 Nível", value: `${level}`, inline: true },
-          { name: "⭐ XP", value: `${currentXP}/${xpForNext} ${xpBar}`, inline: false },
-          { name: "💰 Ouro", value: `${user.gold ?? 0}`, inline: true },
-          { name: "⚡ Energia", value: energyStatus, inline: false },
-          { name: "🃏 Deck Principal", value: deckStatus, inline: false },
-          { name: "🎁 Status Diário", value: dailyStatus, inline: false }
-        )
+        .addFields({ name: "📈 Nível", value: `${level}`, inline: true }, { name: "⭐ XP", value: `${currentXP}/${xpForNext} ${xpBar}`, inline: false }, { name: "💰 Ouro", value: `${user.gold ?? 0}`, inline: true }, { name: "⚡ Energia", value: energyStatus, inline: false }, { name: "🃏 Deck Principal", value: deckStatus, inline: false }, { name: "🎁 Status Diário", value: dailyStatus, inline: false })
         .setColor("#FFD700")
         .setFooter({ text: "✨ Continue evoluindo e colecionando!" })
         .setTimestamp();
-
+      
       await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
-
+      
     } catch (err) {
       console.error("❌ Erro no comando !status:", err);
       await message.reply("❌ Ocorreu um erro ao exibir seu status.");

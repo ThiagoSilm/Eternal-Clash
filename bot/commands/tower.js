@@ -1,16 +1,16 @@
 // src/commands/tower.js
-
 import {
   spendTowerAttempt,
   getTowerStatus,
   getFloorEnemy,
   getFloorReward,
   getTowerRankings,
-  getRandomTowerEvent
+  getRandomTowerEvent,
+  addTemporaryGem,
 } from "../../src/systems/towerSystem.js";
 
 import { runBattle } from "../../src/systems/battleSystem.js";
-import { addXP, addGold, addItem, addTemporaryGem } from "../../src/systems/economySystem.js";
+import { addXP, addGold, addItem } from "../../src/systems/economySystem.js";
 import { getGuardian } from "../../src/systems/guardianSystem.js";
 import { EmbedBuilder } from "discord.js";
 
@@ -18,53 +18,63 @@ export default {
   name: "tower",
   description: "Torre Infinita Épica: eventos, combos, histórias e prêmios lendários.",
   usage: "[status | challenge | rankings]",
-  
+
   async execute(message, args, user) {
     try {
-      if (!user.tower) {
-        user.tower = { floor: 1, attempts: 3, lastAccess: 0, winStreak: 0, tempGems: [] };
-      }
-      
+      console.log("🚀 Executando !tower", args, "User tower:", user.tower);
+
+      // Inicialização completa do user.tower
+      if (!user.tower) user.tower = {
+        floor: 1,
+        attempts: 3,
+        lastAccess: 0,
+        winStreak: 0,
+        tempGems: [],
+        tokens: 0,
+        towerShop: { lastReset: 0, items: [] }
+      };
+
       const sub = args[0]?.toLowerCase() || "status";
-      
+
       // -------------------- STATUS --------------------
       if (sub === "status") {
-        const statusText = getTowerStatus(user);
-        const gemsText = user.tower.tempGems.length > 0 ? `💎 Gemas ativas: ${user.tower.tempGems.join(", ")}` : "";
+        const statusText = getTowerStatus(user) || "Nenhum status disponível.";
         const embed = new EmbedBuilder()
           .setTitle("🏰 Torre Infinita — Status Atual")
-          .setDescription(`${statusText}\n💪 Vitórias consecutivas: ${user.tower.winStreak}\n${gemsText}`)
+          .setDescription(statusText)
           .setColor("Blue");
         return message.reply({ embeds: [embed] });
       }
-      
+
       // -------------------- RANKINGS --------------------
       if (sub === "rankings") {
-        const rankings = getTowerRankings();
-        const rankingText = rankings.map((r, i) => `${i+1}. ${r.username} — Andar ${r.floor}`).join("\n");
+        const rankings = getTowerRankings() || [];
+        const rankingText = rankings.length
+          ? rankings.map((r, i) => `${i + 1}. ${r.username} — Andar ${r.floor}`).join("\n")
+          : "Nenhum ranking disponível.";
         const embed = new EmbedBuilder()
           .setTitle("🏆 Ranking da Torre Infinita")
-          .setDescription(rankingText || "Nenhum ranking disponível.")
+          .setDescription(rankingText)
           .setColor("Gold");
         return message.reply({ embeds: [embed] });
       }
-      
+
       // -------------------- CHALLENGE --------------------
       if (sub === "challenge" || sub === "c") {
         const spent = spendTowerAttempt(user);
         if (!spent) return message.reply({ content: "❌ Sem tentativas restantes.", allowedMentions: { repliedUser: false } });
-        
+
         const floor = user.tower.floor;
         let enemy = getFloorEnemy(floor);
-        
-        if (!enemy.deck || enemy.deck.length === 0) {
+
+        if (!enemy || !enemy.deck) {
           enemy.deck = [
             { id: "strike", type: "attack", value: 10 },
             { id: "shield", type: "defense", value: 8 },
             { id: "poison", type: "debuff", apply: [{ name: "poison", value: 3, turns: 2 }] }
           ];
         }
-        
+
         const event = getRandomTowerEvent(floor);
         let eventText = "";
         if (event) {
@@ -76,26 +86,32 @@ export default {
             eventText = `⚡ Evento: ${event.description} (HP inimigo aumentado em ${event.value * 100}%)`;
           } else if (event.type === "gem") {
             addTemporaryGem(user, event.gem);
-            eventText = `💎 Evento: ${event.description} — Ganha a gema temporária "${event.gem}"!`;
+            eventText = `💎 Evento: ${event.description} — Gema temporária "${event.gem}"!`;
           } else if (event.type === "lore") {
             eventText = `📜 História do andar: ${event.description}`;
           }
         }
-        
+
         const isBossFloor = floor % 5 === 0;
         if (isBossFloor) {
           enemy.name = `👑 Boss Épico: ${enemy.name}`;
           enemy.guardian = getGuardian(enemy.guardianId);
         }
-        
+
         const result = runBattle(user, enemy, { auto: true });
-        const battleLogs = result.log.map(l => `\`${l.turn ? `Turno ${l.turn}` : ""}\` **${l.actor}**: ${l.action || l.note || ""}`).slice(0, 10).join("\n");
-        
+        if (!result || !result.log) {
+          return message.reply("⚠️ Ocorreu um erro na batalha. Tente novamente.");
+        }
+
+        const battleLogs = result.log.map(l =>
+          `\`${l.turn ? `Turno ${l.turn}` : ""}\` **${l.actor}**: ${l.action || l.note || ""}`
+        ).slice(0, 10).join("\n");
+
         const embed = new EmbedBuilder()
           .setTitle(`⚔️ Andar ${floor}: ${enemy.name}`)
-          .setDescription(`${eventText}\n\n${battleLogs}\n... (Concluído em ${result.turn-1} turnos)`)
+          .setDescription(`${eventText}\n\n${battleLogs}\n... (Concluído em ${result.turn - 1} turnos)`)
           .setColor(isBossFloor ? "Red" : "DarkBlue");
-        
+
         // Vitória
         if (result.winner === "player") {
           user.tower.winStreak += 1;
@@ -110,9 +126,12 @@ export default {
           addXP(user, reward.xp);
           addGold(user, reward.gold);
           user.tower.floor += 1;
-          
+
           embed.addFields([
-            { name: "🏆 Vitória!", value: `Recompensas: **+${reward.xp} XP**, **+${reward.gold} Ouro**${reward.item ? `, ${reward.item}` : ""}\n🔥 Combo de vitórias: x${multiplier.toFixed(1)}\n➡️ Próximo Andar: **${user.tower.floor}**` }
+            {
+              name: "🏆 Vitória!",
+              value: `Recompensas: **+${reward.xp} XP**, **+${reward.gold} Ouro**${reward.item ? `, ${reward.item}` : ""}\n🔥 Combo de vitórias: x${multiplier.toFixed(1)}\n➡️ Próximo Andar: **${user.tower.floor}**`
+            }
           ]);
         } else {
           user.tower.winStreak = 0;
@@ -120,15 +139,18 @@ export default {
           const defeatGold = Math.floor(floor * 2);
           addXP(user, defeatXP);
           addGold(user, defeatGold);
-          
+
           embed.addFields([
-            { name: "😓 Derrota!", value: `Ainda ganha **+${defeatXP} XP** e **+${defeatGold} Ouro**\nTentativas restantes: **${user.tower.attempts}**` }
+            {
+              name: "😓 Derrota!",
+              value: `Ainda ganha **+${defeatXP} XP** e **+${defeatGold} Ouro**\nTentativas restantes: **${user.tower.attempts}**`
+            }
           ]);
         }
-        
+
         return message.reply({ embeds: [embed] });
       }
-      
+
       // -------------------- HELP --------------------
       const embedHelp = new EmbedBuilder()
         .setTitle("🏰 Comandos da Torre Épica")
@@ -139,12 +161,15 @@ export default {
           "🎯 Andares especiais podem ter eventos, buffs/debuffs, gemas temporárias, mini-histórias e cartas lendárias!"
         )
         .setColor("Blue");
-      
+
       return message.reply({ embeds: [embedHelp] });
-      
+
     } catch (err) {
       console.error("❌ Erro no comando tower:", err);
-      return message.reply({ content: "⚠️ Ocorreu um erro interno ao processar a Torre.", allowedMentions: { repliedUser: false } });
+      return message.reply({
+        content: "⚠️ Ocorreu um erro interno ao processar a Torre.",
+        allowedMentions: { repliedUser: false }
+      });
     }
   }
 };
