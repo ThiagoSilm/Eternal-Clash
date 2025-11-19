@@ -1,4 +1,3 @@
-// src/systems/mazeSystem.js
 import { spendEnergy, addGold, addXP, ENERGY_TYPES, spendGems } from "./economySystem.js";
 import { summonMultiple } from "./summonSystem.js";
 import { runBattle } from "./battleSystem.js";
@@ -58,10 +57,15 @@ function generateMazeEnemy(map, position) {
   const scaledForce = baseForce + Math.floor(position * 0.5);
   const guardians = ["dragão", "golem", "lobo", "necromante"];
   const decks = ["deckFogo", "deckÁgua", "deckTerra", "deckSombra"];
+  const chosenDeck = decks[Math.floor(Math.random() * decks.length)];
+  
   return {
+    id: `mazeEnemy_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     type: "mazeEnemy",
-    force: scaledForce,
-    deck: decks[Math.floor(Math.random() * decks.length)],
+    hp: scaledForce * 10,
+    maxHp: scaledForce * 10,
+    attack: scaledForce,
+    deck: chosenDeck,
     guardian: guardians[Math.floor(Math.random() * guardians.length)],
   };
 }
@@ -125,7 +129,6 @@ export async function rollMaze(user, mapId) {
   resetDaily(mazeState);
   
   if (mazeState.usedToday >= 2) throw new Error("Você já usou as 2 tentativas diárias.");
-  
   if (!spendEnergy(user, ENERGY_TYPES.ADVENTURE, mazeConfig.energyCost))
     throw new Error("Energia insuficiente.");
   
@@ -139,15 +142,25 @@ export async function rollMaze(user, mapId) {
   
   mazeState.usedToday++;
   
+  // Boss final
   if (mazeState.position === map.maxHouses) {
-    const boss = generateMazeEnemy(map, mazeState.position + 5);
+    const boss = {
+      id: `mazeBoss_${Date.now()}`,
+      type: "mazeBoss",
+      hp: map.baseForce * 20 + Math.floor(Math.random() * 100),
+      attack: map.baseForce * 5 + Math.floor(Math.random() * 20),
+      deck: "deckBoss",
+      guardian: "Boss Supremo",
+    };
     const battle = await runBattle(user, boss);
-    if (!battle.win) mazeState.position = Math.max(mazeState.position - 3, 0);
-    else {
+    if (!battle.win) {
+      mazeState.position = Math.max(mazeState.position - 3, 0);
+      houseResult.message += `\n💀 Você perdeu para o Boss final e recuou 3 casas.`;
+    } else {
       addGold(user, Math.floor((5000 + Math.random() * 2000) * map.rewardScale));
       addXP(user, Math.floor((600 + Math.random() * 400) * map.rewardScale));
       summonMultiple(user, "mazeBoss", 3 + Math.floor(Math.random() * 2));
-      houseResult.message += "\n🏆 Você derrotou o Boss final!";
+      houseResult.message += `\n🏆 Você derrotou o Boss final!`;
     }
   }
   
