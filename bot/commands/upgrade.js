@@ -1,108 +1,69 @@
+// upgrade.js
+// Comando para aumentar o nível de uma carta no inventário.
+// -----------------------------------------------------------------
 import { EmbedBuilder } from "discord.js";
-import { getCardTemplate } from "../../src/systems/cardSystem.js";
-import { levelUpCard, burnCardForXp, getCardNextLevelXP } from "../../src/systems/xpSystem.js";
-import { spendGold } from "../../src/systems/economySystem.js";
+import { upgradeCard } from "../../src/systems/inventorySystem.js";
+import { getBalance } from "../../src/systems/economySystem.js";
+
+// --- Constantes de Emojis e Cores ---
+const UPGRADE_EMOJI = "⬆️";
+const SUCCESS_COLOR = "#2980B9"; // Azul Marinho
+const MAX_LEVEL = 100; // Assumindo um nível máximo
 
 export default {
   name: "upgrade",
-  description: "Upa uma carta usando outras cartas como sacrifício.",
-  usage: "<carta_principal> <carta_doadora_1> [carta_doadora_2 ...]",
-
-  async execute(message, args, user) {
-    if (!user.cards || user.cards.length === 0) return message.reply("📭 Você não possui cartas.");
-    if (args.length < 2) return message.reply("❌ Use: `!upgrade <principal> <doadora1> <doadora2> ...`");
-
-    const mainIndex = parseInt(args[0]);
-    if (isNaN(mainIndex) || mainIndex < 1 || mainIndex > user.cards.length)
-      return message.reply("❌ Índice da carta principal inválido.");
-
-    const mainCard = user.cards[mainIndex - 1];
-    if (!mainCard) return message.reply("❌ Carta principal não encontrada.");
-    if (mainCard.isGuardian) return message.reply("⚠️ Guardiões não podem ser upados.");
-
-    const previousLevel = mainCard.level;
-    const previousXP = mainCard.xp || 0;
-
-    // ------------------------------
-    // Seleção das cartas sacrificadas
-    // ------------------------------
-    const sacrificeIndexes = args.slice(1).map(n => parseInt(n) - 1);
-    const ignoredCards = [];
-    const sacrificeCards = [];
-
-    for (const i of sacrificeIndexes) {
-      const card = user.cards[i];
-      if (!card) continue;
-      if (card.uniqueId === mainCard.uniqueId) {
-        ignoredCards.push(`${card.name} (principal)`);
-        continue;
-      }
-      if (card.isGuardian) {
-        ignoredCards.push(`${card.name} (guardião)`);
-        continue;
-      }
-      sacrificeCards.push(card);
+  description: "Aumenta o nível de uma carta em seu inventário usando XP e Ouro.",
+  usage: "<Índice do Inventário> [Quantidade de Níveis (padrão: 1)]",
+  aliases: ["up"],
+  
+  async execute(message, args, user) { 
+    const inventoryIndex = parseInt(args[0]);
+    const levelsToUpgrade = parseInt(args[1]) || 1;
+    
+    if (isNaN(inventoryIndex) || inventoryIndex < 1) {
+      return message.reply("❌ Forneça o **Índice do Inventário** da carta que deseja aprimorar (veja em `!inv`).");
+    }
+    
+    if (isNaN(levelsToUpgrade) || levelsToUpgrade < 1) {
+      return message.reply("❌ Quantidade de níveis inválida. Deve ser um número inteiro positivo.");
     }
 
-    if (sacrificeCards.length === 0) return message.reply("⚠️ Nenhuma carta válida para sacrifício foi encontrada.");
+    try {
+      // O sistema `upgradeCard` gerencia a lógica complexa (custo, máximo, etc.)
+      const result = upgradeCard(user, inventoryIndex, levelsToUpgrade);
+      
+      const {
+        cardName,
+        oldLevel,
+        newLevel,
+        xpSpent,
+        goldSpent,
+        totalLevels
+      } = result;
 
-    // ------------------------------
-    // Cálculo de custo em ouro
-    // ------------------------------
-    let totalGoldCost = 0;
-    for (const card of sacrificeCards) totalGoldCost += Math.floor(card.level ** 1.5 * 50);
-    if (!spendGold(user, totalGoldCost))
-      return message.reply(`💰 Ouro insuficiente. Precisa de **${totalGoldCost}**.`);
+      const embed = new EmbedBuilder()
+        .setTitle(`${UPGRADE_EMOJI} Aprimoramento de Carta Concluído!`)
+        .setDescription(`A carta **${cardName}** foi aprimorada com sucesso!`)
+        .addFields([
+          { name: "Nível", value: `De **${oldLevel}** para **${newLevel}** (Subiu ${totalLevels} Níveis)`, inline: false },
+          { name: "XP Gasto", value: `-${xpSpent} XP`, inline: true },
+          { name: "Ouro Gasto", value: `-${goldSpent} Ouro`, inline: true },
+          { name: "\u200b", value: "\u200b", inline: true }, // Espaçador
+          { name: "Novo Saldo XP", value: `${getBalance(user, 'xp')}`, inline: true },
+          { name: "Novo Saldo Ouro", value: `${getBalance(user, 'gold')}`, inline: true }
+        ])
+        .setColor(SUCCESS_COLOR)
+        .setFooter({ text: `Próximo nível máximo: ${MAX_LEVEL}` })
+        .setTimestamp();
+        
+      return message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
 
-    // ------------------------------
-    // Queimar cartas e calcular XP
-    // ------------------------------
-    const burnDetails = [];
-    let totalXP = 0;
-    for (const card of sacrificeCards) {
-      const burnResult = burnCardForXp(user, card.uniqueId);
-      if (!burnResult.success) continue;
-      totalXP += burnResult.gainedXP;
-      const template = getCardTemplate(card.id);
-      burnDetails.push({ name: `${template?.name || "Carta"} (Lv.${card.level})`, xp: burnResult.gainedXP });
+    } catch (err) {
+      // O sistema `upgradeCard` deve lançar erros em casos de:
+      // - Carta não encontrada / inválida
+      // - Nível máximo atingido
+      // - Saldo insuficiente (XP ou Ouro)
+      return message.reply(`❌ **Falha no Aprimoramento:** ${err.message}`);
     }
-
-    if (burnDetails.length === 0) return message.reply("⚠️ Nenhuma carta pôde ser sacrificada.");
-
-    // ------------------------------
-    // Level up da carta principal
-    // ------------------------------
-    const levelUpResult = levelUpCard(user, mainCard.uniqueId, totalXP);
-    const newLevel = mainCard.level;
-    const currentXP = mainCard.xp || 0;
-    const nextLevelXP = getCardNextLevelXP(mainCard);
-
-    // Barra visual de XP
-    const barLength = 20;
-    const progress = Math.min(currentXP / nextLevelXP, 1);
-    const filledBars = Math.round(barLength * progress);
-    const emptyBars = barLength - filledBars;
-    const xpBar = `\`${"█".repeat(filledBars)}${"-".repeat(emptyBars)}\` ${Math.floor(progress * 100)}%`;
-
-    // ------------------------------
-    // Embed de resultado
-    // ------------------------------
-    let burnSummary = burnDetails.map(b => `${b.name} (+${b.xp} XP)`).join("\n");
-    if (burnSummary.length > 1024) burnSummary = `${burnDetails.length} cartas sacrificadas`;
-
-    const embed = new EmbedBuilder()
-      .setTitle("✨ Upgrade Concluído")
-      .setColor("Gold")
-      .addFields(
-        { name: "Carta Principal", value: mainCard.name, inline: true },
-        { name: "Nível", value: `${previousLevel} → ${newLevel}`, inline: true },
-        { name: "XP Atual", value: xpBar, inline: false },
-        { name: "XP Ganho", value: `${totalXP}`, inline: true },
-        { name: "Ouro Gasto", value: `${totalGoldCost}`, inline: true },
-        { name: "Sacrifício", value: burnSummary, inline: false }
-      )
-      .setFooter({ text: ignoredCards.length > 0 ? `Cartas ignoradas: ${ignoredCards.join(", ")}` : "" });
-
-    return message.reply({ embeds: [embed] });
   }
 };

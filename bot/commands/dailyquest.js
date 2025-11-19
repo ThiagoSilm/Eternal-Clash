@@ -1,59 +1,66 @@
-// src/commands/dailyquest.js
-
-import {
-  getQuestStatus,
-  claimDailyQuestReward
-} from "../../src/systems/dailyQuestSystem.js";
+// dailyquest.js
+// Comando para checar e reivindicar Missões Diárias
+// -----------------------------------------------------------------
+import { EmbedBuilder } from "discord.js";
+import { 
+  getQuestStatus, // Função que também inicializa as missões se for um novo dia
+  claimDailyQuestReward 
+} from "../../src/systems/dailyQuestSystem.js"; 
 
 export default {
   name: "dailyquest",
-  description: "Verifique e resgate suas missões diárias para ganhar bônus.",
-  usage: "[status | claim]",
+  description: "Visualiza o status das missões diárias e reivindica o bônus final.",
+  usage: "<status | claim>",
   
-  async execute(message, args, user) {
-    
-    // Garantia absoluta contra erros do middleware
-    if (!user) {
-      return message.reply("❌ Erro interno: usuário não carregado.");
-    }
-    
-    const sub = args[0]?.toLowerCase() || "status";
-    let response = "";
-    
-    try {
-      switch (sub) {
+  async execute(message, args, user) { 
+    const subcommand = args[0]?.toLowerCase();
+    const username = message.author.username;
+
+    // --- 1. STATUS (Padrão) ---
+    if (!subcommand || subcommand === 'status') {
+      try {
+        const statusText = getQuestStatus(user);
         
-        case "status":
-          // Apenas leitura — não modifica o user
-          response = getQuestStatus(user);
-          break;
-          
-        case "claim":
-          // Esta função modifica user (recompensa + marcar claim)
-          response = claimDailyQuestReward(user);
-          break;
-          
-        default:
-          response =
-            "📋 **Comandos de Missões Diárias:**\n" +
-            "• `!dailyquest` ou `!dailyquest status` — Ver o progresso das missões.\n" +
-            "• `!dailyquest claim` — Reivindicar a recompensa final do dia.";
+        const embed = new EmbedBuilder()
+          .setTitle(`📅 Status das Missões Diárias de ${username}`)
+          .setDescription(statusText)
+          .setColor("#FFD700") // Gold
+          .setFooter({ text: "Use !dailyquest claim para pegar o bônus final." })
+          .setTimestamp();
+
+        return message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+
+      } catch (err) {
+        console.error(`Erro em !dailyquest status:`, err);
+        return message.reply("❌ Erro ao buscar o status das missões diárias.");
       }
-      
-      await message.reply({
-        content: response,
-        allowedMentions: { repliedUser: false }
-      });
-      
-    } catch (err) {
-      console.error("❌ Erro no comando dailyquest:", err);
-      
-      // Sistema aceita erros em forma de string → retornar direto
-      if (typeof err === "string") {
-        return message.reply(`⚠️ ${err}`);
-      }
-      
-      return message.reply("⚠️ Ocorreu um erro ao processar suas missões diárias.");
     }
-  },
+
+    // --- 2. CLAIM (Reivindicar Bônus Final) ---
+    if (subcommand === 'claim') {
+      try {
+        const result = claimDailyQuestReward(user);
+        
+        // Se a mensagem começar com "❌", é um erro ou impedimento (ex: não completou todas)
+        if (result.startsWith("❌")) {
+          return message.reply(`⚠️ ${result}`);
+        }
+        
+        // Sucesso
+        const embed = new EmbedBuilder()
+          .setTitle(`🎉 Bônus Final Reivindicado!`)
+          .setDescription(result)
+          .setColor("#2ECC71"); // Emerald
+
+        return message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
+        
+      } catch (err) {
+        console.error(`Erro em !dailyquest claim:`, err);
+        return message.reply("❌ Erro fatal ao tentar reivindicar o bônus.");
+      }
+    }
+
+    // --- Padrão / Ajuda ---
+    message.reply(`Comando inválido. Use: \`!dailyquest ${this.usage}\``);
+  }
 };
