@@ -6,7 +6,7 @@ import {
   getCardTemplate,
   giveCardToUser,
   getCardList,
-  addShardsToUser
+  addShardsToUser,
 } from "./cardSystem.js";
 
 
