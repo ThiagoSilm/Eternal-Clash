@@ -37,7 +37,6 @@ function log(type, msg) {
 process.on("unhandledRejection", err => log("error", `Unhandled Rejection: ${err}`));
 process.on("uncaughtException", err => log("error", `Uncaught Exception: ${err}`));
 
-
 // ====================================================
 // 🚀 INÍCIO DO BOT
 // ====================================================
@@ -93,9 +92,8 @@ export async function startBot(config) {
     fs.watch(commandsPath, async (_, filename) => {
       if (!filename.endsWith(".js")) return;
       try {
-        const full = path.join(commandsPath, filename);
-        delete import.cache?.[full];
-        const { default: cmd } = await import(`./commands/${filename}?v=${Date.now()}`);
+        // Import dinâmico com timestamp para invalidar cache
+        const { default: cmd } = await import(`./commands/${filename}?update=${Date.now()}`);
         if (cmd?.name) {
           client.commands.set(cmd.name, cmd);
           log("success", `HotReload → ${cmd.name}`);
@@ -104,6 +102,7 @@ export async function startBot(config) {
         log("error", `Falha ao recarregar ${filename}: ${e}`);
       }
     });
+    log("event", "HotReload ativado em devMode.");
   }
   
   // ====================================================
