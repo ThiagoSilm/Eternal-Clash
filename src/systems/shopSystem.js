@@ -130,7 +130,6 @@ export function getShopCatalog(user) {
 
     const seed = (new Date().getUTCDate() + user.id * 13) % 3;
 
-    // Três ofertas diárias rotativas
     const offers = [
       { name: "Pacote de Energia x2", price: 90, effect: { resource: "energy", amount: 60 }, type: "consumable" },
       { name: "Gemas Bônus", price: 200, effect: { give: "gem", amount: 160 }, type: "instant" },
@@ -143,13 +142,23 @@ export function getShopCatalog(user) {
 }
 
 // --------------------------------------------------------
+// ⚡ RETORNA PREÇO DINÂMICO
+// --------------------------------------------------------
+export function getDynamicPrice(user, item) {
+  if (!item || item.id !== "daily_offer") return item?.price || 0;
+
+  const daily = getShopCatalog(user).find(i => i.id === "daily_offer");
+  return daily?.price || item.price;
+}
+
+// --------------------------------------------------------
 // 💰 PROCESSAR COMPRA
 // --------------------------------------------------------
 export function processPurchase(user, itemId, quantity = 1) {
   const item = getShopCatalog(user).find(i => i.id === itemId);
   if (!item) throw new Error(`Item não encontrado.`);
 
-  const totalCost = item.price * quantity;
+  const totalCost = getDynamicPrice(user, item) * quantity;
   spendCurrency(user, item.currency, totalCost);
 
   let log = `🛒 **${item.name}** comprado x${quantity}\n`;
@@ -167,12 +176,10 @@ export function processPurchase(user, itemId, quantity = 1) {
 function deliverItem(user, item, quantity) {
   const eff = item.effect;
 
-  // Energia, Tentativas, Buffs
   if (item.type === "consumable" || item.type === "buff") {
     return deliverConsumable(user, eff, quantity);
   }
 
-  // Itens Instantâneos (Gold, Gemas, XP)
   if (item.type === "instant") {
     const total = eff.amount * quantity;
     if (eff.give === "gold") addGold(user, total);
@@ -181,13 +188,11 @@ function deliverItem(user, item, quantity) {
     return `✨ Você recebeu +${total} ${eff.give.toUpperCase()}.`;
   }
 
-  // Cupom
   if (eff.type === "coupon") {
     addItemToInventory(user, `${eff.summonType}_coupon`, quantity);
     return `🎟️ Cupom adicionado x${quantity}.`;
   }
 
-  // Bundle VIP
   if (item.type === "bundle") {
     let msg = "";
     for (const entry of eff.items) {
