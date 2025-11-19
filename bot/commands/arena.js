@@ -6,7 +6,7 @@ import {
   arenaReward
 } from "../../src/systems/arenaSystem.js";
 
-import { generateOpponentForRank } from "./userCacheSystem.js";
+import { generateOpponentForRank } from "../../src/systems/userCacheSystem.js";
 
 export default {
   name: "arena",

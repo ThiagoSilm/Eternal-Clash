@@ -1,9 +1,9 @@
 // src/commands/maze.js
-
 import {
     rollMaze,
     useGoldDice,
     resetMaze,
+    getMazeState,
     getCurrentMapId,
     getMazeMapInfo
 } from "../../src/systems/mazeSystem.js";
@@ -22,8 +22,9 @@ export default {
             return Number.isInteger(n) && n > 0 ? n : null;
         };
         
-        const currentMapId = getCurrentMapId(user) || 1;
+        const currentMapId = getCurrentMapId(user) || "map1";
         
+        // Renderiza um mini mapa em texto
         const renderMiniMap = (mapInfo, targetHouse = null) => {
             const housesPerLine = 10;
             let mapStr = "";
@@ -52,6 +53,7 @@ export default {
             return mapStr;
         };
         
+        // Renderiza mensagem de prêmio
         const renderPrizeMessage = (prize) => {
             if (!prize) return null;
             switch (prize.type) {
@@ -66,6 +68,7 @@ export default {
             }
         };
         
+        // Efeito de celebração para prêmios especiais
         const celebratePrize = async (prizeType) => {
             if (!["trophy", "rare"].includes(prizeType)) return;
             const frames = ["🎉✨🏆💎", "✨🎉🏆💎", "🏆✨🎉💎", "🎉🏆✨💎"];
@@ -76,7 +79,6 @@ export default {
         };
         
         try {
-            
             const handleRollOrGold = async (type) => {
                 const mapIdArg = toInt(args[1]) || currentMapId;
                 const targetHouse = type === "gold" ? toInt(args[2]) : null;
@@ -90,24 +92,22 @@ export default {
                     return message.reply(`❌ Essa casa não existe neste mapa. O máximo é ${mapInfo.totalHouses}.`);
                 
                 const actionResult = type === "roll" ?
-                    rollMaze(user, mapIdArg) :
+                    await rollMaze(user, mapIdArg) : // ✅ await adicionado
                     useGoldDice(user, mapIdArg, targetHouse);
                 
                 const prizeMsg = renderPrizeMessage(actionResult.prize);
                 
                 const embed = new EmbedBuilder()
                     .setTitle(`🎲 Maze - ${type === "roll" ? "Rolagem" : "Gold Dice"}`)
-                    .addFields({ name: "Mapa", value: `#${mapIdArg}`, inline: true }, { name: "Casa Atual", value: `${mapInfo.currentHouse}`, inline: true }, { name: "Progresso", value: `${mapInfo.visitedHouses.length}/${mapInfo.totalHouses}` }, { name: "Resultado", value: actionResult.message }, );
+                    .addFields({ name: "Mapa", value: `#${mapIdArg}`, inline: true }, { name: "Casa Atual", value: `${mapInfo.currentHouse}`, inline: true }, { name: "Progresso", value: `${mapInfo.visitedHouses.length}/${mapInfo.totalHouses}` }, { name: "Resultado", value: actionResult.message });
                 
-                if (prizeMsg)
-                    embed.addFields({ name: "Prêmio Recebido", value: prizeMsg });
+                if (prizeMsg) embed.addFields({ name: "Prêmio Recebido", value: prizeMsg });
                 
                 embed.addFields({ name: "Tabuleiro", value: renderMiniMap(mapInfo, targetHouse) });
                 embed.setColor(type === "roll" ? "Random" : "Gold");
                 
                 await message.reply({ embeds: [embed] });
                 
-                // 🎆 Efeito de celebração
                 if (actionResult.prize) await celebratePrize(actionResult.prize.type);
             };
             
