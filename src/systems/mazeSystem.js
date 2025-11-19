@@ -18,7 +18,7 @@ export const mazeConfig = {
 };
 
 // -------------------
-// Funções de estado
+// Inicialização segura do estado
 // -------------------
 function initMazeState(user, mapId) {
   if (!user.mazes || typeof user.mazes !== "object") user.mazes = {};
@@ -42,6 +42,7 @@ function initMazeState(user, mapId) {
   return state;
 }
 
+// Reset diário
 function resetDaily(mazeState) {
   const now = Date.now();
   const DAY = 86400000;
@@ -53,28 +54,28 @@ function resetDaily(mazeState) {
 }
 
 // -------------------
-// Casas com RNG melhorado
+// Casas com RNG avançado
 // -------------------
 function getHouseType(mazeState, map) {
-  // Ajusta chance base dependendo do progresso
-  const progressRatio = mazeState.position / map.maxHouses; // 0 a 1
-  let enemyChance = mazeConfig.enemyChance + progressRatio * 0.2; // mais inimigos no final
-  let questionChance = mazeConfig.questionChance + (1 - progressRatio) * 0.1; // mais "?" no início
+  const progressRatio = mazeState.position / map.maxHouses;
+  let enemyChance = mazeConfig.enemyChance + progressRatio * 0.2;
+  let questionChance = mazeConfig.questionChance + (1 - progressRatio) * 0.1;
 
-  enemyChance = Math.min(enemyChance, 0.5); // cap max 50%
-  questionChance = Math.min(questionChance, 0.3); // cap max 30%
+  enemyChance = Math.min(enemyChance, 0.5);
+  questionChance = Math.min(questionChance, 0.3);
   const emptyChance = 1 - enemyChance - questionChance;
 
-  // Cria array ponderado
   const weighted = [];
   for (let i = 0; i < Math.floor(emptyChance * 100); i++) weighted.push("empty");
   for (let i = 0; i < Math.floor(questionChance * 100); i++) weighted.push("question");
   for (let i = 0; i < Math.floor(enemyChance * 100); i++) weighted.push("enemy");
 
-  // Escolhe aleatoriamente
   return weighted[Math.floor(Math.random() * weighted.length)];
 }
 
+// -------------------
+// Gerar inimigo
+// -------------------
 function generateMazeEnemy(map) {
   return {
     type: "mazeEnemy",
@@ -84,6 +85,9 @@ function generateMazeEnemy(map) {
   };
 }
 
+// -------------------
+// Handle casas
+// -------------------
 async function handleHouse(user, map, houseType) {
   let msg = "";
   let prize = null;
@@ -133,11 +137,12 @@ async function handleHouse(user, map, houseType) {
 }
 
 // -------------------
-// Roll / Movimento
+// Roll maze
 // -------------------
 export async function rollMaze(user, mapId) {
   const map = mazeConfig.maps[mapId];
-  if (!map?.unlocked) throw new Error("Mapa não desbloqueado.");
+  if (!map) throw new Error("Mapa inválido.");
+  if (!map.unlocked) throw new Error("Mapa não desbloqueado.");
 
   const mazeState = initMazeState(user, mapId);
   resetDaily(mazeState);
@@ -154,7 +159,6 @@ export async function rollMaze(user, mapId) {
   const houseResult = await handleHouse(user, map, houseType);
 
   if (houseResult.rollback) mazeState.position = Math.max(mazeState.position - houseResult.rollback, 0);
-
   mazeState.usedToday++;
 
   // Boss final
@@ -185,6 +189,7 @@ export function useGoldDice(user, mapId, targetHouse) {
   const map = mazeConfig.maps[mapId];
   const mazeState = initMazeState(user, mapId);
 
+  if (!map) throw new Error("Mapa inválido.");
   if (!spendGems(user, mazeConfig.goldDiceGemCost)) throw new Error("Gemas insuficientes.");
   if (targetHouse < mazeState.position) throw new Error("Gold Dice não retrocede casas.");
 
@@ -214,23 +219,22 @@ export function getMazeState(user, mapId) { return initMazeState(user, mapId); }
 
 export function getCurrentMapId(user) {
   for (const [mapId, map] of Object.entries(mazeConfig.maps)) if (map.unlocked) return mapId;
-  return null;
+  return "map1"; // retorna mapa default se nenhum desbloqueado
 }
 
 export function getMazeMapInfo(user, mapId) {
   const map = mazeConfig.maps[mapId];
-  if (!map || !map.unlocked) return null;
+  const state = map ? getMazeState(user, mapId) : { position: 0 };
 
-  const state = getMazeState(user, mapId);
   return {
-    totalHouses: map.maxHouses,
-    currentHouse: state.position,
-    visitedHouses: Array.from({ length: state.position }, (_, i) => i + 1),
+    totalHouses: map?.maxHouses || 0,
+    currentHouse: state.position || 0,
+    visitedHouses: Array.from({ length: state.position || 0 }, (_, i) => i + 1),
   };
 }
 
 export function startMaze(user) {
-  const mapId = getCurrentMapId(user) || "map1";
+  const mapId = getCurrentMapId(user);
   const state = getMazeState(user, mapId);
   state.position = 0;
   state.usedToday = 0;
