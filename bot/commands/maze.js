@@ -25,11 +25,10 @@ export default {
             if (!mapInfo) return "❌ Mapa não disponível.";
             const housesPerLine = 10;
             let str = "";
-            for (let i = 1; i <= mapInfo.totalHouses; i++) {
-                if (i === mapInfo.currentHouse) str += "🧍";
-                else if (mapInfo.visitedHouses.includes(i)) str += "✅";
+            for (let i = 1; i <= (mapInfo.totalHouses ?? 0); i++) {
+                if (i === (mapInfo.currentHouse ?? 0)) str += "🧍";
+                else if ((mapInfo.visitedHouses ?? []).includes(i)) str += "✅";
                 else {
-                    // Determinar tipo de casa para emoji
                     const r = Math.random();
                     if (r < mazeConfig.enemyChance) str += "⚔️";
                     else if (r < mazeConfig.enemyChance + mazeConfig.questionChance) str += "❓";
@@ -69,10 +68,10 @@ export default {
 
             const handleRollOrGold = async (type) => {
                 const mapIdArg = args[1] || currentMapId;
-                const targetHouse = type === "gold" ? toInt(args[2]) : null;
+                if (!mazeConfig.maps[mapIdArg]) return message.reply("❌ Mapa inválido. Use `!maze start` para iniciar.");
 
-                if (type === "gold" && !targetHouse)
-                    return message.reply("❌ Informe a **casa alvo**: `!maze gold <mapId?> <casa>`");
+                const targetHouse = type === "gold" ? toInt(args[2]) : null;
+                if (type === "gold" && !targetHouse) return message.reply("❌ Informe a **casa alvo**: `!maze gold <mapId?> <casa>`");
 
                 const actionResult = type === "roll"
                     ? await rollMaze(user, mapIdArg)
@@ -87,8 +86,8 @@ export default {
                     .setTitle(`🎲 Maze - ${type === "roll" ? "Rolagem" : "Gold Dice"}`)
                     .addFields(
                         { name: "Mapa", value: `#${mapIdArg}`, inline: true },
-                        { name: "Casa Atual", value: `${mapInfo.currentHouse}`, inline: true },
-                        { name: "Progresso", value: `${mapInfo.visitedHouses.length}/${mapInfo.totalHouses}` },
+                        { name: "Casa Atual", value: `${mapInfo.currentHouse ?? 0}`, inline: true },
+                        { name: "Progresso", value: `${(mapInfo.visitedHouses?.length ?? 0)}/${mapInfo.totalHouses ?? 0}` },
                         { name: "Resultado", value: actionResult.message }
                     );
 
@@ -105,9 +104,9 @@ export default {
 
             if (sub === "reset") {
                 const mapIdArg = args[1] || currentMapId;
-                const mapInfo = getMazeMapInfo(user, mapIdArg);
-                if (!mapInfo) return message.reply("❌ Mapa inválido ou não iniciado. Use `!maze start`.");
+                if (!mazeConfig.maps[mapIdArg]) return message.reply("❌ Mapa inválido. Use `!maze start` para iniciar.");
 
+                const mapInfo = getMazeMapInfo(user, mapIdArg);
                 const result = resetMaze(user, mapIdArg);
                 const updatedMapInfo = getMazeMapInfo(user, mapIdArg);
 
@@ -115,8 +114,8 @@ export default {
                     .setTitle(`🔄 Maze - Reset`)
                     .addFields(
                         { name: "Mapa", value: `#${mapIdArg}`, inline: true },
-                        { name: "Casa Antes do Reset", value: `${mapInfo.currentHouse}` },
-                        { name: "Progresso", value: `${updatedMapInfo.visitedHouses.length}/${updatedMapInfo.totalHouses}` },
+                        { name: "Casa Antes do Reset", value: `${mapInfo.currentHouse ?? 0}` },
+                        { name: "Progresso", value: `${(updatedMapInfo.visitedHouses?.length ?? 0)}/${updatedMapInfo.totalHouses ?? 0}` },
                         { name: "Resultado", value: result },
                         { name: "Tabuleiro", value: renderMiniMap(updatedMapInfo) }
                     )
