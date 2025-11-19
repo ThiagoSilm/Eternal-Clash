@@ -35,12 +35,12 @@
       "name": "Stone Grasp",
       "cost": 35,
       "cooldown": 4,
-      "effectId": "effG003" // Debuff: Reduz ATK de 2 alvos por 2 turnos
+      "effectId": "effG003"
     },
     "ultimate": {
       "name": "Terra Null",
       "cost": 100,
-      "effectId": "effG004", // Cura 30% do próprio HP e concede Armadura Maciça a todos os aliados
+      "effectId": "effG004",
       "chargePerTurn": 10
     },
     "effects": []
@@ -58,7 +58,7 @@
       "name": "Death Bolt",
       "cost": 40,
       "cooldown": 3,
-      "effectId": "effG005" // Dano massivo a um alvo + aplica Veneno
+      "effectId": "effG005"
     },
     "ultimate": {
       "name": "Void Gate",
@@ -81,7 +81,7 @@
       "name": "Radiant Stun",
       "cost": 30,
       "cooldown": 5,
-      "effectId": "effG007" // Efeito de Controle: Stun em 1 alvo por 1 turno
+      "effectId": "effG007"
     },
     "ultimate": {
       "name": "Divine Intervention",
@@ -104,12 +104,12 @@
       "name": "Shield Bash",
       "cost": 25,
       "cooldown": 3,
-      "effectId": "effG009" // Aplica Taunt (Provocar) em si mesmo e ganha Escudo
+      "effectId": "effG009"
     },
     "ultimate": {
       "name": "Indomitable Will",
       "cost": 100,
-      "effectId": "effG010", // Dano AoE escalando com o próprio HP
+      "effectId": "effG010",
       "chargePerTurn": 10
     },
     "effects": []
@@ -127,7 +127,7 @@
       "name": "Purifying Flame",
       "cost": 30,
       "cooldown": 4,
-      "effectId": "effG011" // Cura 2 alvos e remove 1 debuff de cada
+      "effectId": "effG011"
     },
     "ultimate": {
       "name": "Wildfire Summon",
@@ -150,12 +150,12 @@
       "name": "Infect",
       "cost": 35,
       "cooldown": 3,
-      "effectId": "effG012" // Aplica Veneno/DOT massivo em um alvo
+      "effectId": "effG012"
     },
     "ultimate": {
       "name": "Wasting Plague",
       "cost": 100,
-      "effectId": "effG013", // Aplica Weakness (Redução de Dano) e DOT em área
+      "effectId": "effG013",
       "chargePerTurn": 10
     },
     "effects": []
@@ -173,12 +173,12 @@
       "name": "Call to Arms",
       "cost": 25,
       "cooldown": 4,
-      "effectId": "effG014" // Buff de ATK em 3 alvos
+      "effectId": "effG014" 
     },
     "ultimate": {
       "name": "Rallying Cry",
       "cost": 100,
-      "effectId": "effG015", // Cura pequena em toda a equipe e Buff de ATK global
+      "effectId": "effG015", 
       "chargePerTurn": 10
     },
     "effects": []
@@ -196,12 +196,12 @@
       "name": "Healing Spores",
       "cost": 20,
       "cooldown": 3,
-      "effectId": "effG016" // Cura simples em um único alvo
+      "effectId": "effG016" 
     },
     "ultimate": {
       "name": "Toxic Bloom",
       "cost": 100,
-      "effectId": "effG017", // Aplica DOT fraco em 2 alvos
+      "effectId": "effG017", 
       "chargePerTurn": 10
     },
     "effects": []
@@ -219,12 +219,12 @@
       "name": "Siphon Strike",
       "cost": 25,
       "cooldown": 3,
-      "effectId": "effG018" // Dano baixo com roubo de vida (Lifesteal)
+      "effectId": "effG018" 
     },
     "ultimate": {
       "name": "Death Grip",
       "cost": 100,
-      "effectId": "effG019", // Dano de explosão em um alvo único
+      "effectId": "effG019", 
       "chargePerTurn": 10
     },
     "effects": []
@@ -242,12 +242,12 @@
       "name": "Crushing Blow",
       "cost": 30,
       "cooldown": 4,
-      "effectId": "effG020" // Stun (Atordoamento) em 1 alvo e dano moderado
+      "effectId": "effG020" 
     },
     "ultimate": {
       "name": "Seismic Slam",
       "cost": 100,
-      "effectId": "effG021", // Dano e chance de Stun AoE ou Slow
+      "effectId": "effG021", 
       "chargePerTurn": 10
     },
     "effects": []
@@ -260,17 +260,17 @@
     "maxHp": 16500,
     "startEnergy": 0,
     "energyMax": 100,
-    "passive": ["executionerG4"], // Bônus de Dano contra alvos com HP baixo
+    "passive": ["executionerG4"], 
     "active": {
       "name": "Holy Verdict",
       "cost": 35,
       "cooldown": 3,
-      "effectId": "effG022" // Dano alto em um único alvo
+      "effectId": "effG022" 
     },
     "ultimate": {
       "name": "Purge the Wicked",
       "cost": 100,
-      "effectId": "effG023", // Dano de Execução (maior dano se o alvo estiver com HP < 30%)
+      "effectId": "effG023",
       "chargePerTurn": 10
     },
     "effects": []
