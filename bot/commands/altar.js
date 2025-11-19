@@ -3,7 +3,6 @@
 import {
   summonCard,
   summonMultiple,
-  summonBooster,
   getSummonLuck,
   increaseSummonLuck,
   resetSummonLuck,
@@ -12,15 +11,17 @@ import {
 
 export default {
   name: "altar",
-  description: "Invoca cartas, abre boosters e usa rituais especiais.",
-  usage: "!altar <gold|gem|coupon|booster|sagrado|corrupto> [quantidade|booster_id]",
+  description: "Invoca cartas e usa rituais especiais.",
+  usage: "!altar <gold|gem|coupon|sagrado|corrupto> [quantidade]",
   
   async execute(message, args, user) {
     const type = (args[0] || "").toLowerCase();
-    const validTypes = ["gold", "gem", "coupon", "booster", "sagrado", "corrupto"];
+    const validTypes = ["gold", "gem", "coupon", "sagrado", "corrupto"];
     
     if (!validTypes.includes(type)) {
-      return message.reply("❌ Tipo inválido.\nTipos: `gold`, `gem`, `coupon`, `booster`, `sagrado`, `corrupto`.");
+      return message.reply(
+        "❌ Tipo inválido.\nTipos: `gold`, `gem`, `coupon`, `sagrado`, `corrupto`."
+      );
     }
     
     try {
@@ -51,19 +52,7 @@ export default {
       }
       
       // ======================================================
-      // 🎁 3. MODO BOOSTER
-      // ======================================================
-      if (type === "booster") {
-        const boosterId = args[1];
-        if (!boosterId) {
-          return message.reply("❌ Informe o ID do booster.\nEx: `!altar booster premium_pack`");
-        }
-        const result = summonBooster(user, boosterId);
-        return message.reply(`🎁 **Booster aberto:** \`${boosterId}\`\n\n${result}`);
-      }
-      
-      // ======================================================
-      // 🔮 4. INVOCAR CARTAS NORMAIS
+      // 🔮 3. INVOCAR CARTAS NORMAIS (gold, gem, coupon)
       // ======================================================
       const MAX_SUMMON = 10;
       let count = parseInt(args[1]) || 1;

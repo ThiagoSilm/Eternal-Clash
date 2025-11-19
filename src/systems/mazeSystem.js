@@ -1,5 +1,5 @@
 // src/systems/mazeSystem.js
-import { spendEnergy, addGold, addXP, ENERGY_TYPES } from "./economySystem.js";
+import { spendEnergy, addGold, addXP, ENERGY_TYPES, spendGems } from "./economySystem.js";
 import { summonMultiple } from "./summonSystem.js";
 import { runBattle } from "./battleSystem.js";
 import { markUserDirty } from "./userCacheSystem.js";
@@ -17,6 +17,9 @@ export const mazeConfig = {
   enemyChance: 0.1,
 };
 
+// ---------------------------
+// Estado do Maze
+// ---------------------------
 function initMazeState(user, mapId) {
   user.mazes ||= {};
   return user.mazes[mapId] ?? (user.mazes[mapId] = {
@@ -37,29 +40,39 @@ function resetDaily(mazeState) {
   }
 }
 
-function getHouseType() {
+// ---------------------------
+// Casas do Maze
+// ---------------------------
+function getHouseType(map, position) {
+  const scale = position / map.maxHouses;
+  const enemyChance = Math.min(mazeConfig.enemyChance + scale * 0.25, 0.5);
+  const questionChance = Math.min(mazeConfig.questionChance + scale * 0.25, 0.5);
   const r = Math.random();
-  if (r < mazeConfig.enemyChance) return "enemy";
-  if (r < mazeConfig.enemyChance + mazeConfig.questionChance) return "question";
+  if (r < enemyChance) return "enemy";
+  if (r < enemyChance + questionChance) return "question";
   return "empty";
 }
 
-function generateMazeEnemy(map) {
+function generateMazeEnemy(map, position) {
+  const baseForce = map.baseForce + Math.floor(Math.random() * 10);
+  const scaledForce = baseForce + Math.floor(position * 0.5);
+  const guardians = ["dragão", "golem", "lobo", "necromante"];
+  const decks = ["deckFogo", "deckÁgua", "deckTerra", "deckSombra"];
   return {
     type: "mazeEnemy",
-    force: map.baseForce + Math.floor(Math.random() * 10),
-    deck: "deckSimulado",
-    guardian: "guardiãoSimulado",
+    force: scaledForce,
+    deck: decks[Math.floor(Math.random() * decks.length)],
+    guardian: guardians[Math.floor(Math.random() * guardians.length)],
   };
 }
 
-async function handleHouse(user, map, houseType) {
+async function handleHouse(user, map, houseType, position) {
   let msg = "";
   let prize = null;
   
   if (houseType === "empty") {
-    const gold = Math.floor(200 * map.rewardScale);
-    const xp = Math.floor(50 * map.rewardScale);
+    const gold = Math.floor((200 + Math.random() * 300) * map.rewardScale);
+    const xp = Math.floor((50 + Math.random() * 50) * map.rewardScale);
     addGold(user, gold);
     addXP(user, xp);
     msg = `💰 Casa comum: você ganhou **${gold} ouro + ${xp} XP**.`;
@@ -67,16 +80,16 @@ async function handleHouse(user, map, houseType) {
   } else if (houseType === "question") {
     const r = Math.random();
     if (r < 0.5) {
-      const gold = Math.floor(400 * map.rewardScale + Math.random() * 600);
+      const gold = Math.floor((400 + Math.random() * 600) * map.rewardScale);
       addGold(user, gold);
       msg = `🎁 Casa “?”! Você encontrou **${gold} ouro**!`;
       prize = { type: "coin", amount: gold };
     } else if (r < 0.8) {
-      const cards = summonMultiple(user, "mazeCard", 2 + Math.floor(Math.random() * 2));
+      const cards = summonMultiple(user, "mazeCard", 2 + Math.floor(Math.random() * 3));
       msg = `🎴 Casa “?”! Você ganhou cartas:\n${cards}`;
       prize = { type: "cards" };
     } else {
-      const enemy = generateMazeEnemy(map);
+      const enemy = generateMazeEnemy(map, position);
       const battle = await runBattle(user, enemy);
       if (battle.win) {
         msg = `⚔️ Casa “?”! Você venceu o inimigo com guardião ${enemy.guardian}!`;
@@ -87,7 +100,7 @@ async function handleHouse(user, map, houseType) {
       }
     }
   } else if (houseType === "enemy") {
-    const enemy = generateMazeEnemy(map);
+    const enemy = generateMazeEnemy(map, position);
     const battle = await runBattle(user, enemy);
     if (battle.win) {
       msg = `⚔️ Você venceu o inimigo com guardião ${enemy.guardian}!`;
@@ -101,6 +114,9 @@ async function handleHouse(user, map, houseType) {
   return { message: msg, prize, rollback: 0 };
 }
 
+// ---------------------------
+// Funções principais
+// ---------------------------
 export async function rollMaze(user, mapId) {
   const map = mazeConfig.maps[mapId];
   if (!map?.unlocked) throw new Error("Mapa não desbloqueado.");
@@ -110,27 +126,28 @@ export async function rollMaze(user, mapId) {
   
   if (mazeState.usedToday >= 2) throw new Error("Você já usou as 2 tentativas diárias.");
   
-  // 🔹 Corrigido: passa tipo de energia
   if (!spendEnergy(user, ENERGY_TYPES.ADVENTURE, mazeConfig.energyCost))
     throw new Error("Energia insuficiente.");
   
   const roll = Math.floor(Math.random() * 6) + 1;
   mazeState.position = Math.min(mazeState.position + roll, map.maxHouses);
   
-  const houseType = getHouseType();
-  const houseResult = await handleHouse(user, map, houseType);
+  const houseType = getHouseType(map, mazeState.position);
+  const houseResult = await handleHouse(user, map, houseType, mazeState.position);
+  
   if (houseResult.rollback) mazeState.position = Math.max(mazeState.position - houseResult.rollback, 0);
   
   mazeState.usedToday++;
   
-  // Boss final
   if (mazeState.position === map.maxHouses) {
-    const battle = await runBattle(user, generateMazeEnemy(map));
-    if (!battle.win) mazeState.position -= 3;
+    const boss = generateMazeEnemy(map, mazeState.position + 5);
+    const battle = await runBattle(user, boss);
+    if (!battle.win) mazeState.position = Math.max(mazeState.position - 3, 0);
     else {
-      addGold(user, Math.floor(5000 * map.rewardScale));
-      addXP(user, Math.floor(600 * map.rewardScale));
-      summonMultiple(user, "mazeBoss", 3);
+      addGold(user, Math.floor((5000 + Math.random() * 2000) * map.rewardScale));
+      addXP(user, Math.floor((600 + Math.random() * 400) * map.rewardScale));
+      summonMultiple(user, "mazeBoss", 3 + Math.floor(Math.random() * 2));
+      houseResult.message += "\n🏆 Você derrotou o Boss final!";
     }
   }
   
@@ -163,7 +180,11 @@ export function resetMaze(user, mapId) {
 }
 
 export function getMazeState(user, mapId) { return initMazeState(user, mapId); }
-export function getCurrentMapId(user) { return Object.entries(mazeConfig.maps).find(([k, v]) => v.unlocked) ? "map1" : null; }
+
+export function getCurrentMapId(user) {
+  return Object.entries(mazeConfig.maps).find(([_, v]) => v.unlocked) ? "map1" : null;
+}
+
 export function getMazeMapInfo(user, mapId) {
   const map = mazeConfig.maps[mapId];
   if (!map || !map.unlocked) return null;

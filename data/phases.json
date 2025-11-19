@@ -1,1 +1,4490 @@
-{}
+{
+  "1-1": {
+    "enemies": [
+      {
+        "name": "Goblin",
+        "level": 1,
+        "deck": [
+          "c100",
+          "c101"
+        ],
+        "guardian": {
+          "id": "g101",
+          "name": "Goblin Guardian",
+          "level": 1,
+          "hp": 324,
+          "attack": 39
+        }
+      }
+    ],
+    "reward": {
+      "gold": 65,
+      "gems": 1,
+      "cardReward": "c102"
+    }
+  },
+  "1-2": {
+    "enemies": [
+      {
+        "name": "Goblin Archer",
+        "level": 2,
+        "deck": [
+          "c103",
+          "c104"
+        ],
+        "guardian": {
+          "id": "g102",
+          "name": "Goblin Archer Guardian",
+          "level": 2,
+          "hp": 348,
+          "attack": 43
+        }
+      }
+    ],
+    "reward": {
+      "gold": 70,
+      "gems": 1,
+      "cardReward": "c105"
+    }
+  },
+  "1-3": {
+    "enemies": [
+      {
+        "name": "Orc",
+        "level": 2,
+        "deck": [
+          "c106",
+          "c107"
+        ],
+        "guardian": {
+          "id": "g103",
+          "name": "Orc Guardian",
+          "level": 2,
+          "hp": 372,
+          "attack": 46
+        }
+      }
+    ],
+    "reward": {
+      "gold": 75,
+      "gems": 1,
+      "cardReward": "c108"
+    }
+  },
+  "1-4": {
+    "enemies": [
+      {
+        "name": "Orc Warrior",
+        "level": 3,
+        "deck": [
+          "c109",
+          "c110"
+        ],
+        "guardian": {
+          "id": "g104",
+          "name": "Orc Warrior Guardian",
+          "level": 3,
+          "hp": 396,
+          "attack": 50
+        }
+      }
+    ],
+    "reward": {
+      "gold": 80,
+      "gems": 2,
+      "cardReward": "c111"
+    }
+  },
+  "1-5": {
+    "enemies": [
+      {
+        "name": "Troll",
+        "level": 3,
+        "deck": [
+          "c112",
+          "c113"
+        ],
+        "guardian": {
+          "id": "g105",
+          "name": "Troll Guardian",
+          "level": 3,
+          "hp": 420,
+          "attack": 54
+        }
+      }
+    ],
+    "reward": {
+      "gold": 85,
+      "gems": 2,
+      "cardReward": "c114"
+    }
+  },
+  "1-6": {
+    "enemies": [
+      {
+        "name": "Troll Chief",
+        "level": 4,
+        "deck": [
+          "c115",
+          "c116"
+        ],
+        "guardian": {
+          "id": "g106",
+          "name": "Troll Chief Guardian",
+          "level": 4,
+          "hp": 444,
+          "attack": 57
+        }
+      }
+    ],
+    "reward": {
+      "gold": 90,
+      "gems": 2,
+      "cardReward": "c117"
+    }
+  },
+  "1-7": {
+    "enemies": [
+      {
+        "name": "Troll Chief",
+        "level": 4,
+        "deck": [
+          "c118",
+          "c119"
+        ],
+        "guardian": {
+          "id": "g107",
+          "name": "Troll Chief Guardian",
+          "level": 4,
+          "hp": 468,
+          "attack": 61
+        }
+      }
+    ],
+    "reward": {
+      "gold": 95,
+      "gems": 2,
+      "cardReward": "c120"
+    }
+  },
+  "1-8": {
+    "enemies": [
+      {
+        "name": "Troll Chief",
+        "level": 5,
+        "deck": [
+          "c121",
+          "c122"
+        ],
+        "guardian": {
+          "id": "g108",
+          "name": "Troll Chief Guardian",
+          "level": 5,
+          "hp": 492,
+          "attack": 64
+        }
+      }
+    ],
+    "reward": {
+      "gold": 100,
+      "gems": 2,
+      "cardReward": "c123"
+    }
+  },
+  "1-9": {
+    "enemies": [
+      {
+        "name": "Troll Chief",
+        "level": 5,
+        "deck": [
+          "c124",
+          "c125"
+        ],
+        "guardian": {
+          "id": "g109",
+          "name": "Troll Chief Guardian",
+          "level": 5,
+          "hp": 516,
+          "attack": 68
+        }
+      }
+    ],
+    "reward": {
+      "gold": 105,
+      "gems": 3,
+      "cardReward": "c126"
+    }
+  },
+  "1-10": {
+    "enemies": [
+      {
+        "name": "Troll Chief",
+        "level": 6,
+        "deck": [
+          "c127",
+          "c128"
+        ],
+        "guardian": {
+          "id": "g110",
+          "name": "Troll Chief Guardian",
+          "level": 6,
+          "hp": 540,
+          "attack": 72
+        }
+      }
+    ],
+    "reward": {
+      "gold": 110,
+      "gems": 3,
+      "cardReward": "c129"
+    }
+  },
+  "1-11": {
+    "enemies": [
+      {
+        "name": "Troll Chief",
+        "level": 6,
+        "deck": [
+          "c130",
+          "c131"
+        ],
+        "guardian": {
+          "id": "g111",
+          "name": "Troll Chief Guardian",
+          "level": 6,
+          "hp": 564,
+          "attack": 75
+        }
+      }
+    ],
+    "reward": {
+      "gold": 115,
+      "gems": 3,
+      "cardReward": "c132"
+    }
+  },
+  "2-1": {
+    "enemies": [
+      {
+        "name": "Skeleton",
+        "level": 2,
+        "deck": [
+          "c133",
+          "c134"
+        ],
+        "guardian": {
+          "id": "g201",
+          "name": "Skeleton Guardian",
+          "level": 2,
+          "hp": 384,
+          "attack": 45
+        }
+      }
+    ],
+    "reward": {
+      "gold": 75,
+      "gems": 1,
+      "cardReward": "c135"
+    }
+  },
+  "2-2": {
+    "enemies": [
+      {
+        "name": "Skeleton Archer",
+        "level": 3,
+        "deck": [
+          "c136",
+          "c137"
+        ],
+        "guardian": {
+          "id": "g202",
+          "name": "Skeleton Archer Guardian",
+          "level": 3,
+          "hp": 408,
+          "attack": 49
+        }
+      }
+    ],
+    "reward": {
+      "gold": 80,
+      "gems": 1,
+      "cardReward": "c138"
+    }
+  },
+  "2-3": {
+    "enemies": [
+      {
+        "name": "Necromancer",
+        "level": 3,
+        "deck": [
+          "c139",
+          "c140"
+        ],
+        "guardian": {
+          "id": "g203",
+          "name": "Necromancer Guardian",
+          "level": 3,
+          "hp": 432,
+          "attack": 52
+        }
+      }
+    ],
+    "reward": {
+      "gold": 85,
+      "gems": 2,
+      "cardReward": "c141"
+    }
+  },
+  "2-4": {
+    "enemies": [
+      {
+        "name": "Zombie",
+        "level": 4,
+        "deck": [
+          "c142",
+          "c143"
+        ],
+        "guardian": {
+          "id": "g204",
+          "name": "Zombie Guardian",
+          "level": 4,
+          "hp": 456,
+          "attack": 56
+        }
+      }
+    ],
+    "reward": {
+      "gold": 90,
+      "gems": 2,
+      "cardReward": "c144"
+    }
+  },
+  "2-5": {
+    "enemies": [
+      {
+        "name": "Dark Knight",
+        "level": 4,
+        "deck": [
+          "c145",
+          "c146"
+        ],
+        "guardian": {
+          "id": "g205",
+          "name": "Dark Knight Guardian",
+          "level": 4,
+          "hp": 480,
+          "attack": 60
+        }
+      }
+    ],
+    "reward": {
+      "gold": 95,
+      "gems": 2,
+      "cardReward": "c147"
+    }
+  },
+  "2-6": {
+    "enemies": [
+      {
+        "name": "Lich",
+        "level": 5,
+        "deck": [
+          "c148",
+          "c149"
+        ],
+        "guardian": {
+          "id": "g206",
+          "name": "Lich Guardian",
+          "level": 5,
+          "hp": 504,
+          "attack": 63
+        }
+      }
+    ],
+    "reward": {
+      "gold": 100,
+      "gems": 2,
+      "cardReward": "c150"
+    }
+  },
+  "2-7": {
+    "enemies": [
+      {
+        "name": "Lich",
+        "level": 5,
+        "deck": [
+          "c151",
+          "c152"
+        ],
+        "guardian": {
+          "id": "g207",
+          "name": "Lich Guardian",
+          "level": 5,
+          "hp": 528,
+          "attack": 67
+        }
+      }
+    ],
+    "reward": {
+      "gold": 105,
+      "gems": 2,
+      "cardReward": "c153"
+    }
+  },
+  "2-8": {
+    "enemies": [
+      {
+        "name": "Lich",
+        "level": 6,
+        "deck": [
+          "c154",
+          "c155"
+        ],
+        "guardian": {
+          "id": "g208",
+          "name": "Lich Guardian",
+          "level": 6,
+          "hp": 552,
+          "attack": 70
+        }
+      }
+    ],
+    "reward": {
+      "gold": 110,
+      "gems": 3,
+      "cardReward": "c156"
+    }
+  },
+  "2-9": {
+    "enemies": [
+      {
+        "name": "Lich",
+        "level": 6,
+        "deck": [
+          "c157",
+          "c158"
+        ],
+        "guardian": {
+          "id": "g209",
+          "name": "Lich Guardian",
+          "level": 6,
+          "hp": 576,
+          "attack": 74
+        }
+      }
+    ],
+    "reward": {
+      "gold": 115,
+      "gems": 3,
+      "cardReward": "c159"
+    }
+  },
+  "2-10": {
+    "enemies": [
+      {
+        "name": "Lich",
+        "level": 7,
+        "deck": [
+          "c160",
+          "c161"
+        ],
+        "guardian": {
+          "id": "g210",
+          "name": "Lich Guardian",
+          "level": 7,
+          "hp": 600,
+          "attack": 78
+        }
+      }
+    ],
+    "reward": {
+      "gold": 120,
+      "gems": 3,
+      "cardReward": "c162"
+    }
+  },
+  "2-11": {
+    "enemies": [
+      {
+        "name": "Lich",
+        "level": 7,
+        "deck": [
+          "c163",
+          "c164"
+        ],
+        "guardian": {
+          "id": "g211",
+          "name": "Lich Guardian",
+          "level": 7,
+          "hp": 624,
+          "attack": 81
+        }
+      }
+    ],
+    "reward": {
+      "gold": 125,
+      "gems": 3,
+      "cardReward": "c165"
+    }
+  },
+  "3-1": {
+    "enemies": [
+      {
+        "name": "Dragon Whelp",
+        "level": 3,
+        "deck": [
+          "c166",
+          "c167"
+        ],
+        "guardian": {
+          "id": "g301",
+          "name": "Dragon Whelp Guardian",
+          "level": 3,
+          "hp": 444,
+          "attack": 51
+        }
+      }
+    ],
+    "reward": {
+      "gold": 85,
+      "gems": 1,
+      "cardReward": "c168"
+    }
+  },
+  "3-2": {
+    "enemies": [
+      {
+        "name": "Dragon",
+        "level": 4,
+        "deck": [
+          "c169",
+          "c170"
+        ],
+        "guardian": {
+          "id": "g302",
+          "name": "Dragon Guardian",
+          "level": 4,
+          "hp": 468,
+          "attack": 55
+        }
+      }
+    ],
+    "reward": {
+      "gold": 90,
+      "gems": 2,
+      "cardReward": "c171"
+    }
+  },
+  "3-3": {
+    "enemies": [
+      {
+        "name": "Fire Elemental",
+        "level": 4,
+        "deck": [
+          "c172",
+          "c173"
+        ],
+        "guardian": {
+          "id": "g303",
+          "name": "Fire Elemental Guardian",
+          "level": 4,
+          "hp": 492,
+          "attack": 58
+        }
+      }
+    ],
+    "reward": {
+      "gold": 95,
+      "gems": 2,
+      "cardReward": "c174"
+    }
+  },
+  "3-4": {
+    "enemies": [
+      {
+        "name": "Ice Elemental",
+        "level": 5,
+        "deck": [
+          "c175",
+          "c176"
+        ],
+        "guardian": {
+          "id": "g304",
+          "name": "Ice Elemental Guardian",
+          "level": 5,
+          "hp": 516,
+          "attack": 62
+        }
+      }
+    ],
+    "reward": {
+      "gold": 100,
+      "gems": 2,
+      "cardReward": "c177"
+    }
+  },
+  "3-5": {
+    "enemies": [
+      {
+        "name": "Dragon Lord",
+        "level": 5,
+        "deck": [
+          "c178",
+          "c179"
+        ],
+        "guardian": {
+          "id": "g305",
+          "name": "Dragon Lord Guardian",
+          "level": 5,
+          "hp": 540,
+          "attack": 66
+        }
+      }
+    ],
+    "reward": {
+      "gold": 105,
+      "gems": 2,
+      "cardReward": "c180"
+    }
+  },
+  "3-6": {
+    "enemies": [
+      {
+        "name": "Ancient Dragon",
+        "level": 6,
+        "deck": [
+          "c181",
+          "c182"
+        ],
+        "guardian": {
+          "id": "g306",
+          "name": "Ancient Dragon Guardian",
+          "level": 6,
+          "hp": 564,
+          "attack": 69
+        }
+      }
+    ],
+    "reward": {
+      "gold": 110,
+      "gems": 2,
+      "cardReward": "c183"
+    }
+  },
+  "3-7": {
+    "enemies": [
+      {
+        "name": "Ancient Dragon",
+        "level": 6,
+        "deck": [
+          "c184",
+          "c185"
+        ],
+        "guardian": {
+          "id": "g307",
+          "name": "Ancient Dragon Guardian",
+          "level": 6,
+          "hp": 588,
+          "attack": 73
+        }
+      }
+    ],
+    "reward": {
+      "gold": 115,
+      "gems": 3,
+      "cardReward": "c186"
+    }
+  },
+  "3-8": {
+    "enemies": [
+      {
+        "name": "Ancient Dragon",
+        "level": 7,
+        "deck": [
+          "c187",
+          "c188"
+        ],
+        "guardian": {
+          "id": "g308",
+          "name": "Ancient Dragon Guardian",
+          "level": 7,
+          "hp": 612,
+          "attack": 76
+        }
+      }
+    ],
+    "reward": {
+      "gold": 120,
+      "gems": 3,
+      "cardReward": "c189"
+    }
+  },
+  "3-9": {
+    "enemies": [
+      {
+        "name": "Ancient Dragon",
+        "level": 7,
+        "deck": [
+          "c190",
+          "c191"
+        ],
+        "guardian": {
+          "id": "g309",
+          "name": "Ancient Dragon Guardian",
+          "level": 7,
+          "hp": 636,
+          "attack": 80
+        }
+      }
+    ],
+    "reward": {
+      "gold": 125,
+      "gems": 3,
+      "cardReward": "c192"
+    }
+  },
+  "3-10": {
+    "enemies": [
+      {
+        "name": "Ancient Dragon",
+        "level": 8,
+        "deck": [
+          "c193",
+          "c194"
+        ],
+        "guardian": {
+          "id": "g310",
+          "name": "Ancient Dragon Guardian",
+          "level": 8,
+          "hp": 660,
+          "attack": 84
+        }
+      }
+    ],
+    "reward": {
+      "gold": 130,
+      "gems": 3,
+      "cardReward": "c195"
+    }
+  },
+  "3-11": {
+    "enemies": [
+      {
+        "name": "Ancient Dragon",
+        "level": 8,
+        "deck": [
+          "c196",
+          "c197"
+        ],
+        "guardian": {
+          "id": "g311",
+          "name": "Ancient Dragon Guardian",
+          "level": 8,
+          "hp": 684,
+          "attack": 87
+        }
+      }
+    ],
+    "reward": {
+      "gold": 135,
+      "gems": 3,
+      "cardReward": "c198"
+    }
+  },
+  "4-1": {
+    "enemies": [
+      {
+        "name": "Imp",
+        "level": 4,
+        "deck": [
+          "c199",
+          "c200"
+        ],
+        "guardian": {
+          "id": "g401",
+          "name": "Imp Guardian",
+          "level": 4,
+          "hp": 504,
+          "attack": 57
+        }
+      }
+    ],
+    "reward": {
+      "gold": 95,
+      "gems": 2,
+      "cardReward": "c201"
+    }
+  },
+  "4-2": {
+    "enemies": [
+      {
+        "name": "Demon",
+        "level": 5,
+        "deck": [
+          "c202",
+          "c203"
+        ],
+        "guardian": {
+          "id": "g402",
+          "name": "Demon Guardian",
+          "level": 5,
+          "hp": 528,
+          "attack": 61
+        }
+      }
+    ],
+    "reward": {
+      "gold": 100,
+      "gems": 2,
+      "cardReward": "c204"
+    }
+  },
+  "4-3": {
+    "enemies": [
+      {
+        "name": "Hellhound",
+        "level": 5,
+        "deck": [
+          "c205",
+          "c206"
+        ],
+        "guardian": {
+          "id": "g403",
+          "name": "Hellhound Guardian",
+          "level": 5,
+          "hp": 552,
+          "attack": 64
+        }
+      }
+    ],
+    "reward": {
+      "gold": 105,
+      "gems": 2,
+      "cardReward": "c207"
+    }
+  },
+  "4-4": {
+    "enemies": [
+      {
+        "name": "Succubus",
+        "level": 6,
+        "deck": [
+          "c208",
+          "c209"
+        ],
+        "guardian": {
+          "id": "g404",
+          "name": "Succubus Guardian",
+          "level": 6,
+          "hp": 576,
+          "attack": 68
+        }
+      }
+    ],
+    "reward": {
+      "gold": 110,
+      "gems": 2,
+      "cardReward": "c210"
+    }
+  },
+  "4-5": {
+    "enemies": [
+      {
+        "name": "Demon Lord",
+        "level": 6,
+        "deck": [
+          "c211",
+          "c212"
+        ],
+        "guardian": {
+          "id": "g405",
+          "name": "Demon Lord Guardian",
+          "level": 6,
+          "hp": 600,
+          "attack": 72
+        }
+      }
+    ],
+    "reward": {
+      "gold": 115,
+      "gems": 2,
+      "cardReward": "c213"
+    }
+  },
+  "4-6": {
+    "enemies": [
+      {
+        "name": "Archdemon",
+        "level": 7,
+        "deck": [
+          "c214",
+          "c215"
+        ],
+        "guardian": {
+          "id": "g406",
+          "name": "Archdemon Guardian",
+          "level": 7,
+          "hp": 624,
+          "attack": 75
+        }
+      }
+    ],
+    "reward": {
+      "gold": 120,
+      "gems": 3,
+      "cardReward": "c216"
+    }
+  },
+  "4-7": {
+    "enemies": [
+      {
+        "name": "Archdemon",
+        "level": 7,
+        "deck": [
+          "c217",
+          "c218"
+        ],
+        "guardian": {
+          "id": "g407",
+          "name": "Archdemon Guardian",
+          "level": 7,
+          "hp": 648,
+          "attack": 79
+        }
+      }
+    ],
+    "reward": {
+      "gold": 125,
+      "gems": 3,
+      "cardReward": "c219"
+    }
+  },
+  "4-8": {
+    "enemies": [
+      {
+        "name": "Archdemon",
+        "level": 8,
+        "deck": [
+          "c220",
+          "c221"
+        ],
+        "guardian": {
+          "id": "g408",
+          "name": "Archdemon Guardian",
+          "level": 8,
+          "hp": 672,
+          "attack": 82
+        }
+      }
+    ],
+    "reward": {
+      "gold": 130,
+      "gems": 3,
+      "cardReward": "c222"
+    }
+  },
+  "4-9": {
+    "enemies": [
+      {
+        "name": "Archdemon",
+        "level": 8,
+        "deck": [
+          "c223",
+          "c224"
+        ],
+        "guardian": {
+          "id": "g409",
+          "name": "Archdemon Guardian",
+          "level": 8,
+          "hp": 696,
+          "attack": 86
+        }
+      }
+    ],
+    "reward": {
+      "gold": 135,
+      "gems": 3,
+      "cardReward": "c225"
+    }
+  },
+  "4-10": {
+    "enemies": [
+      {
+        "name": "Archdemon",
+        "level": 9,
+        "deck": [
+          "c226",
+          "c227"
+        ],
+        "guardian": {
+          "id": "g410",
+          "name": "Archdemon Guardian",
+          "level": 9,
+          "hp": 720,
+          "attack": 90
+        }
+      }
+    ],
+    "reward": {
+      "gold": 140,
+      "gems": 3,
+      "cardReward": "c228"
+    }
+  },
+  "4-11": {
+    "enemies": [
+      {
+        "name": "Archdemon",
+        "level": 9,
+        "deck": [
+          "c229",
+          "c230"
+        ],
+        "guardian": {
+          "id": "g411",
+          "name": "Archdemon Guardian",
+          "level": 9,
+          "hp": 744,
+          "attack": 93
+        }
+      }
+    ],
+    "reward": {
+      "gold": 145,
+      "gems": 4,
+      "cardReward": "c231"
+    }
+  },
+  "5-1": {
+    "enemies": [
+      {
+        "name": "Bandit",
+        "level": 5,
+        "deck": [
+          "c232",
+          "c233"
+        ],
+        "guardian": {
+          "id": "g501",
+          "name": "Bandit Guardian",
+          "level": 5,
+          "hp": 564,
+          "attack": 63
+        }
+      }
+    ],
+    "reward": {
+      "gold": 105,
+      "gems": 2,
+      "cardReward": "c234"
+    }
+  },
+  "5-2": {
+    "enemies": [
+      {
+        "name": "Assassin",
+        "level": 6,
+        "deck": [
+          "c235",
+          "c236"
+        ],
+        "guardian": {
+          "id": "g502",
+          "name": "Assassin Guardian",
+          "level": 6,
+          "hp": 588,
+          "attack": 67
+        }
+      }
+    ],
+    "reward": {
+      "gold": 110,
+      "gems": 2,
+      "cardReward": "c237"
+    }
+  },
+  "5-3": {
+    "enemies": [
+      {
+        "name": "Rogue",
+        "level": 6,
+        "deck": [
+          "c238",
+          "c239"
+        ],
+        "guardian": {
+          "id": "g503",
+          "name": "Rogue Guardian",
+          "level": 6,
+          "hp": 612,
+          "attack": 70
+        }
+      }
+    ],
+    "reward": {
+      "gold": 115,
+      "gems": 2,
+      "cardReward": "c240"
+    }
+  },
+  "5-4": {
+    "enemies": [
+      {
+        "name": "Thief",
+        "level": 7,
+        "deck": [
+          "c241",
+          "c242"
+        ],
+        "guardian": {
+          "id": "g504",
+          "name": "Thief Guardian",
+          "level": 7,
+          "hp": 636,
+          "attack": 74
+        }
+      }
+    ],
+    "reward": {
+      "gold": 120,
+      "gems": 2,
+      "cardReward": "c243"
+    }
+  },
+  "5-5": {
+    "enemies": [
+      {
+        "name": "Master Thief",
+        "level": 7,
+        "deck": [
+          "c244",
+          "c245"
+        ],
+        "guardian": {
+          "id": "g505",
+          "name": "Master Thief Guardian",
+          "level": 7,
+          "hp": 660,
+          "attack": 78
+        }
+      }
+    ],
+    "reward": {
+      "gold": 125,
+      "gems": 3,
+      "cardReward": "c246"
+    }
+  },
+  "5-6": {
+    "enemies": [
+      {
+        "name": "Shadow Lord",
+        "level": 8,
+        "deck": [
+          "c247",
+          "c248"
+        ],
+        "guardian": {
+          "id": "g506",
+          "name": "Shadow Lord Guardian",
+          "level": 8,
+          "hp": 684,
+          "attack": 81
+        }
+      }
+    ],
+    "reward": {
+      "gold": 130,
+      "gems": 3,
+      "cardReward": "c249"
+    }
+  },
+  "5-7": {
+    "enemies": [
+      {
+        "name": "Shadow Lord",
+        "level": 8,
+        "deck": [
+          "c250",
+          "c251"
+        ],
+        "guardian": {
+          "id": "g507",
+          "name": "Shadow Lord Guardian",
+          "level": 8,
+          "hp": 708,
+          "attack": 85
+        }
+      }
+    ],
+    "reward": {
+      "gold": 135,
+      "gems": 3,
+      "cardReward": "c252"
+    }
+  },
+  "5-8": {
+    "enemies": [
+      {
+        "name": "Shadow Lord",
+        "level": 9,
+        "deck": [
+          "c253",
+          "c254"
+        ],
+        "guardian": {
+          "id": "g508",
+          "name": "Shadow Lord Guardian",
+          "level": 9,
+          "hp": 732,
+          "attack": 88
+        }
+      }
+    ],
+    "reward": {
+      "gold": 140,
+      "gems": 3,
+      "cardReward": "c255"
+    }
+  },
+  "5-9": {
+    "enemies": [
+      {
+        "name": "Shadow Lord",
+        "level": 9,
+        "deck": [
+          "c256",
+          "c257"
+        ],
+        "guardian": {
+          "id": "g509",
+          "name": "Shadow Lord Guardian",
+          "level": 9,
+          "hp": 756,
+          "attack": 92
+        }
+      }
+    ],
+    "reward": {
+      "gold": 145,
+      "gems": 3,
+      "cardReward": "c258"
+    }
+  },
+  "5-10": {
+    "enemies": [
+      {
+        "name": "Shadow Lord",
+        "level": 10,
+        "deck": [
+          "c259",
+          "c260"
+        ],
+        "guardian": {
+          "id": "g510",
+          "name": "Shadow Lord Guardian",
+          "level": 10,
+          "hp": 780,
+          "attack": 96
+        }
+      }
+    ],
+    "reward": {
+      "gold": 150,
+      "gems": 4,
+      "cardReward": "c261"
+    }
+  },
+  "5-11": {
+    "enemies": [
+      {
+        "name": "Shadow Lord",
+        "level": 10,
+        "deck": [
+          "c262",
+          "c263"
+        ],
+        "guardian": {
+          "id": "g511",
+          "name": "Shadow Lord Guardian",
+          "level": 10,
+          "hp": 804,
+          "attack": 99
+        }
+      }
+    ],
+    "reward": {
+      "gold": 155,
+      "gems": 4,
+      "cardReward": "c264"
+    }
+  },
+  "6-1": {
+    "enemies": [
+      {
+        "name": "Wolf",
+        "level": 6,
+        "deck": [
+          "c265",
+          "c266"
+        ],
+        "guardian": {
+          "id": "g601",
+          "name": "Wolf Guardian",
+          "level": 6,
+          "hp": 624,
+          "attack": 69
+        }
+      }
+    ],
+    "reward": {
+      "gold": 115,
+      "gems": 2,
+      "cardReward": "c267"
+    }
+  },
+  "6-2": {
+    "enemies": [
+      {
+        "name": "Dire Wolf",
+        "level": 7,
+        "deck": [
+          "c268",
+          "c269"
+        ],
+        "guardian": {
+          "id": "g602",
+          "name": "Dire Wolf Guardian",
+          "level": 7,
+          "hp": 648,
+          "attack": 73
+        }
+      }
+    ],
+    "reward": {
+      "gold": 120,
+      "gems": 2,
+      "cardReward": "c270"
+    }
+  },
+  "6-3": {
+    "enemies": [
+      {
+        "name": "Bear",
+        "level": 7,
+        "deck": [
+          "c271",
+          "c272"
+        ],
+        "guardian": {
+          "id": "g603",
+          "name": "Bear Guardian",
+          "level": 7,
+          "hp": 672,
+          "attack": 76
+        }
+      }
+    ],
+    "reward": {
+      "gold": 125,
+      "gems": 2,
+      "cardReward": "c273"
+    }
+  },
+  "6-4": {
+    "enemies": [
+      {
+        "name": "Grizzly",
+        "level": 8,
+        "deck": [
+          "c274",
+          "c275"
+        ],
+        "guardian": {
+          "id": "g604",
+          "name": "Grizzly Guardian",
+          "level": 8,
+          "hp": 696,
+          "attack": 80
+        }
+      }
+    ],
+    "reward": {
+      "gold": 130,
+      "gems": 3,
+      "cardReward": "c276"
+    }
+  },
+  "6-5": {
+    "enemies": [
+      {
+        "name": "Alpha Bear",
+        "level": 8,
+        "deck": [
+          "c277",
+          "c278"
+        ],
+        "guardian": {
+          "id": "g605",
+          "name": "Alpha Bear Guardian",
+          "level": 8,
+          "hp": 720,
+          "attack": 84
+        }
+      }
+    ],
+    "reward": {
+      "gold": 135,
+      "gems": 3,
+      "cardReward": "c279"
+    }
+  },
+  "6-6": {
+    "enemies": [
+      {
+        "name": "Spirit Beast",
+        "level": 9,
+        "deck": [
+          "c280",
+          "c281"
+        ],
+        "guardian": {
+          "id": "g606",
+          "name": "Spirit Beast Guardian",
+          "level": 9,
+          "hp": 744,
+          "attack": 87
+        }
+      }
+    ],
+    "reward": {
+      "gold": 140,
+      "gems": 3,
+      "cardReward": "c282"
+    }
+  },
+  "6-7": {
+    "enemies": [
+      {
+        "name": "Spirit Beast",
+        "level": 9,
+        "deck": [
+          "c283",
+          "c284"
+        ],
+        "guardian": {
+          "id": "g607",
+          "name": "Spirit Beast Guardian",
+          "level": 9,
+          "hp": 768,
+          "attack": 91
+        }
+      }
+    ],
+    "reward": {
+      "gold": 145,
+      "gems": 3,
+      "cardReward": "c285"
+    }
+  },
+  "6-8": {
+    "enemies": [
+      {
+        "name": "Spirit Beast",
+        "level": 10,
+        "deck": [
+          "c286",
+          "c287"
+        ],
+        "guardian": {
+          "id": "g608",
+          "name": "Spirit Beast Guardian",
+          "level": 10,
+          "hp": 792,
+          "attack": 94
+        }
+      }
+    ],
+    "reward": {
+      "gold": 150,
+      "gems": 3,
+      "cardReward": "c288"
+    }
+  },
+  "6-9": {
+    "enemies": [
+      {
+        "name": "Spirit Beast",
+        "level": 10,
+        "deck": [
+          "c289",
+          "c290"
+        ],
+        "guardian": {
+          "id": "g609",
+          "name": "Spirit Beast Guardian",
+          "level": 10,
+          "hp": 816,
+          "attack": 98
+        }
+      }
+    ],
+    "reward": {
+      "gold": 155,
+      "gems": 4,
+      "cardReward": "c291"
+    }
+  },
+  "6-10": {
+    "enemies": [
+      {
+        "name": "Spirit Beast",
+        "level": 11,
+        "deck": [
+          "c292",
+          "c293"
+        ],
+        "guardian": {
+          "id": "g610",
+          "name": "Spirit Beast Guardian",
+          "level": 11,
+          "hp": 840,
+          "attack": 102
+        }
+      }
+    ],
+    "reward": {
+      "gold": 160,
+      "gems": 4,
+      "cardReward": "c294"
+    }
+  },
+  "6-11": {
+    "enemies": [
+      {
+        "name": "Spirit Beast",
+        "level": 11,
+        "deck": [
+          "c295",
+          "c296"
+        ],
+        "guardian": {
+          "id": "g611",
+          "name": "Spirit Beast Guardian",
+          "level": 11,
+          "hp": 864,
+          "attack": 105
+        }
+      }
+    ],
+    "reward": {
+      "gold": 165,
+      "gems": 4,
+      "cardReward": "c297"
+    }
+  },
+  "7-1": {
+    "enemies": [
+      {
+        "name": "Slime",
+        "level": 7,
+        "deck": [
+          "c298",
+          "c299"
+        ],
+        "guardian": {
+          "id": "g701",
+          "name": "Slime Guardian",
+          "level": 7,
+          "hp": 684,
+          "attack": 75
+        }
+      }
+    ],
+    "reward": {
+      "gold": 125,
+      "gems": 2,
+      "cardReward": "c300"
+    }
+  },
+  "7-2": {
+    "enemies": [
+      {
+        "name": "Big Slime",
+        "level": 8,
+        "deck": [
+          "c301",
+          "c302"
+        ],
+        "guardian": {
+          "id": "g702",
+          "name": "Big Slime Guardian",
+          "level": 8,
+          "hp": 708,
+          "attack": 79
+        }
+      }
+    ],
+    "reward": {
+      "gold": 130,
+      "gems": 2,
+      "cardReward": "c303"
+    }
+  },
+  "7-3": {
+    "enemies": [
+      {
+        "name": "Ooze",
+        "level": 8,
+        "deck": [
+          "c304",
+          "c305"
+        ],
+        "guardian": {
+          "id": "g703",
+          "name": "Ooze Guardian",
+          "level": 8,
+          "hp": 732,
+          "attack": 82
+        }
+      }
+    ],
+    "reward": {
+      "gold": 135,
+      "gems": 3,
+      "cardReward": "c306"
+    }
+  },
+  "7-4": {
+    "enemies": [
+      {
+        "name": "Gelatinous",
+        "level": 9,
+        "deck": [
+          "c307",
+          "c308"
+        ],
+        "guardian": {
+          "id": "g704",
+          "name": "Gelatinous Guardian",
+          "level": 9,
+          "hp": 756,
+          "attack": 86
+        }
+      }
+    ],
+    "reward": {
+      "gold": 140,
+      "gems": 3,
+      "cardReward": "c309"
+    }
+  },
+  "7-5": {
+    "enemies": [
+      {
+        "name": "Slime King",
+        "level": 9,
+        "deck": [
+          "c310",
+          "c311"
+        ],
+        "guardian": {
+          "id": "g705",
+          "name": "Slime King Guardian",
+          "level": 9,
+          "hp": 780,
+          "attack": 90
+        }
+      }
+    ],
+    "reward": {
+      "gold": 145,
+      "gems": 3,
+      "cardReward": "c312"
+    }
+  },
+  "7-6": {
+    "enemies": [
+      {
+        "name": "Prime Ooze",
+        "level": 10,
+        "deck": [
+          "c313",
+          "c314"
+        ],
+        "guardian": {
+          "id": "g706",
+          "name": "Prime Ooze Guardian",
+          "level": 10,
+          "hp": 804,
+          "attack": 93
+        }
+      }
+    ],
+    "reward": {
+      "gold": 150,
+      "gems": 3,
+      "cardReward": "c315"
+    }
+  },
+  "7-7": {
+    "enemies": [
+      {
+        "name": "Prime Ooze",
+        "level": 10,
+        "deck": [
+          "c316",
+          "c317"
+        ],
+        "guardian": {
+          "id": "g707",
+          "name": "Prime Ooze Guardian",
+          "level": 10,
+          "hp": 828,
+          "attack": 97
+        }
+      }
+    ],
+    "reward": {
+      "gold": 155,
+      "gems": 3,
+      "cardReward": "c318"
+    }
+  },
+  "7-8": {
+    "enemies": [
+      {
+        "name": "Prime Ooze",
+        "level": 11,
+        "deck": [
+          "c319",
+          "c320"
+        ],
+        "guardian": {
+          "id": "g708",
+          "name": "Prime Ooze Guardian",
+          "level": 11,
+          "hp": 852,
+          "attack": 100
+        }
+      }
+    ],
+    "reward": {
+      "gold": 160,
+      "gems": 4,
+      "cardReward": "c321"
+    }
+  },
+  "7-9": {
+    "enemies": [
+      {
+        "name": "Prime Ooze",
+        "level": 11,
+        "deck": [
+          "c322",
+          "c323"
+        ],
+        "guardian": {
+          "id": "g709",
+          "name": "Prime Ooze Guardian",
+          "level": 11,
+          "hp": 876,
+          "attack": 104
+        }
+      }
+    ],
+    "reward": {
+      "gold": 165,
+      "gems": 4,
+      "cardReward": "c324"
+    }
+  },
+  "7-10": {
+    "enemies": [
+      {
+        "name": "Prime Ooze",
+        "level": 12,
+        "deck": [
+          "c325",
+          "c326"
+        ],
+        "guardian": {
+          "id": "g710",
+          "name": "Prime Ooze Guardian",
+          "level": 12,
+          "hp": 900,
+          "attack": 108
+        }
+      }
+    ],
+    "reward": {
+      "gold": 170,
+      "gems": 4,
+      "cardReward": "c327"
+    }
+  },
+  "7-11": {
+    "enemies": [
+      {
+        "name": "Prime Ooze",
+        "level": 12,
+        "deck": [
+          "c328",
+          "c329"
+        ],
+        "guardian": {
+          "id": "g711",
+          "name": "Prime Ooze Guardian",
+          "level": 12,
+          "hp": 924,
+          "attack": 111
+        }
+      }
+    ],
+    "reward": {
+      "gold": 175,
+      "gems": 4,
+      "cardReward": "c330"
+    }
+  },
+  "8-1": {
+    "enemies": [
+      {
+        "name": "Golem",
+        "level": 8,
+        "deck": [
+          "c331",
+          "c332"
+        ],
+        "guardian": {
+          "id": "g801",
+          "name": "Golem Guardian",
+          "level": 8,
+          "hp": 744,
+          "attack": 81
+        }
+      }
+    ],
+    "reward": {
+      "gold": 135,
+      "gems": 2,
+      "cardReward": "c333"
+    }
+  },
+  "8-2": {
+    "enemies": [
+      {
+        "name": "Stone Golem",
+        "level": 9,
+        "deck": [
+          "c334",
+          "c335"
+        ],
+        "guardian": {
+          "id": "g802",
+          "name": "Stone Golem Guardian",
+          "level": 9,
+          "hp": 768,
+          "attack": 85
+        }
+      }
+    ],
+    "reward": {
+      "gold": 140,
+      "gems": 3,
+      "cardReward": "c336"
+    }
+  },
+  "8-3": {
+    "enemies": [
+      {
+        "name": "Iron Golem",
+        "level": 9,
+        "deck": [
+          "c337",
+          "c338"
+        ],
+        "guardian": {
+          "id": "g803",
+          "name": "Iron Golem Guardian",
+          "level": 9,
+          "hp": 792,
+          "attack": 88
+        }
+      }
+    ],
+    "reward": {
+      "gold": 145,
+      "gems": 3,
+      "cardReward": "c339"
+    }
+  },
+  "8-4": {
+    "enemies": [
+      {
+        "name": "Titan Golem",
+        "level": 10,
+        "deck": [
+          "c340",
+          "c341"
+        ],
+        "guardian": {
+          "id": "g804",
+          "name": "Titan Golem Guardian",
+          "level": 10,
+          "hp": 816,
+          "attack": 92
+        }
+      }
+    ],
+    "reward": {
+      "gold": 150,
+      "gems": 3,
+      "cardReward": "c342"
+    }
+  },
+  "8-5": {
+    "enemies": [
+      {
+        "name": "Golem King",
+        "level": 10,
+        "deck": [
+          "c343",
+          "c344"
+        ],
+        "guardian": {
+          "id": "g805",
+          "name": "Golem King Guardian",
+          "level": 10,
+          "hp": 840,
+          "attack": 96
+        }
+      }
+    ],
+    "reward": {
+      "gold": 155,
+      "gems": 3,
+      "cardReward": "c345"
+    }
+  },
+  "8-6": {
+    "enemies": [
+      {
+        "name": "Ancient Golem",
+        "level": 11,
+        "deck": [
+          "c346",
+          "c347"
+        ],
+        "guardian": {
+          "id": "g806",
+          "name": "Ancient Golem Guardian",
+          "level": 11,
+          "hp": 864,
+          "attack": 99
+        }
+      }
+    ],
+    "reward": {
+      "gold": 160,
+      "gems": 3,
+      "cardReward": "c348"
+    }
+  },
+  "8-7": {
+    "enemies": [
+      {
+        "name": "Ancient Golem",
+        "level": 11,
+        "deck": [
+          "c349",
+          "c350"
+        ],
+        "guardian": {
+          "id": "g807",
+          "name": "Ancient Golem Guardian",
+          "level": 11,
+          "hp": 888,
+          "attack": 103
+        }
+      }
+    ],
+    "reward": {
+      "gold": 165,
+      "gems": 4,
+      "cardReward": "c351"
+    }
+  },
+  "8-8": {
+    "enemies": [
+      {
+        "name": "Ancient Golem",
+        "level": 12,
+        "deck": [
+          "c352",
+          "c353"
+        ],
+        "guardian": {
+          "id": "g808",
+          "name": "Ancient Golem Guardian",
+          "level": 12,
+          "hp": 912,
+          "attack": 106
+        }
+      }
+    ],
+    "reward": {
+      "gold": 170,
+      "gems": 4,
+      "cardReward": "c354"
+    }
+  },
+  "8-9": {
+    "enemies": [
+      {
+        "name": "Ancient Golem",
+        "level": 12,
+        "deck": [
+          "c355",
+          "c356"
+        ],
+        "guardian": {
+          "id": "g809",
+          "name": "Ancient Golem Guardian",
+          "level": 12,
+          "hp": 936,
+          "attack": 110
+        }
+      }
+    ],
+    "reward": {
+      "gold": 175,
+      "gems": 4,
+      "cardReward": "c357"
+    }
+  },
+  "8-10": {
+    "enemies": [
+      {
+        "name": "Ancient Golem",
+        "level": 13,
+        "deck": [
+          "c358",
+          "c359"
+        ],
+        "guardian": {
+          "id": "g810",
+          "name": "Ancient Golem Guardian",
+          "level": 13,
+          "hp": 960,
+          "attack": 114
+        }
+      }
+    ],
+    "reward": {
+      "gold": 180,
+      "gems": 4,
+      "cardReward": "c360"
+    }
+  },
+  "8-11": {
+    "enemies": [
+      {
+        "name": "Ancient Golem",
+        "level": 13,
+        "deck": [
+          "c361",
+          "c362"
+        ],
+        "guardian": {
+          "id": "g811",
+          "name": "Ancient Golem Guardian",
+          "level": 13,
+          "hp": 984,
+          "attack": 117
+        }
+      }
+    ],
+    "reward": {
+      "gold": 185,
+      "gems": 4,
+      "cardReward": "c363"
+    }
+  },
+  "9-1": {
+    "enemies": [
+      {
+        "name": "Spider",
+        "level": 9,
+        "deck": [
+          "c364",
+          "c365"
+        ],
+        "guardian": {
+          "id": "g901",
+          "name": "Spider Guardian",
+          "level": 9,
+          "hp": 804,
+          "attack": 87
+        }
+      }
+    ],
+    "reward": {
+      "gold": 145,
+      "gems": 3,
+      "cardReward": "c366"
+    }
+  },
+  "9-2": {
+    "enemies": [
+      {
+        "name": "Giant Spider",
+        "level": 10,
+        "deck": [
+          "c367",
+          "c368"
+        ],
+        "guardian": {
+          "id": "g902",
+          "name": "Giant Spider Guardian",
+          "level": 10,
+          "hp": 828,
+          "attack": 91
+        }
+      }
+    ],
+    "reward": {
+      "gold": 150,
+      "gems": 3,
+      "cardReward": "c369"
+    }
+  },
+  "9-3": {
+    "enemies": [
+      {
+        "name": "Venom Spider",
+        "level": 10,
+        "deck": [
+          "c370",
+          "c371"
+        ],
+        "guardian": {
+          "id": "g903",
+          "name": "Venom Spider Guardian",
+          "level": 10,
+          "hp": 852,
+          "attack": 94
+        }
+      }
+    ],
+    "reward": {
+      "gold": 155,
+      "gems": 3,
+      "cardReward": "c372"
+    }
+  },
+  "9-4": {
+    "enemies": [
+      {
+        "name": "Spider Queen",
+        "level": 11,
+        "deck": [
+          "c373",
+          "c374"
+        ],
+        "guardian": {
+          "id": "g904",
+          "name": "Spider Queen Guardian",
+          "level": 11,
+          "hp": 876,
+          "attack": 98
+        }
+      }
+    ],
+    "reward": {
+      "gold": 160,
+      "gems": 3,
+      "cardReward": "c375"
+    }
+  },
+  "9-5": {
+    "enemies": [
+      {
+        "name": "Spider Lord",
+        "level": 11,
+        "deck": [
+          "c376",
+          "c377"
+        ],
+        "guardian": {
+          "id": "g905",
+          "name": "Spider Lord Guardian",
+          "level": 11,
+          "hp": 900,
+          "attack": 102
+        }
+      }
+    ],
+    "reward": {
+      "gold": 165,
+      "gems": 3,
+      "cardReward": "c378"
+    }
+  },
+  "9-6": {
+    "enemies": [
+      {
+        "name": "Elder Spider",
+        "level": 12,
+        "deck": [
+          "c379",
+          "c380"
+        ],
+        "guardian": {
+          "id": "g906",
+          "name": "Elder Spider Guardian",
+          "level": 12,
+          "hp": 924,
+          "attack": 105
+        }
+      }
+    ],
+    "reward": {
+      "gold": 170,
+      "gems": 4,
+      "cardReward": "c381"
+    }
+  },
+  "9-7": {
+    "enemies": [
+      {
+        "name": "Elder Spider",
+        "level": 12,
+        "deck": [
+          "c382",
+          "c383"
+        ],
+        "guardian": {
+          "id": "g907",
+          "name": "Elder Spider Guardian",
+          "level": 12,
+          "hp": 948,
+          "attack": 109
+        }
+      }
+    ],
+    "reward": {
+      "gold": 175,
+      "gems": 4,
+      "cardReward": "c384"
+    }
+  },
+  "9-8": {
+    "enemies": [
+      {
+        "name": "Elder Spider",
+        "level": 13,
+        "deck": [
+          "c385",
+          "c386"
+        ],
+        "guardian": {
+          "id": "g908",
+          "name": "Elder Spider Guardian",
+          "level": 13,
+          "hp": 972,
+          "attack": 112
+        }
+      }
+    ],
+    "reward": {
+      "gold": 180,
+      "gems": 4,
+      "cardReward": "c387"
+    }
+  },
+  "9-9": {
+    "enemies": [
+      {
+        "name": "Elder Spider",
+        "level": 13,
+        "deck": [
+          "c388",
+          "c389"
+        ],
+        "guardian": {
+          "id": "g909",
+          "name": "Elder Spider Guardian",
+          "level": 13,
+          "hp": 996,
+          "attack": 116
+        }
+      }
+    ],
+    "reward": {
+      "gold": 185,
+      "gems": 4,
+      "cardReward": "c390"
+    }
+  },
+  "9-10": {
+    "enemies": [
+      {
+        "name": "Elder Spider",
+        "level": 14,
+        "deck": [
+          "c391",
+          "c392"
+        ],
+        "guardian": {
+          "id": "g910",
+          "name": "Elder Spider Guardian",
+          "level": 14,
+          "hp": 1020,
+          "attack": 120
+        }
+      }
+    ],
+    "reward": {
+      "gold": 190,
+      "gems": 4,
+      "cardReward": "c393"
+    }
+  },
+  "9-11": {
+    "enemies": [
+      {
+        "name": "Elder Spider",
+        "level": 14,
+        "deck": [
+          "c394",
+          "c395"
+        ],
+        "guardian": {
+          "id": "g911",
+          "name": "Elder Spider Guardian",
+          "level": 14,
+          "hp": 1044,
+          "attack": 123
+        }
+      }
+    ],
+    "reward": {
+      "gold": 195,
+      "gems": 5,
+      "cardReward": "c396"
+    }
+  },
+  "10-1": {
+    "enemies": [
+      {
+        "name": "Vampire",
+        "level": 10,
+        "deck": [
+          "c397",
+          "c398"
+        ],
+        "guardian": {
+          "id": "g1001",
+          "name": "Vampire Guardian",
+          "level": 10,
+          "hp": 864,
+          "attack": 93
+        }
+      }
+    ],
+    "reward": {
+      "gold": 155,
+      "gems": 3,
+      "cardReward": "c399"
+    }
+  },
+  "10-2": {
+    "enemies": [
+      {
+        "name": "Vampire Lord",
+        "level": 11,
+        "deck": [
+          "c400",
+          "c401"
+        ],
+        "guardian": {
+          "id": "g1002",
+          "name": "Vampire Lord Guardian",
+          "level": 11,
+          "hp": 888,
+          "attack": 97
+        }
+      }
+    ],
+    "reward": {
+      "gold": 160,
+      "gems": 3,
+      "cardReward": "c402"
+    }
+  },
+  "10-3": {
+    "enemies": [
+      {
+        "name": "Nosferatu",
+        "level": 11,
+        "deck": [
+          "c403",
+          "c404"
+        ],
+        "guardian": {
+          "id": "g1003",
+          "name": "Nosferatu Guardian",
+          "level": 11,
+          "hp": 912,
+          "attack": 100
+        }
+      }
+    ],
+    "reward": {
+      "gold": 165,
+      "gems": 3,
+      "cardReward": "c405"
+    }
+  },
+  "10-4": {
+    "enemies": [
+      {
+        "name": "Blood Knight",
+        "level": 12,
+        "deck": [
+          "c406",
+          "c407"
+        ],
+        "guardian": {
+          "id": "g1004",
+          "name": "Blood Knight Guardian",
+          "level": 12,
+          "hp": 936,
+          "attack": 104
+        }
+      }
+    ],
+    "reward": {
+      "gold": 170,
+      "gems": 3,
+      "cardReward": "c408"
+    }
+  },
+  "10-5": {
+    "enemies": [
+      {
+        "name": "Vampire King",
+        "level": 12,
+        "deck": [
+          "c409",
+          "c410"
+        ],
+        "guardian": {
+          "id": "g1005",
+          "name": "Vampire King Guardian",
+          "level": 12,
+          "hp": 960,
+          "attack": 108
+        }
+      }
+    ],
+    "reward": {
+      "gold": 175,
+      "gems": 4,
+      "cardReward": "c411"
+    }
+  },
+  "10-6": {
+    "enemies": [
+      {
+        "name": "Ancient Vampire",
+        "level": 13,
+        "deck": [
+          "c412",
+          "c413"
+        ],
+        "guardian": {
+          "id": "g1006",
+          "name": "Ancient Vampire Guardian",
+          "level": 13,
+          "hp": 984,
+          "attack": 111
+        }
+      }
+    ],
+    "reward": {
+      "gold": 180,
+      "gems": 4,
+      "cardReward": "c414"
+    }
+  },
+  "10-7": {
+    "enemies": [
+      {
+        "name": "Ancient Vampire",
+        "level": 13,
+        "deck": [
+          "c415",
+          "c416"
+        ],
+        "guardian": {
+          "id": "g1007",
+          "name": "Ancient Vampire Guardian",
+          "level": 13,
+          "hp": 1008,
+          "attack": 115
+        }
+      }
+    ],
+    "reward": {
+      "gold": 185,
+      "gems": 4,
+      "cardReward": "c417"
+    }
+  },
+  "10-8": {
+    "enemies": [
+      {
+        "name": "Ancient Vampire",
+        "level": 14,
+        "deck": [
+          "c418",
+          "c419"
+        ],
+        "guardian": {
+          "id": "g1008",
+          "name": "Ancient Vampire Guardian",
+          "level": 14,
+          "hp": 1032,
+          "attack": 118
+        }
+      }
+    ],
+    "reward": {
+      "gold": 190,
+      "gems": 4,
+      "cardReward": "c420"
+    }
+  },
+  "10-9": {
+    "enemies": [
+      {
+        "name": "Ancient Vampire",
+        "level": 14,
+        "deck": [
+          "c421",
+          "c422"
+        ],
+        "guardian": {
+          "id": "g1009",
+          "name": "Ancient Vampire Guardian",
+          "level": 14,
+          "hp": 1056,
+          "attack": 122
+        }
+      }
+    ],
+    "reward": {
+      "gold": 195,
+      "gems": 4,
+      "cardReward": "c423"
+    }
+  },
+  "10-10": {
+    "enemies": [
+      {
+        "name": "Ancient Vampire",
+        "level": 15,
+        "deck": [
+          "c424",
+          "c425"
+        ],
+        "guardian": {
+          "id": "g1010",
+          "name": "Ancient Vampire Guardian",
+          "level": 15,
+          "hp": 1080,
+          "attack": 126
+        }
+      }
+    ],
+    "reward": {
+      "gold": 200,
+      "gems": 5,
+      "cardReward": "c426"
+    }
+  },
+  "10-11": {
+    "enemies": [
+      {
+        "name": "Ancient Vampire",
+        "level": 15,
+        "deck": [
+          "c427",
+          "c428"
+        ],
+        "guardian": {
+          "id": "g1011",
+          "name": "Ancient Vampire Guardian",
+          "level": 15,
+          "hp": 1104,
+          "attack": 129
+        }
+      }
+    ],
+    "reward": {
+      "gold": 205,
+      "gems": 5,
+      "cardReward": "c429"
+    }
+  },
+  "11-1": {
+    "enemies": [
+      {
+        "name": "Ghost",
+        "level": 11,
+        "deck": [
+          "c430",
+          "c431"
+        ],
+        "guardian": {
+          "id": "g1101",
+          "name": "Ghost Guardian",
+          "level": 11,
+          "hp": 924,
+          "attack": 99
+        }
+      }
+    ],
+    "reward": {
+      "gold": 165,
+      "gems": 3,
+      "cardReward": "c432"
+    }
+  },
+  "11-2": {
+    "enemies": [
+      {
+        "name": "Phantom",
+        "level": 12,
+        "deck": [
+          "c433",
+          "c434"
+        ],
+        "guardian": {
+          "id": "g1102",
+          "name": "Phantom Guardian",
+          "level": 12,
+          "hp": 948,
+          "attack": 103
+        }
+      }
+    ],
+    "reward": {
+      "gold": 170,
+      "gems": 3,
+      "cardReward": "c435"
+    }
+  },
+  "11-3": {
+    "enemies": [
+      {
+        "name": "Wraith",
+        "level": 12,
+        "deck": [
+          "c436",
+          "c437"
+        ],
+        "guardian": {
+          "id": "g1103",
+          "name": "Wraith Guardian",
+          "level": 12,
+          "hp": 972,
+          "attack": 106
+        }
+      }
+    ],
+    "reward": {
+      "gold": 175,
+      "gems": 3,
+      "cardReward": "c438"
+    }
+  },
+  "11-4": {
+    "enemies": [
+      {
+        "name": "Specter",
+        "level": 13,
+        "deck": [
+          "c439",
+          "c440"
+        ],
+        "guardian": {
+          "id": "g1104",
+          "name": "Specter Guardian",
+          "level": 13,
+          "hp": 996,
+          "attack": 110
+        }
+      }
+    ],
+    "reward": {
+      "gold": 180,
+      "gems": 4,
+      "cardReward": "c441"
+    }
+  },
+  "11-5": {
+    "enemies": [
+      {
+        "name": "Poltergeist",
+        "level": 13,
+        "deck": [
+          "c442",
+          "c443"
+        ],
+        "guardian": {
+          "id": "g1105",
+          "name": "Poltergeist Guardian",
+          "level": 13,
+          "hp": 1020,
+          "attack": 114
+        }
+      }
+    ],
+    "reward": {
+      "gold": 185,
+      "gems": 4,
+      "cardReward": "c444"
+    }
+  },
+  "11-6": {
+    "enemies": [
+      {
+        "name": "Spirit Lord",
+        "level": 14,
+        "deck": [
+          "c445",
+          "c446"
+        ],
+        "guardian": {
+          "id": "g1106",
+          "name": "Spirit Lord Guardian",
+          "level": 14,
+          "hp": 1044,
+          "attack": 117
+        }
+      }
+    ],
+    "reward": {
+      "gold": 190,
+      "gems": 4,
+      "cardReward": "c447"
+    }
+  },
+  "11-7": {
+    "enemies": [
+      {
+        "name": "Spirit Lord",
+        "level": 14,
+        "deck": [
+          "c448",
+          "c449"
+        ],
+        "guardian": {
+          "id": "g1107",
+          "name": "Spirit Lord Guardian",
+          "level": 14,
+          "hp": 1068,
+          "attack": 121
+        }
+      }
+    ],
+    "reward": {
+      "gold": 195,
+      "gems": 4,
+      "cardReward": "c450"
+    }
+  },
+  "11-8": {
+    "enemies": [
+      {
+        "name": "Spirit Lord",
+        "level": 15,
+        "deck": [
+          "c451",
+          "c452"
+        ],
+        "guardian": {
+          "id": "g1108",
+          "name": "Spirit Lord Guardian",
+          "level": 15,
+          "hp": 1092,
+          "attack": 124
+        }
+      }
+    ],
+    "reward": {
+      "gold": 200,
+      "gems": 4,
+      "cardReward": "c453"
+    }
+  },
+  "11-9": {
+    "enemies": [
+      {
+        "name": "Spirit Lord",
+        "level": 15,
+        "deck": [
+          "c454",
+          "c455"
+        ],
+        "guardian": {
+          "id": "g1109",
+          "name": "Spirit Lord Guardian",
+          "level": 15,
+          "hp": 1116,
+          "attack": 128
+        }
+      }
+    ],
+    "reward": {
+      "gold": 205,
+      "gems": 5,
+      "cardReward": "c456"
+    }
+  },
+  "11-10": {
+    "enemies": [
+      {
+        "name": "Spirit Lord",
+        "level": 16,
+        "deck": [
+          "c457",
+          "c458"
+        ],
+        "guardian": {
+          "id": "g1110",
+          "name": "Spirit Lord Guardian",
+          "level": 16,
+          "hp": 1140,
+          "attack": 132
+        }
+      }
+    ],
+    "reward": {
+      "gold": 210,
+      "gems": 5,
+      "cardReward": "c459"
+    }
+  },
+  "11-11": {
+    "enemies": [
+      {
+        "name": "Spirit Lord",
+        "level": 16,
+        "deck": [
+          "c460",
+          "c461"
+        ],
+        "guardian": {
+          "id": "g1111",
+          "name": "Spirit Lord Guardian",
+          "level": 16,
+          "hp": 1164,
+          "attack": 135
+        }
+      }
+    ],
+    "reward": {
+      "gold": 215,
+      "gems": 5,
+      "cardReward": "c462"
+    }
+  },
+  "12-1": {
+    "enemies": [
+      {
+        "name": "Elemental",
+        "level": 12,
+        "deck": [
+          "c463",
+          "c464"
+        ],
+        "guardian": {
+          "id": "g1201",
+          "name": "Elemental Guardian",
+          "level": 12,
+          "hp": 984,
+          "attack": 105
+        }
+      }
+    ],
+    "reward": {
+      "gold": 175,
+      "gems": 3,
+      "cardReward": "c465"
+    }
+  },
+  "12-2": {
+    "enemies": [
+      {
+        "name": "Storm Elemental",
+        "level": 13,
+        "deck": [
+          "c466",
+          "c467"
+        ],
+        "guardian": {
+          "id": "g1202",
+          "name": "Storm Elemental Guardian",
+          "level": 13,
+          "hp": 1008,
+          "attack": 109
+        }
+      }
+    ],
+    "reward": {
+      "gold": 180,
+      "gems": 3,
+      "cardReward": "c468"
+    }
+  },
+  "12-3": {
+    "enemies": [
+      {
+        "name": "Earth Elemental",
+        "level": 13,
+        "deck": [
+          "c469",
+          "c470"
+        ],
+        "guardian": {
+          "id": "g1203",
+          "name": "Earth Elemental Guardian",
+          "level": 13,
+          "hp": 1032,
+          "attack": 112
+        }
+      }
+    ],
+    "reward": {
+      "gold": 185,
+      "gems": 4,
+      "cardReward": "c471"
+    }
+  },
+  "12-4": {
+    "enemies": [
+      {
+        "name": "Water Elemental",
+        "level": 14,
+        "deck": [
+          "c472",
+          "c473"
+        ],
+        "guardian": {
+          "id": "g1204",
+          "name": "Water Elemental Guardian",
+          "level": 14,
+          "hp": 1056,
+          "attack": 116
+        }
+      }
+    ],
+    "reward": {
+      "gold": 190,
+      "gems": 4,
+      "cardReward": "c474"
+    }
+  },
+  "12-5": {
+    "enemies": [
+      {
+        "name": "Elemental Lord",
+        "level": 14,
+        "deck": [
+          "c475",
+          "c476"
+        ],
+        "guardian": {
+          "id": "g1205",
+          "name": "Elemental Lord Guardian",
+          "level": 14,
+          "hp": 1080,
+          "attack": 120
+        }
+      }
+    ],
+    "reward": {
+      "gold": 195,
+      "gems": 4,
+      "cardReward": "c477"
+    }
+  },
+  "12-6": {
+    "enemies": [
+      {
+        "name": "Ancient Elemental",
+        "level": 15,
+        "deck": [
+          "c478",
+          "c479"
+        ],
+        "guardian": {
+          "id": "g1206",
+          "name": "Ancient Elemental Guardian",
+          "level": 15,
+          "hp": 1104,
+          "attack": 123
+        }
+      }
+    ],
+    "reward": {
+      "gold": 200,
+      "gems": 4,
+      "cardReward": "c480"
+    }
+  },
+  "12-7": {
+    "enemies": [
+      {
+        "name": "Ancient Elemental",
+        "level": 15,
+        "deck": [
+          "c481",
+          "c482"
+        ],
+        "guardian": {
+          "id": "g1207",
+          "name": "Ancient Elemental Guardian",
+          "level": 15,
+          "hp": 1128,
+          "attack": 127
+        }
+      }
+    ],
+    "reward": {
+      "gold": 205,
+      "gems": 4,
+      "cardReward": "c483"
+    }
+  },
+  "12-8": {
+    "enemies": [
+      {
+        "name": "Ancient Elemental",
+        "level": 16,
+        "deck": [
+          "c484",
+          "c485"
+        ],
+        "guardian": {
+          "id": "g1208",
+          "name": "Ancient Elemental Guardian",
+          "level": 16,
+          "hp": 1152,
+          "attack": 130
+        }
+      }
+    ],
+    "reward": {
+      "gold": 210,
+      "gems": 5,
+      "cardReward": "c486"
+    }
+  },
+  "12-9": {
+    "enemies": [
+      {
+        "name": "Ancient Elemental",
+        "level": 16,
+        "deck": [
+          "c487",
+          "c488"
+        ],
+        "guardian": {
+          "id": "g1209",
+          "name": "Ancient Elemental Guardian",
+          "level": 16,
+          "hp": 1176,
+          "attack": 134
+        }
+      }
+    ],
+    "reward": {
+      "gold": 215,
+      "gems": 5,
+      "cardReward": "c489"
+    }
+  },
+  "12-10": {
+    "enemies": [
+      {
+        "name": "Ancient Elemental",
+        "level": 17,
+        "deck": [
+          "c490",
+          "c491"
+        ],
+        "guardian": {
+          "id": "g1210",
+          "name": "Ancient Elemental Guardian",
+          "level": 17,
+          "hp": 1200,
+          "attack": 138
+        }
+      }
+    ],
+    "reward": {
+      "gold": 220,
+      "gems": 5,
+      "cardReward": "c492"
+    }
+  },
+  "12-11": {
+    "enemies": [
+      {
+        "name": "Ancient Elemental",
+        "level": 17,
+        "deck": [
+          "c493",
+          "c494"
+        ],
+        "guardian": {
+          "id": "g1211",
+          "name": "Ancient Elemental Guardian",
+          "level": 17,
+          "hp": 1224,
+          "attack": 141
+        }
+      }
+    ],
+    "reward": {
+      "gold": 225,
+      "gems": 5,
+      "cardReward": "c495"
+    }
+  },
+  "13-1": {
+    "enemies": [
+      {
+        "name": "Knight",
+        "level": 13,
+        "deck": [
+          "c496",
+          "c497"
+        ],
+        "guardian": {
+          "id": "g1301",
+          "name": "Knight Guardian",
+          "level": 13,
+          "hp": 1044,
+          "attack": 111
+        }
+      }
+    ],
+    "reward": {
+      "gold": 185,
+      "gems": 3,
+      "cardReward": "c498"
+    }
+  },
+  "13-2": {
+    "enemies": [
+      {
+        "name": "Paladin",
+        "level": 14,
+        "deck": [
+          "c499",
+          "c500"
+        ],
+        "guardian": {
+          "id": "g1302",
+          "name": "Paladin Guardian",
+          "level": 14,
+          "hp": 1068,
+          "attack": 115
+        }
+      }
+    ],
+    "reward": {
+      "gold": 190,
+      "gems": 4,
+      "cardReward": "c501"
+    }
+  },
+  "13-3": {
+    "enemies": [
+      {
+        "name": "Dark Paladin",
+        "level": 14,
+        "deck": [
+          "c502",
+          "c503"
+        ],
+        "guardian": {
+          "id": "g1303",
+          "name": "Dark Paladin Guardian",
+          "level": 14,
+          "hp": 1092,
+          "attack": 118
+        }
+      }
+    ],
+    "reward": {
+      "gold": 195,
+      "gems": 4,
+      "cardReward": "c504"
+    }
+  },
+  "13-4": {
+    "enemies": [
+      {
+        "name": "Holy Knight",
+        "level": 15,
+        "deck": [
+          "c505",
+          "c506"
+        ],
+        "guardian": {
+          "id": "g1304",
+          "name": "Holy Knight Guardian",
+          "level": 15,
+          "hp": 1116,
+          "attack": 122
+        }
+      }
+    ],
+    "reward": {
+      "gold": 200,
+      "gems": 4,
+      "cardReward": "c507"
+    }
+  },
+  "13-5": {
+    "enemies": [
+      {
+        "name": "Champion",
+        "level": 15,
+        "deck": [
+          "c508",
+          "c509"
+        ],
+        "guardian": {
+          "id": "g1305",
+          "name": "Champion Guardian",
+          "level": 15,
+          "hp": 1140,
+          "attack": 126
+        }
+      }
+    ],
+    "reward": {
+      "gold": 205,
+      "gems": 4,
+      "cardReward": "c510"
+    }
+  },
+  "13-6": {
+    "enemies": [
+      {
+        "name": "Legendary Knight",
+        "level": 16,
+        "deck": [
+          "c511",
+          "c512"
+        ],
+        "guardian": {
+          "id": "g1306",
+          "name": "Legendary Knight Guardian",
+          "level": 16,
+          "hp": 1164,
+          "attack": 129
+        }
+      }
+    ],
+    "reward": {
+      "gold": 210,
+      "gems": 4,
+      "cardReward": "c513"
+    }
+  },
+  "13-7": {
+    "enemies": [
+      {
+        "name": "Legendary Knight",
+        "level": 16,
+        "deck": [
+          "c514",
+          "c515"
+        ],
+        "guardian": {
+          "id": "g1307",
+          "name": "Legendary Knight Guardian",
+          "level": 16,
+          "hp": 1188,
+          "attack": 133
+        }
+      }
+    ],
+    "reward": {
+      "gold": 215,
+      "gems": 5,
+      "cardReward": "c516"
+    }
+  },
+  "13-8": {
+    "enemies": [
+      {
+        "name": "Legendary Knight",
+        "level": 17,
+        "deck": [
+          "c517",
+          "c518"
+        ],
+        "guardian": {
+          "id": "g1308",
+          "name": "Legendary Knight Guardian",
+          "level": 17,
+          "hp": 1212,
+          "attack": 136
+        }
+      }
+    ],
+    "reward": {
+      "gold": 220,
+      "gems": 5,
+      "cardReward": "c519"
+    }
+  },
+  "13-9": {
+    "enemies": [
+      {
+        "name": "Legendary Knight",
+        "level": 17,
+        "deck": [
+          "c520",
+          "c521"
+        ],
+        "guardian": {
+          "id": "g1309",
+          "name": "Legendary Knight Guardian",
+          "level": 17,
+          "hp": 1236,
+          "attack": 140
+        }
+      }
+    ],
+    "reward": {
+      "gold": 225,
+      "gems": 5,
+      "cardReward": "c522"
+    }
+  },
+  "13-10": {
+    "enemies": [
+      {
+        "name": "Legendary Knight",
+        "level": 18,
+        "deck": [
+          "c523",
+          "c524"
+        ],
+        "guardian": {
+          "id": "g1310",
+          "name": "Legendary Knight Guardian",
+          "level": 18,
+          "hp": 1260,
+          "attack": 144
+        }
+      }
+    ],
+    "reward": {
+      "gold": 230,
+      "gems": 5,
+      "cardReward": "c525"
+    }
+  },
+  "13-11": {
+    "enemies": [
+      {
+        "name": "Legendary Knight",
+        "level": 18,
+        "deck": [
+          "c526",
+          "c527"
+        ],
+        "guardian": {
+          "id": "g1311",
+          "name": "Legendary Knight Guardian",
+          "level": 18,
+          "hp": 1284,
+          "attack": 147
+        }
+      }
+    ],
+    "reward": {
+      "gold": 235,
+      "gems": 5,
+      "cardReward": "c528"
+    }
+  },
+  "14-1": {
+    "enemies": [
+      {
+        "name": "Orc",
+        "level": 14,
+        "deck": [
+          "c529",
+          "c530"
+        ],
+        "guardian": {
+          "id": "g1401",
+          "name": "Orc Guardian",
+          "level": 14,
+          "hp": 1104,
+          "attack": 117
+        }
+      }
+    ],
+    "reward": {
+      "gold": 195,
+      "gems": 4,
+      "cardReward": "c531"
+    }
+  },
+  "14-2": {
+    "enemies": [
+      {
+        "name": "Orc Warlord",
+        "level": 15,
+        "deck": [
+          "c532",
+          "c533"
+        ],
+        "guardian": {
+          "id": "g1402",
+          "name": "Orc Warlord Guardian",
+          "level": 15,
+          "hp": 1128,
+          "attack": 121
+        }
+      }
+    ],
+    "reward": {
+      "gold": 200,
+      "gems": 4,
+      "cardReward": "c534"
+    }
+  },
+  "14-3": {
+    "enemies": [
+      {
+        "name": "Orc Shaman",
+        "level": 15,
+        "deck": [
+          "c535",
+          "c536"
+        ],
+        "guardian": {
+          "id": "g1403",
+          "name": "Orc Shaman Guardian",
+          "level": 15,
+          "hp": 1152,
+          "attack": 124
+        }
+      }
+    ],
+    "reward": {
+      "gold": 205,
+      "gems": 4,
+      "cardReward": "c537"
+    }
+  },
+  "14-4": {
+    "enemies": [
+      {
+        "name": "Orc Berserker",
+        "level": 16,
+        "deck": [
+          "c538",
+          "c539"
+        ],
+        "guardian": {
+          "id": "g1404",
+          "name": "Orc Berserker Guardian",
+          "level": 16,
+          "hp": 1176,
+          "attack": 128
+        }
+      }
+    ],
+    "reward": {
+      "gold": 210,
+      "gems": 4,
+      "cardReward": "c540"
+    }
+  },
+  "14-5": {
+    "enemies": [
+      {
+        "name": "Orc King",
+        "level": 16,
+        "deck": [
+          "c541",
+          "c542"
+        ],
+        "guardian": {
+          "id": "g1405",
+          "name": "Orc King Guardian",
+          "level": 16,
+          "hp": 1200,
+          "attack": 132
+        }
+      }
+    ],
+    "reward": {
+      "gold": 215,
+      "gems": 4,
+      "cardReward": "c543"
+    }
+  },
+  "14-6": {
+    "enemies": [
+      {
+        "name": "Orc Overlord",
+        "level": 17,
+        "deck": [
+          "c544",
+          "c545"
+        ],
+        "guardian": {
+          "id": "g1406",
+          "name": "Orc Overlord Guardian",
+          "level": 17,
+          "hp": 1224,
+          "attack": 135
+        }
+      }
+    ],
+    "reward": {
+      "gold": 220,
+      "gems": 5,
+      "cardReward": "c546"
+    }
+  },
+  "14-7": {
+    "enemies": [
+      {
+        "name": "Orc Overlord",
+        "level": 17,
+        "deck": [
+          "c547",
+          "c548"
+        ],
+        "guardian": {
+          "id": "g1407",
+          "name": "Orc Overlord Guardian",
+          "level": 17,
+          "hp": 1248,
+          "attack": 139
+        }
+      }
+    ],
+    "reward": {
+      "gold": 225,
+      "gems": 5,
+      "cardReward": "c549"
+    }
+  },
+  "14-8": {
+    "enemies": [
+      {
+        "name": "Orc Overlord",
+        "level": 18,
+        "deck": [
+          "c550",
+          "c551"
+        ],
+        "guardian": {
+          "id": "g1408",
+          "name": "Orc Overlord Guardian",
+          "level": 18,
+          "hp": 1272,
+          "attack": 142
+        }
+      }
+    ],
+    "reward": {
+      "gold": 230,
+      "gems": 5,
+      "cardReward": "c552"
+    }
+  },
+  "14-9": {
+    "enemies": [
+      {
+        "name": "Orc Overlord",
+        "level": 18,
+        "deck": [
+          "c553",
+          "c554"
+        ],
+        "guardian": {
+          "id": "g1409",
+          "name": "Orc Overlord Guardian",
+          "level": 18,
+          "hp": 1296,
+          "attack": 146
+        }
+      }
+    ],
+    "reward": {
+      "gold": 235,
+      "gems": 5,
+      "cardReward": "c555"
+    }
+  },
+  "14-10": {
+    "enemies": [
+      {
+        "name": "Orc Overlord",
+        "level": 19,
+        "deck": [
+          "c556",
+          "c557"
+        ],
+        "guardian": {
+          "id": "g1410",
+          "name": "Orc Overlord Guardian",
+          "level": 19,
+          "hp": 1320,
+          "attack": 150
+        }
+      }
+    ],
+    "reward": {
+      "gold": 240,
+      "gems": 5,
+      "cardReward": "c558"
+    }
+  },
+  "14-11": {
+    "enemies": [
+      {
+        "name": "Orc Overlord",
+        "level": 19,
+        "deck": [
+          "c559",
+          "c560"
+        ],
+        "guardian": {
+          "id": "g1411",
+          "name": "Orc Overlord Guardian",
+          "level": 19,
+          "hp": 1344,
+          "attack": 153
+        }
+      }
+    ],
+    "reward": {
+      "gold": 245,
+      "gems": 6,
+      "cardReward": "c561"
+    }
+  },
+  "15-1": {
+    "enemies": [
+      {
+        "name": "Merfolk",
+        "level": 15,
+        "deck": [
+          "c562",
+          "c563"
+        ],
+        "guardian": {
+          "id": "g1501",
+          "name": "Merfolk Guardian",
+          "level": 15,
+          "hp": 1164,
+          "attack": 123
+        }
+      }
+    ],
+    "reward": {
+      "gold": 205,
+      "gems": 4,
+      "cardReward": "c564"
+    }
+  },
+  "15-2": {
+    "enemies": [
+      {
+        "name": "Sea Serpent",
+        "level": 16,
+        "deck": [
+          "c565",
+          "c566"
+        ],
+        "guardian": {
+          "id": "g1502",
+          "name": "Sea Serpent Guardian",
+          "level": 16,
+          "hp": 1188,
+          "attack": 127
+        }
+      }
+    ],
+    "reward": {
+      "gold": 210,
+      "gems": 4,
+      "cardReward": "c567"
+    }
+  },
+  "15-3": {
+    "enemies": [
+      {
+        "name": "Kraken",
+        "level": 16,
+        "deck": [
+          "c568",
+          "c569"
+        ],
+        "guardian": {
+          "id": "g1503",
+          "name": "Kraken Guardian",
+          "level": 16,
+          "hp": 1212,
+          "attack": 130
+        }
+      }
+    ],
+    "reward": {
+      "gold": 215,
+      "gems": 4,
+      "cardReward": "c570"
+    }
+  },
+  "15-4": {
+    "enemies": [
+      {
+        "name": "Leviathan",
+        "level": 17,
+        "deck": [
+          "c571",
+          "c572"
+        ],
+        "guardian": {
+          "id": "g1504",
+          "name": "Leviathan Guardian",
+          "level": 17,
+          "hp": 1236,
+          "attack": 134
+        }
+      }
+    ],
+    "reward": {
+      "gold": 220,
+      "gems": 4,
+      "cardReward": "c573"
+    }
+  },
+  "15-5": {
+    "enemies": [
+      {
+        "name": "Ocean Lord",
+        "level": 17,
+        "deck": [
+          "c574",
+          "c575"
+        ],
+        "guardian": {
+          "id": "g1505",
+          "name": "Ocean Lord Guardian",
+          "level": 17,
+          "hp": 1260,
+          "attack": 138
+        }
+      }
+    ],
+    "reward": {
+      "gold": 225,
+      "gems": 5,
+      "cardReward": "c576"
+    }
+  },
+  "15-6": {
+    "enemies": [
+      {
+        "name": "Tidal Dragon",
+        "level": 18,
+        "deck": [
+          "c577",
+          "c578"
+        ],
+        "guardian": {
+          "id": "g1506",
+          "name": "Tidal Dragon Guardian",
+          "level": 18,
+          "hp": 1284,
+          "attack": 141
+        }
+      }
+    ],
+    "reward": {
+      "gold": 230,
+      "gems": 5,
+      "cardReward": "c579"
+    }
+  },
+  "15-7": {
+    "enemies": [
+      {
+        "name": "Tidal Dragon",
+        "level": 18,
+        "deck": [
+          "c580",
+          "c581"
+        ],
+        "guardian": {
+          "id": "g1507",
+          "name": "Tidal Dragon Guardian",
+          "level": 18,
+          "hp": 1308,
+          "attack": 145
+        }
+      }
+    ],
+    "reward": {
+      "gold": 235,
+      "gems": 5,
+      "cardReward": "c582"
+    }
+  },
+  "15-8": {
+    "enemies": [
+      {
+        "name": "Tidal Dragon",
+        "level": 19,
+        "deck": [
+          "c583",
+          "c584"
+        ],
+        "guardian": {
+          "id": "g1508",
+          "name": "Tidal Dragon Guardian",
+          "level": 19,
+          "hp": 1332,
+          "attack": 148
+        }
+      }
+    ],
+    "reward": {
+      "gold": 240,
+      "gems": 5,
+      "cardReward": "c585"
+    }
+  },
+  "15-9": {
+    "enemies": [
+      {
+        "name": "Tidal Dragon",
+        "level": 19,
+        "deck": [
+          "c586",
+          "c587"
+        ],
+        "guardian": {
+          "id": "g1509",
+          "name": "Tidal Dragon Guardian",
+          "level": 19,
+          "hp": 1356,
+          "attack": 152
+        }
+      }
+    ],
+    "reward": {
+      "gold": 245,
+      "gems": 5,
+      "cardReward": "c588"
+    }
+  },
+  "15-10": {
+    "enemies": [
+      {
+        "name": "Tidal Dragon",
+        "level": 20,
+        "deck": [
+          "c589",
+          "c590"
+        ],
+        "guardian": {
+          "id": "g1510",
+          "name": "Tidal Dragon Guardian",
+          "level": 20,
+          "hp": 1380,
+          "attack": 156
+        }
+      }
+    ],
+    "reward": {
+      "gold": 250,
+      "gems": 6,
+      "cardReward": "c591"
+    }
+  },
+  "15-11": {
+    "enemies": [
+      {
+        "name": "Tidal Dragon",
+        "level": 20,
+        "deck": [
+          "c592",
+          "c593"
+        ],
+        "guardian": {
+          "id": "g1511",
+          "name": "Tidal Dragon Guardian",
+          "level": 20,
+          "hp": 1404,
+          "attack": 159
+        }
+      }
+    ],
+    "reward": {
+      "gold": 255,
+      "gems": 6,
+      "cardReward": "c594"
+    }
+  },
+  "16-1": {
+    "enemies": [
+      {
+        "name": "Phoenix",
+        "level": 16,
+        "deck": [
+          "c595",
+          "c596"
+        ],
+        "guardian": {
+          "id": "g1601",
+          "name": "Phoenix Guardian",
+          "level": 16,
+          "hp": 1224,
+          "attack": 129
+        }
+      }
+    ],
+    "reward": {
+      "gold": 215,
+      "gems": 4,
+      "cardReward": "c597"
+    }
+  },
+  "16-2": {
+    "enemies": [
+      {
+        "name": "Fire Phoenix",
+        "level": 17,
+        "deck": [
+          "c598",
+          "c599"
+        ],
+        "guardian": {
+          "id": "g1602",
+          "name": "Fire Phoenix Guardian",
+          "level": 17,
+          "hp": 1248,
+          "attack": 133
+        }
+      }
+    ],
+    "reward": {
+      "gold": 220,
+      "gems": 4,
+      "cardReward": "c600"
+    }
+  },
+  "16-3": {
+    "enemies": [
+      {
+        "name": "Blazing Phoenix",
+        "level": 17,
+        "deck": [
+          "c601",
+          "c602"
+        ],
+        "guardian": {
+          "id": "g1603",
+          "name": "Blazing Phoenix Guardian",
+          "level": 17,
+          "hp": 1272,
+          "attack": 136
+        }
+      }
+    ],
+    "reward": {
+      "gold": 225,
+      "gems": 4,
+      "cardReward": "c603"
+    }
+  },
+  "16-4": {
+    "enemies": [
+      {
+        "name": "Solar Phoenix",
+        "level": 18,
+        "deck": [
+          "c604",
+          "c605"
+        ],
+        "guardian": {
+          "id": "g1604",
+          "name": "Solar Phoenix Guardian",
+          "level": 18,
+          "hp": 1296,
+          "attack": 140
+        }
+      }
+    ],
+    "reward": {
+      "gold": 230,
+      "gems": 5,
+      "cardReward": "c606"
+    }
+  },
+  "16-5": {
+    "enemies": [
+      {
+        "name": "Sunbird",
+        "level": 18,
+        "deck": [
+          "c607",
+          "c608"
+        ],
+        "guardian": {
+          "id": "g1605",
+          "name": "Sunbird Guardian",
+          "level": 18,
+          "hp": 1320,
+          "attack": 144
+        }
+      }
+    ],
+    "reward": {
+      "gold": 235,
+      "gems": 5,
+      "cardReward": "c609"
+    }
+  },
+  "16-6": {
+    "enemies": [
+      {
+        "name": "Phoenix King",
+        "level": 19,
+        "deck": [
+          "c610",
+          "c611"
+        ],
+        "guardian": {
+          "id": "g1606",
+          "name": "Phoenix King Guardian",
+          "level": 19,
+          "hp": 1344,
+          "attack": 147
+        }
+      }
+    ],
+    "reward": {
+      "gold": 240,
+      "gems": 5,
+      "cardReward": "c612"
+    }
+  },
+  "16-7": {
+    "enemies": [
+      {
+        "name": "Phoenix King",
+        "level": 19,
+        "deck": [
+          "c613",
+          "c614"
+        ],
+        "guardian": {
+          "id": "g1607",
+          "name": "Phoenix King Guardian",
+          "level": 19,
+          "hp": 1368,
+          "attack": 151
+        }
+      }
+    ],
+    "reward": {
+      "gold": 245,
+      "gems": 5,
+      "cardReward": "c615"
+    }
+  },
+  "16-8": {
+    "enemies": [
+      {
+        "name": "Phoenix King",
+        "level": 20,
+        "deck": [
+          "c616",
+          "c617"
+        ],
+        "guardian": {
+          "id": "g1608",
+          "name": "Phoenix King Guardian",
+          "level": 20,
+          "hp": 1392,
+          "attack": 154
+        }
+      }
+    ],
+    "reward": {
+      "gold": 250,
+      "gems": 5,
+      "cardReward": "c618"
+    }
+  },
+  "16-9": {
+    "enemies": [
+      {
+        "name": "Phoenix King",
+        "level": 20,
+        "deck": [
+          "c619",
+          "c620"
+        ],
+        "guardian": {
+          "id": "g1609",
+          "name": "Phoenix King Guardian",
+          "level": 20,
+          "hp": 1416,
+          "attack": 158
+        }
+      }
+    ],
+    "reward": {
+      "gold": 255,
+      "gems": 6,
+      "cardReward": "c621"
+    }
+  },
+  "16-10": {
+    "enemies": [
+      {
+        "name": "Phoenix King",
+        "level": 21,
+        "deck": [
+          "c622",
+          "c623"
+        ],
+        "guardian": {
+          "id": "g1610",
+          "name": "Phoenix King Guardian",
+          "level": 21,
+          "hp": 1440,
+          "attack": 162
+        }
+      }
+    ],
+    "reward": {
+      "gold": 260,
+      "gems": 6,
+      "cardReward": "c624"
+    }
+  },
+  "16-11": {
+    "enemies": [
+      {
+        "name": "Phoenix King",
+        "level": 21,
+        "deck": [
+          "c625",
+          "c626"
+        ],
+        "guardian": {
+          "id": "g1611",
+          "name": "Phoenix King Guardian",
+          "level": 21,
+          "hp": 1464,
+          "attack": 165
+        }
+      }
+    ],
+    "reward": {
+      "gold": 265,
+      "gems": 6,
+      "cardReward": "c627"
+    }
+  },
+  "17-1": {
+    "enemies": [
+      {
+        "name": "Titan",
+        "level": 17,
+        "deck": [
+          "c628",
+          "c629"
+        ],
+        "guardian": {
+          "id": "g1701",
+          "name": "Titan Guardian",
+          "level": 17,
+          "hp": 1284,
+          "attack": 135
+        }
+      }
+    ],
+    "reward": {
+      "gold": 225,
+      "gems": 4,
+      "cardReward": "c630"
+    }
+  },
+  "17-2": {
+    "enemies": [
+      {
+        "name": "Colossus",
+        "level": 18,
+        "deck": [
+          "c631",
+          "c632"
+        ],
+        "guardian": {
+          "id": "g1702",
+          "name": "Colossus Guardian",
+          "level": 18,
+          "hp": 1308,
+          "attack": 139
+        }
+      }
+    ],
+    "reward": {
+      "gold": 230,
+      "gems": 4,
+      "cardReward": "c633"
+    }
+  },
+  "17-3": {
+    "enemies": [
+      {
+        "name": "Giant",
+        "level": 18,
+        "deck": [
+          "c634",
+          "c635"
+        ],
+        "guardian": {
+          "id": "g1703",
+          "name": "Giant Guardian",
+          "level": 18,
+          "hp": 1332,
+          "attack": 142
+        }
+      }
+    ],
+    "reward": {
+      "gold": 235,
+      "gems": 5,
+      "cardReward": "c636"
+    }
+  },
+  "17-4": {
+    "enemies": [
+      {
+        "name": "Mountain Titan",
+        "level": 19,
+        "deck": [
+          "c637",
+          "c638"
+        ],
+        "guardian": {
+          "id": "g1704",
+          "name": "Mountain Titan Guardian",
+          "level": 19,
+          "hp": 1356,
+          "attack": 146
+        }
+      }
+    ],
+    "reward": {
+      "gold": 240,
+      "gems": 5,
+      "cardReward": "c639"
+    }
+  },
+  "17-5": {
+    "enemies": [
+      {
+        "name": "Titan Lord",
+        "level": 19,
+        "deck": [
+          "c640",
+          "c641"
+        ],
+        "guardian": {
+          "id": "g1705",
+          "name": "Titan Lord Guardian",
+          "level": 19,
+          "hp": 1380,
+          "attack": 150
+        }
+      }
+    ],
+    "reward": {
+      "gold": 245,
+      "gems": 5,
+      "cardReward": "c642"
+    }
+  },
+  "17-6": {
+    "enemies": [
+      {
+        "name": "Ancient Titan",
+        "level": 20,
+        "deck": [
+          "c643",
+          "c644"
+        ],
+        "guardian": {
+          "id": "g1706",
+          "name": "Ancient Titan Guardian",
+          "level": 20,
+          "hp": 1404,
+          "attack": 153
+        }
+      }
+    ],
+    "reward": {
+      "gold": 250,
+      "gems": 5,
+      "cardReward": "c645"
+    }
+  },
+  "17-7": {
+    "enemies": [
+      {
+        "name": "Ancient Titan",
+        "level": 20,
+        "deck": [
+          "c646",
+          "c647"
+        ],
+        "guardian": {
+          "id": "g1707",
+          "name": "Ancient Titan Guardian",
+          "level": 20,
+          "hp": 1428,
+          "attack": 157
+        }
+      }
+    ],
+    "reward": {
+      "gold": 255,
+      "gems": 5,
+      "cardReward": "c648"
+    }
+  },
+  "17-8": {
+    "enemies": [
+      {
+        "name": "Ancient Titan",
+        "level": 21,
+        "deck": [
+          "c649",
+          "c650"
+        ],
+        "guardian": {
+          "id": "g1708",
+          "name": "Ancient Titan Guardian",
+          "level": 21,
+          "hp": 1452,
+          "attack": 160
+        }
+      }
+    ],
+    "reward": {
+      "gold": 260,
+      "gems": 6,
+      "cardReward": "c651"
+    }
+  },
+  "17-9": {
+    "enemies": [
+      {
+        "name": "Ancient Titan",
+        "level": 21,
+        "deck": [
+          "c652",
+          "c653"
+        ],
+        "guardian": {
+          "id": "g1709",
+          "name": "Ancient Titan Guardian",
+          "level": 21,
+          "hp": 1476,
+          "attack": 164
+        }
+      }
+    ],
+    "reward": {
+      "gold": 265,
+      "gems": 6,
+      "cardReward": "c654"
+    }
+  },
+  "17-10": {
+    "enemies": [
+      {
+        "name": "Ancient Titan",
+        "level": 22,
+        "deck": [
+          "c655",
+          "c656"
+        ],
+        "guardian": {
+          "id": "g1710",
+          "name": "Ancient Titan Guardian",
+          "level": 22,
+          "hp": 1500,
+          "attack": 168
+        }
+      }
+    ],
+    "reward": {
+      "gold": 270,
+      "gems": 6,
+      "cardReward": "c657"
+    }
+  },
+  "17-11": {
+    "enemies": [
+      {
+        "name": "Ancient Titan",
+        "level": 22,
+        "deck": [
+          "c658",
+          "c659"
+        ],
+        "guardian": {
+          "id": "g1711",
+          "name": "Ancient Titan Guardian",
+          "level": 22,
+          "hp": 1524,
+          "attack": 171
+        }
+      }
+    ],
+    "reward": {
+      "gold": 275,
+      "gems": 6,
+      "cardReward": "c660"
+    }
+  }
+}

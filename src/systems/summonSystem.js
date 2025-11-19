@@ -1,6 +1,5 @@
-// src/systems/summonSystem.js
 //------------------------------------------------------------
-//  SISTEMA DE INVOCAÇÃO — EXPANDIDO (CORRIGIDO)
+//  SISTEMA DE INVOCAÇÃO — COMPLETO E OTIMIZADO
 //------------------------------------------------------------
 
 import { 
@@ -34,19 +33,21 @@ const pityConfig = {
   pityIncrement: 0.3,
 };
 
-// rate-up configurável
+// rate-up configurável por altar
 const rateUpConfig = {
-  active: false,
-  rateUpId: null,
-  rateUpBonus: 12,
+  active: true,
+  rateUpBonus: 12, // % adicional no rate-up
 };
 
+// ----------------------------------------------------
+//  FUNÇÕES DE SORTE
+// ----------------------------------------------------
 export function getSummonLuck(user) {
   return user.summonLuck || 0;
 }
 
 export function increaseSummonLuck(user, amount) {
-  user.summonLuck = Math.min(100, (user.summonLuck || 0) + amount);
+  user.summonLuck = Math.min(100, Math.max(0, (user.summonLuck || 0) + amount));
   return user.summonLuck;
 }
 
@@ -55,7 +56,7 @@ export function resetSummonLuck(user) {
 }
 
 // ----------------------------------------------------
-//  SALVAR HISTÓRICO DE SUMMON
+//  LOG DE INVOCAÇÃO
 // ----------------------------------------------------
 function logSummon(user, cardId, rarity) {
   user.summonLog = user.summonLog || [];
@@ -67,7 +68,7 @@ function logSummon(user, cardId, rarity) {
 }
 
 // ----------------------------------------------------
-//  CALCULAR DROP RATES MODIFICADOS
+//  DROP RATES MODIFICADOS
 // ----------------------------------------------------
 function getDropRates(type, user, options = {}) {
   const rates = { ...dropRatesBase };
@@ -76,12 +77,12 @@ function getDropRates(type, user, options = {}) {
     const altar = altars[options.altarId];
     for (const [rar, boost] of Object.entries(altar.dropBoost || {}))
       rates[rar] = (rates[rar] || 0) + boost;
+
+    if (altar.rateUpCardId) options.rateUpId = altar.rateUpCardId;
   }
 
   user.pity = user.pity || 0;
-  rates[5] += user.pity * pityConfig.pityIncrement;
-
-  if (rateUpConfig.active) rates[5] += rateUpConfig.rateUpBonus;
+  rates[5] += Math.min(user.pity, pityConfig.pityMax) * pityConfig.pityIncrement;
 
   return rates;
 }
@@ -90,7 +91,7 @@ function getDropRates(type, user, options = {}) {
 //  PEGAR CARTA ALEATÓRIA POR RARIDADE
 // ----------------------------------------------------
 export function getRandomCardIdByRarity(rarity, options = {}) {
-  const list = getCardList().filter(c => c.rarity === rarity);
+  let list = getCardList().filter(c => c.rarity === rarity);
 
   if (options.allowGuardians === false)
     list = list.filter(c => !c.isGuardian && c.type !== "guardian");
@@ -103,42 +104,32 @@ export function getRandomCardIdByRarity(rarity, options = {}) {
 }
 
 // ----------------------------------------------------
-//  OUTRAS FUNÇÕES
+//  DETERMINAR RARIDADE
 // ----------------------------------------------------
-export function altarJackpotRoll(user) {
-  const luck = getSummonLuck(user);
-  const chance = Math.min(5 + luck * 0.2, 40);
-  const roll = Math.random() * 100;
-
-  if (roll <= chance) {
-    const cardId = getRandomCardIdByRarity(5); // 5★ = legendary
-    return { jackpot: true, card: `🌟 Carta Lendária: **${cardId}**` };
-  }
-
-  increaseSummonLuck(user, -10);
-  if (user.summonLuck < 0) user.summonLuck = 0;
-
-  return { jackpot: false };
-}
-
 function determineRarity(type, user, options = {}) {
   const rates = getDropRates(type, user, options);
-  const roll = Math.random() * 100;
-  let cumulative = 0;
+  const total = Object.values(rates).reduce((a, b) => a + b, 0);
+  const roll = Math.random() * total;
 
+  let cumulative = 0;
   for (let rarity = 1; rarity <= 5; rarity++) {
     cumulative += rates[rarity] || 0;
     if (roll <= cumulative) {
       if (rarity === 5) user.pity = 0;
       else user.pity++;
+      increaseSummonLuck(user, 5); // aumenta a sorte a cada summon
       return rarity;
     }
   }
 
   user.pity++;
+  increaseSummonLuck(user, 5);
   return 1;
 }
 
+// ----------------------------------------------------
+//  LISTA DE CARTAS DISPONÍVEIS
+// ----------------------------------------------------
 function getAvailableCards(rarity, type, options = {}) {
   let list = getCardList().filter(c => c.rarity === rarity);
 
@@ -151,6 +142,9 @@ function getAvailableCards(rarity, type, options = {}) {
   return list;
 }
 
+// ----------------------------------------------------
+//  DUPLICATAS
+// ----------------------------------------------------
 function handleDuplicate(user, card) {
   if (card.type === "shard") return;
 
@@ -160,9 +154,14 @@ function handleDuplicate(user, card) {
   return `💠 Duplicata convertida em **${shards} shards** de ${card.name}!`;
 }
 
+// ----------------------------------------------------
+//  SUMMON INDIVIDUAL
+// ----------------------------------------------------
 export function summonCard(user, currency = "gold", options = {}) {
-  const cost = summonCosts[currency]?.single || 0;
+  if (!["gold", "gems", "coupons"].includes(currency))
+    return `❌ Moeda inválida. Use gold, gems ou coupons.`;
 
+  const cost = summonCosts[currency]?.single || 0;
   if (!options.skipCost && cost > 0)
     if (!spendCurrency(user, currency, cost))
       return `💰 Você não tem ${cost} ${currency}.`;
@@ -172,72 +171,53 @@ export function summonCard(user, currency = "gold", options = {}) {
   if (!pool.length) return `⚠️ Nenhuma carta R${rarity}.`;
 
   let chosen;
-  if (rateUpConfig.active && rarity === 5 && rateUpConfig.rateUpId && Math.random() < 0.55) {
-    chosen = getCardTemplate(rateUpConfig.rateUpId);
-  } else {
+  if (rateUpConfig.active && rarity === 5 && options.rateUpId && Math.random() < 0.55)
+    chosen = getCardTemplate(options.rateUpId);
+  else
     chosen = pool[Math.floor(Math.random() * pool.length)];
-  }
 
   const received = giveCardToUser(user, chosen.id);
   logSummon(user, chosen.id, rarity);
 
-  let msg = `✨ Você invocou **${chosen.name}** (${rarity}★)!`;
+  let msg = `✨ Você invocou **${chosen.name}** (${rarity}★) usando ${currency}!`;
   if (received.duplicate) msg += "\n" + handleDuplicate(user, chosen);
-
-  if (options.giveShards && chosen.type !== "shard") {
-    if (Math.random() < 0.12) {
-      const shard = getCardList().find(c => c.type === "shard" && c.shardOf === chosen.id);
-      if (shard) {
-        giveCardToUser(user, shard.id);
-        msg += `\n🔹 Fragmento bônus: **${shard.name}**`;
-      }
-    }
-  }
 
   return msg;
 }
 
+// ----------------------------------------------------
+//  SUMMON MÚLTIPLO
+// ----------------------------------------------------
 export function summonMultiple(user, currency = "gold", count = 5, options = {}) {
-  const cost = summonCosts[currency]?.multi;
-
-  if (cost && !options.skipCost)
-    if (!spendCurrency(user, currency, cost))
-      return `💰 Você não tem ${cost} ${currency}.`;
-
   const results = [];
-  for (let i = 0; i < count; i++)
-    results.push(summonCard(user, currency, { ...options, skipCost: true }));
+  const rarityCount = { 1:0,2:0,3:0,4:0,5:0 };
 
-  return results.join("\n");
+  for (let i = 0; i < count; i++) {
+    const msg = summonCard(user, currency, { ...options, skipCost: true });
+    results.push(msg);
+
+    const match = msg.match(/\((\d)★\)/);
+    if (match) rarityCount[match[1]]++;
+  }
+
+  const summary = `\n📊 Estatísticas: ${Object.entries(rarityCount).map(([r,c]) => `${r}★:${c}`).join(", ")}`;
+  return results.join("\n") + summary;
 }
 
-export function summonBooster(user, boosterId) {
-  const booster = boosters.find(b => b.id === boosterId);
-  if (!booster) return `❌ Booster inválido.`;
+// ----------------------------------------------------
+//  JACKPOT DO ALTAR
+// ----------------------------------------------------
+export function altarJackpotRoll(user) {
+  const luck = getSummonLuck(user);
+  const chance = Math.min(5 + luck * 0.2, 40);
+  const roll = Math.random() * 100;
 
-  const cost = booster.costGems || 675;
-  if (!spendCurrency(user, "gems", cost)) return `💰 Sem gems.`;
-
-  const received = new Set();
-  const results = [];
-
-  function addCard(cardId) {
-    if (received.has(cardId)) return;
-    received.add(cardId);
-
-    const info = giveCardToUser(user, cardId);
-    const card = getCardTemplate(cardId);
-
-    if (info.duplicate) results.push(`${card.name} (Duplicata → Shards!)`);
-    else results.push(card.name);
+  if (roll <= chance) {
+    const cardId = getRandomCardIdByRarity(5); // 5★ = lendária
+    increaseSummonLuck(user, -10);
+    return { jackpot: true, card: `🌟 Carta Lendária: **${cardId}**` };
   }
 
-  if (booster.themeCardId) addCard(booster.themeCardId);
-
-  for (const id of booster.cardIds) {
-    if (results.length >= (booster.maxCards || 5)) break;
-    addCard(id);
-  }
-
-  return `🎁 Booster aberto!\n- ${results.join("\n- ")}`;
+  increaseSummonLuck(user, 5);
+  return { jackpot: false };
 }

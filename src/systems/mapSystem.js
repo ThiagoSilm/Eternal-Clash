@@ -1,77 +1,52 @@
+import fs from "fs";
+import path from "path";
 import { runBattle } from "./battleSystem.js";
 import { addGold, addXP, addItem } from "./economySystem.js";
 
 // -----------------------------
 // CONFIGURAÇÃO BASE
-// -----------------------------
 export const WORLDS = 17;
 export const STAGES_PER_WORLD = 11;
+export const ENERGY_PER_BATTLE = 3;
 export const DIFFICULTIES = ["Fácil", "Médio", "Difícil"];
 
-export const BIOMES = [
-  "Floresta", "Deserto", "Tundra", "Vulcão",
-  "Pântano", "Ruínas", "Vazio", "Céu", "Abismo"
+// -----------------------------
+// MAP PHASES (sequências)
+export const MAP_PHASES = [
+  { id: 1, subStages: ["1-1", "1-2", "1-3", "1-4", "1-5", "1-6"] },
+  { id: 2, subStages: ["3-1", "3-2", "3-3", "3-4", "3-5", "3-6"] },
+  { id: 3, subStages: ["4-1", "4-2", "4-3", "4-4", "4-5", "4-6", "4-7", "4-8", "4-9"] },
+  { id: 4, subStages: ["5-1", "5-2", "5-3", "5-4", "5-5", "5-6", "5-7", "5-8", "5-9"] },
+  { id: 5, subStages: ["6-1", "6-2", "6-3", "6-4", "6-5", "6-6", "6-7", "6-8", "6-9"] },
+  { id: 6, subStages: ["7-1", "7-2", "7-3", "7-4", "7-5", "7-6", "7-7", "7-8", "7-9"] },
+  { id: 7, subStages: ["8-1", "8-2", "8-3", "8-4", "8-5", "8-6", "8-7", "8-8", "8-9"] },
+  { id: 8, subStages: ["9-1", "9-2", "9-3", "9-4", "9-5", "9-6", "9-7", "9-8", "9-9"] },
+  { id: 9, subStages: ["10-1", "10-2", "10-3", "10-4", "10-5", "10-6", "10-7", "10-8", "10-9", "10-10", "10-11"] },
+  { id: 10, subStages: ["11-1", "11-2", "11-3", "11-4", "11-5", "11-6", "11-7", "11-8", "11-9", "11-10", "11-11"] },
+  { id: 11, subStages: ["12-1", "12-2", "12-3", "12-4", "12-5", "12-6", "12-7", "12-8", "12-9", "12-10", "12-11"] },
+  { id: 12, subStages: ["13-1", "13-2", "13-3", "13-4", "13-5", "13-6", "13-7", "13-8", "13-9", "13-10", "13-11"] },
+  { id: 13, subStages: ["14-1", "14-2", "14-3", "14-4", "14-5", "14-6", "14-7", "14-8", "14-9", "14-10", "14-11"] },
+  { id: 14, subStages: ["15-1", "15-2", "15-3", "15-4", "15-5", "15-6", "15-7", "15-8", "15-9", "15-10", "15-11"] },
+  { id: 15, subStages: ["16-1", "16-2", "16-3", "16-4", "16-5", "16-6", "16-7", "16-8", "16-9", "16-10", "16-11"] },
+  { id: 16, subStages: ["17-1", "17-2", "17-3", "17-4", "17-5", "17-6", "17-7", "17-8", "17-9", "17-10", "17-11"] },
 ];
 
-export const EVENT_TYPES = [
-  "heal", "treasure", "shop", "curse", "buff", "follower"
-];
+// -----------------------------
+// LOAD PHASES.JSON
+const PHASES_FILE = path.resolve("./data/phases.json");
+export const PHASES = JSON.parse(fs.readFileSync(PHASES_FILE, "utf-8"));
 
 // -----------------------------
-// MAP PHASES (para baús)
-// -----------------------------
-export const MAP_PHASES = Array.from({ length: WORLDS }, (_, w) => ({
-  id: w + 1,
-  subStages: Array.from({ length: STAGES_PER_WORLD }, (_, s) => `${w+1}-${s+1}`)
-}));
-
-// -----------------------------
-// GERADOR DE CENAS (determinístico)
-// -----------------------------
-function seededRandom(seed) {
-  return Number("0." + Math.sin(seed).toString().substr(6));
-}
-
-export const mapScenes = (() => {
-  const scenes = [];
-  
-  for (let w = 1; w <= WORLDS; w++) {
-    const seed = w * 99999;
-    for (let s = 1; s <= STAGES_PER_WORLD; s++) {
-      const rnd = seededRandom(seed + s);
-      let type = "normal";
-      if (s === STAGES_PER_WORLD) type = "boss";
-      else if (rnd < 0.08) type = "elite";
-      else if (rnd < 0.18) type = "event";
-      
-      scenes.push({
-        id: `${w}-${s}`,
-        world: w,
-        stage: s,
-        biome: BIOMES[w % BIOMES.length],
-        type,
-        difficulty: Math.floor(w * 3 + s * 1.5),
-        branchLeft: seededRandom(seed + s) > 0.65,
-        branchRight: seededRandom(seed + s) < 0.35,
-        fog: true,
-      });
-    }
-  }
-  return scenes;
-})();
-
-// -----------------------------
-// PROGRESSO DO JOGADOR
-// -----------------------------
+// USUÁRIO MAP PROGRESS
 export function initUserMapProgress(user) {
   if (!user.mapProgress) {
     user.mapProgress = {
       completed: [],
       discovered: [],
-      stars: {}, // estrelas por fase
-      openedChests: {}, // baús abertos
+      stars: {},
+      openedChests: {},
       buffs: [],
-      debuffs: []
+      debuffs: [],
     };
   }
 }
@@ -94,148 +69,130 @@ function discover(user, id) {
 }
 
 // -----------------------------
-// PRÓXIMAS CENAS DISPONÍVEIS
-// -----------------------------
-export function getNextAvailableScenes(user) {
+// DESCUBRIR FASES DISPONÍVEIS
+export function discoverNextScenes(user) {
   initUserMapProgress(user);
-  const available = [];
-  
-  for (const scene of mapScenes) {
-    const prev = `${scene.world}-${scene.stage - 1}`;
-    const prevWorld = `${scene.world - 1}-${STAGES_PER_WORLD}`;
-    const linearOK =
-      (scene.stage === 1 && hasCompleted(user, prevWorld)) ||
-      hasCompleted(user, prev);
-    const branchOK = scene.branchLeft || scene.branchRight || scene.stage === 1;
+  for (const phaseId in PHASES) {
+    if (hasCompleted(user, phaseId)) continue;
     
-    if (!hasCompleted(user, scene.id) && linearOK && branchOK) {
-      discover(user, scene.id);
-      available.push(scene);
+    const [world, stage] = phaseId.split("-").map(Number);
+    
+    if (world === 1 && stage === 1) {
+      discover(user, phaseId); // primeira fase desbloqueada automaticamente
+      continue;
+    }
+    
+    const prevStageId = stage === 1 ?
+      `${world - 1}-${MAP_PHASES[world-2]?.subStages?.slice(-1)[0]}` :
+      `${world}-${stage - 1}`;
+    
+    if (hasCompleted(user, prevStageId)) discover(user, phaseId);
+  }
+}
+
+export function getNextAvailableScenes(user) {
+  discoverNextScenes(user);
+  return Object.keys(PHASES).filter(id => !hasCompleted(user, id) && user.mapProgress.discovered.includes(id));
+}
+
+// -----------------------------
+// ENTRAR EM UMA FASE
+export async function enterScene(user, phaseId) {
+  initUserMapProgress(user);
+  const phaseData = PHASES[phaseId];
+  if (!phaseData) return `❌ Fase inválida: ${phaseId}`;
+  
+  if (!getNextAvailableScenes(user).includes(phaseId)) {
+    return `⚠️ Você não pode ir para ${phaseId} ainda.`;
+  }
+  
+  if ((user.energy ?? 0) < ENERGY_PER_BATTLE) {
+    return `⚠️ Energia insuficiente para entrar em ${phaseId}.`;
+  }
+  
+  user.energy -= ENERGY_PER_BATTLE;
+  
+  let stars = 3;
+  let victory = true;
+  
+  for (const enemy of phaseData.enemies) {
+    const battleState = battleSystem.initBattle(user, enemy, { mapStage: phaseId });
+    const { state, winner } = battleSystem.runBattle(battleState);
+    if (winner !== "player") {
+      victory = false;
+      stars = 0;
+      break;
     }
   }
   
-  return available;
+  if (victory) {
+    markSceneCompleted(user, phaseId, stars);
+    grantPhaseRewards(user, phaseId);
+    return `🏆 Vitória em ${phaseId}! Estrelas: ${stars}`;
+  }
+  
+  return `💀 Você perdeu em ${phaseId}.`;
 }
 
 // -----------------------------
-// ENTRAR EM UMA CENA
-// -----------------------------
-export async function enterScene(user, sceneId) {
-  initUserMapProgress(user);
+// RECOMPENSAS
+function grantPhaseRewards(user, phaseId) {
+  const phaseData = PHASES[phaseId];
+  if (!phaseData?.reward) return;
   
-  const scene = mapScenes.find(s => s.id === sceneId);
-  if (!scene) return `❌ Cena inválida.`;
-  
-  const allowed = getNextAvailableScenes(user).some(s => s.id === sceneId);
-  if (!allowed) return `⚠️ Você não pode ir para ${sceneId} ainda.`;
-  
-  if (scene.type === "event") {
-    return runMapEvent(user, scene);
-  }
-  
-  // Batalha
-  const result = await runBattle(user, scene);
-  if (result.victory) {
-    const stars = result.stars || 3; // stars retornadas pelo runBattle
-    markSceneCompleted(user, sceneId, stars);
-    grantMapRewards(user, scene);
-    return `🏆 Vitória em ${sceneId}! Estrelas: ${stars}`;
-  }
-  
-  return `💀 Você perdeu em ${sceneId}.`;
-}
-
-// -----------------------------
-// EVENTOS DE MAPA
-// -----------------------------
-export function runMapEvent(user, scene) {
-  const event = EVENT_TYPES[Math.floor(Math.random() * EVENT_TYPES.length)];
-  
-  switch (event) {
-    case "heal":
-      user.hp = Math.min(user.maxHp, user.hp + 20);
-      return `💖 Evento de cura: você recuperou 20 de HP!`;
-    case "treasure":
-      addGold(user, 50);
-      return `💰 Baú encontrado! +50 ouro`;
-    case "shop":
-      return `🛒 Um mercador aparece! (em construção)`;
-    case "curse":
-      user.mapProgress.debuffs.push({ id: "curseAtk", value: -5, duration: 3 });
-      return `☠️ Maldição: -5 ATK por 3 batalhas`;
-    case "buff":
-      user.mapProgress.buffs.push({ id: "blessing", value: +5, duration: 3 });
-      return `✨ Bênção: +5 ATK por 3 batalhas`;
-    case "follower":
-      return `👤 Seguidor misterioso se junta a você...`;
-    default:
-      return `❓ Evento desconhecido.`;
-  }
-}
-
-// -----------------------------
-// RECOMPENSAS DE MAPA
-// -----------------------------
-function grantMapRewards(user, scene) {
-  const xp = 20 + scene.difficulty * 2;
-  const gold = 10 + scene.difficulty;
-  
-  addXP(user, xp);
+  const { gold = 0, gems = 0, card = null, items = [] } = phaseData.reward;
   addGold(user, gold);
+  addItem(user, "gem", gems);
+  if (card) addItem(user, card, 1); // adiciona carta ao inventário
+  
+  if (items.length) {
+    for (const i of items) addItem(user, i.id, i.amount);
+  }
 }
 
 // -----------------------------
 // ABRIR BAÚS POR ESTRELAS
-// -----------------------------
-export function openChest(user, phaseId) {
+export function openChest(user, worldId) {
   initUserMapProgress(user);
-  if (!user.mapProgress.openedChests[phaseId]) user.mapProgress.openedChests[phaseId] = 0;
-  const opened = user.mapProgress.openedChests[phaseId];
-  
-  if (opened >= 3) return "⚠️ Todos os baús dessa fase já foram abertos.";
+  if (!user.mapProgress.openedChests[worldId]) user.mapProgress.openedChests[worldId] = 0;
+  const opened = user.mapProgress.openedChests[worldId];
+  if (opened >= 3) return "⚠️ Todos os baús dessa sequência já foram abertos.";
   
   const totalStars = Object.entries(user.mapProgress.stars)
-    .filter(([stage]) => MAP_PHASES.find(p => p.subStages.includes(stage))?.id === phaseId)
+    .filter(([stage]) => MAP_PHASES.find(p => p.id === worldId)?.subStages.includes(stage))
     .reduce((acc, [_, s]) => acc + s, 0);
   
   const requiredStars = (opened + 1) * 3;
   if (totalStars < requiredStars) return `⚠️ Precisa de ${requiredStars} estrelas para abrir este baú.`;
   
-  user.mapProgress.openedChests[phaseId]++;
+  user.mapProgress.openedChests[worldId]++;
   const gold = 50 * (opened + 1);
   const gem = 1 * (opened + 1);
-  const coupon = 1 * (opened + 1);
   
   addGold(user, gold);
   addItem(user, "gem", gem);
-  addItem(user, "coupon", coupon);
   
-  return `🎁 Baú aberto! Você recebeu: ${gold} ouro, ${gem} gemas, ${coupon} cupom(s)`;
+  return `🎁 Baú aberto! Você recebeu: ${gold} ouro, ${gem} gemas`;
 }
 
 // -----------------------------
 // VISUALIZADOR DE MAPA
-// -----------------------------
 export function visualizeMap(user) {
   initUserMapProgress(user);
-  let text = `🌍 **MAPA — Exploração**\n`;
+  discoverNextScenes(user);
   
-  for (let w = 1; w <= WORLDS; w++) {
-    let line = `\n**🌐 World ${w} — ${BIOMES[w % BIOMES.length]}**\n`;
-    for (let s = 1; s <= STAGES_PER_WORLD; s++) {
-      const id = `${w}-${s}`;
-      const sc = mapScenes.find(x => x.id === id);
-      
+  let text = `🌍 **MAPA — Exploração**\n`;
+  for (const world of MAP_PHASES) {
+    text += `\n**🌐 World ${world.id}**\n`;
+    for (const stage of world.subStages) {
       let icon = "⬛";
-      if (!user.mapProgress.discovered.includes(id)) icon = "❔";
-      else if (hasCompleted(user, id)) icon = "✅";
-      else if (getNextAvailableScenes(user).some(x => x.id === id)) icon = "🎯";
-      else icon = sc.type === "elite" ? "🔥" : sc.type === "boss" ? "💀" : "⬜";
-      
-      line += `${icon} `;
+      if (!user.mapProgress.discovered.includes(stage)) icon = "❔";
+      else if (hasCompleted(user, stage)) icon = "✅";
+      else if (getNextAvailableScenes(user).includes(stage)) icon = "🎯";
+      else icon = "⬜";
+      text += `${icon} `;
     }
-    text += line;
   }
   
-  return text + `\n\nLegenda: 🎯 Disponível | ✅ Completo | ⭐ Estrelas | 🗝 Baú disponível | ❔ Não descoberto`;
+  return text + `\n\nLegenda: 🎯 Disponível | ✅ Completo | ❔ Não descoberto | ⬜ Não disponível`;
 }

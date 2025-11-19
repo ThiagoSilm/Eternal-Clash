@@ -1,6 +1,13 @@
 // src/systems/effectSystem.js
+//------------------------------------------------------------
+// EFFECT SYSTEM AVANÇADO COM FASES DE BATALHA
+// Executor unificado de todos os efeitos (Cartas + Guardiões)
+// Fases: Buff/Debuff → Dano/Ataque → Habilidades Especiais
+//------------------------------------------------------------
 
 import { deepCloneSafe } from "./utils/helpers.js";
+import { EFFECTS, runEffect as runCardEffect } from "../config/effects.js";
+import { GUARDIAN_EFFECTS, runGuardianEffect } from "../config/guardianEffects.js";
 
 /* ----------------- FACÇÕES ----------------- */
 export const FACTIONS = {
@@ -16,91 +23,66 @@ export function getEffectValue(eff, level = 1) {
   return (eff.scaling.base || 0) + (eff.scaling.perLevel || 0) * Math.max(0, level - 1);
 }
 
-export function executeEffect(eff, ctx) {
-  if (!eff || !ctx) return false;
-  try {
-    if (typeof eff.condition === "function" && !eff.condition(ctx)) return false;
-    if (typeof eff.action === "function") eff.action(ctx);
-    if (eff.xp) eff.xp.current = Math.min(eff.xp.max || eff.xp.current, (eff.xp.current || 0) + 1);
-    return true;
-  } catch (err) {
-    ctx.pushLog?.(`⚠️ ERRO executando ${eff.id}: ${err.message}`);
-    return false;
+/* ----------------- EXECUTOR UNIFICADO ----------------- */
+function executeEffect(id, ctx) {
+  if (EFFECTS[id]) runCardEffect(id, ctx);
+  else if (GUARDIAN_EFFECTS[id]) runGuardianEffect(id, ctx);
+  else console.warn(`[effectSystem] Efeito não encontrado: ${id}`);
+}
+
+/* ----------------- RUN TRIGGER COM FASES ----------------- */
+export function runEffectsTrigger(trigger, owner, opponent, extraCtx = {}, pushLog = () => {}) {
+  if (!owner || typeof owner !== "object") return;
+  
+  const entities = [
+    ...(owner.field || []),
+    ...(owner.hand || []),
+    ...(owner.graveyard || []),
+  ];
+  if (owner.guardian) entities.push(owner.guardian);
+  
+  const phaseQueues = {
+    buff: [],
+    damage: [],
+    special: [],
+  };
+  
+  // Categoriza efeitos por fase
+  for (const subject of entities) {
+    if (!subject || !Array.isArray(subject.effects)) continue;
+    
+    for (const effId of subject.effects) {
+      const eff = EFFECTS[effId] || GUARDIAN_EFFECTS[effId];
+      if (!eff) {
+        pushLog?.(`⚠️ Efeito inválido: ${effId}`);
+        continue;
+      }
+      if (EFFECTS[effId] && (!Array.isArray(eff.trigger) || !eff.trigger.includes(trigger))) continue;
+      
+      const phase = eff.phase || (GUARDIAN_EFFECTS[effId] ? 'special' : 'damage');
+      phaseQueues[phase].push({ effId, subject });
+    }
+  }
+  
+  // Executa cada fase em ordem
+  for (const phase of ['buff', 'damage', 'special']) {
+    for (const { effId, subject } of phaseQueues[phase]) {
+      const ctx = {
+        subject,
+        owner,
+        opponent,
+        target: extraCtx?.target || opponent,
+        allies: extraCtx?.allies || owner.field || [],
+        enemies: extraCtx?.enemies || opponent?.field || [],
+        ...deepCloneSafe(extraCtx),
+        pushLog,
+      };
+      executeEffect(effId, ctx);
+    }
   }
 }
 
-/* ----------------- EFEITOS ----------------- */
-export const EFFECTS = {
-  buffAttackSmall: {
-    id: "buffAttackSmall",
-    name: "Buff de Ataque Pequeno",
-    desc: "Aumenta o ataque do usuário por 1 turno.",
-    trigger: ["onUse", "beforeAttack"],
-    scaling: { base: 0.10, perLevel: 0.02 },
-    xp: { current: 0, max: 200 },
-    action(ctx) {
-      const value = getEffectValue(this, ctx.subject.level ?? 1);
-      ctx.owner.tempAttackBuff = (ctx.owner.tempAttackBuff || 0) + value;
-      ctx.pushLog?.(`🟩 Ataque aumentado em ${Math.round(value * 100)}%`);
-    }
-  },
-  antiMorrathStrike: {
-    id: "antiMorrathStrike",
-    name: "Fúria contra Morrath",
-    desc: "Aumenta em 90% o dano contra inimigos da facção Morrath.",
-    trigger: ["beforeAttack"],
-    againstFaction: { faction: FACTIONS.Morrath, multiplier: 1.90 },
-    scaling: { base: 0, perLevel: 0 },
-    action(ctx) {
-      if (ctx.opponent?.faction === FACTIONS.Morrath) ctx.pushLog?.(`🔥 Bônus contra Morrath aplicado por ${ctx.subject.name}`);
-    }
-  },
-  burnEffect: {
-    id: "burnEffect",
-    name: "Burn",
-    desc: "Dano baseado no ataque do dono a cada início de turno.",
-    trigger: ["onTurnStart"],
-    scaling: { base: 0.15, perLevel: 0.03 },
-    xp: { current: 0, max: 350 },
-    condition(ctx) { return ctx.target && ctx.target.hp > 0; },
-    action(ctx) {
-      const value = getEffectValue(this, ctx.owner.level || 1);
-      const burnDmg = Math.floor((ctx.owner.attack || 0) * value);
-      ctx.target.hp = Math.max(0, ctx.target.hp - burnDmg);
-      ctx.pushLog?.(`🔥 Burn causa ${burnDmg} de dano em ${ctx.target.name}`);
-    }
-  },
-  healSmall: {
-    id: "healSmall",
-    name: "Cura Pequena",
-    desc: "Cura 15% do HP máximo.",
-    trigger: ["onUse"],
-    scaling: { base: 0.15, perLevel: 0.02 },
-    xp: { current: 0, max: 180 },
-    action(ctx) {
-      const value = getEffectValue(this, ctx.owner.level || 1);
-      const healAmount = Math.floor((ctx.owner.maxHp || 0) * value);
-      ctx.owner.hp = Math.min(ctx.owner.maxHp || 0, (ctx.owner.hp || 0) + healAmount);
-      ctx.pushLog?.(`💚 Cura de ${healAmount} aplicada em ${ctx.owner.name}`);
-    }
-  },
-  stunEffect: {
-    id: "stunEffect",
-    name: "Stun",
-    desc: "Impossibilita o alvo de agir no próximo turno.",
-    trigger: ["onHit"],
-    scaling: { base: 1, perLevel: 0 },
-    action(ctx) {
-      ctx.target.stunned = true;
-      ctx.target.stunDuration = 1;
-      ctx.pushLog?.(`💫 ${ctx.target.name} ficou atordoado!`);
-    }
-  },
-};
-
-/* ----------------- FUNÇÕES AUX ----------------- */
-export function getEffect(id) { return EFFECTS[id] || null; }
-
+/* ----------------- MODIFICADORES DE FACÇÃO ----------------- */
 export function applyFactionModifiers(attacker, defender, baseDamage) {
   let dmg = baseDamage || 0;
   const reasons = [];
@@ -122,7 +104,7 @@ export function applyFactionModifiers(attacker, defender, baseDamage) {
     for (const p of attacker.perks) {
       if (p.againstFaction === defender.faction && p.multiplier) {
         dmg = Math.floor(dmg * p.multiplier);
-        reasons.push(`perk:${p.id||p.type}@${p.multiplier}`);
+        reasons.push(`perk:${p.id || p.type}@${p.multiplier}`);
       }
     }
   }
@@ -130,25 +112,8 @@ export function applyFactionModifiers(attacker, defender, baseDamage) {
   return { damage: dmg, reasons };
 }
 
+/* ----------------- VERIFICAÇÃO DE FACÇÃO ----------------- */
 export function entityHasFactionEffect(entity, faction) {
   if (!entity || !Array.isArray(entity.effects)) return false;
-  return entity.effects.some(id => EFFECTS[id] && EFFECTS[id].againstFaction?.faction === faction);
-}
-
-export function runEffectsTrigger(trigger, owner, opponent, extraCtx = {}, pushLog = () => {}) {
-  if (!owner || typeof owner !== "object") return;
-  const entities = [...(owner.field || []), ...(owner.hand || []), ...(owner.graveyard || [])];
-  if (owner.guardian) entities.push(owner.guardian);
-  
-  for (const subject of entities) {
-    if (!subject || !Array.isArray(subject.effects)) continue;
-    for (const effId of subject.effects) {
-      const eff = EFFECTS[effId];
-      if (!eff) { pushLog?.(`⚠️ Efeito inválido: ${effId}`); continue; }
-      if (!Array.isArray(eff.trigger) || !eff.trigger.includes(trigger)) continue;
-      
-      const ctx = { subject, owner, opponent, target: extraCtx?.target || opponent, ...deepCloneSafe(extraCtx), pushLog };
-      executeEffect(eff, ctx);
-    }
-  }
+  return entity.effects.some(id => EFFECTS[id]?.againstFaction?.faction === faction);
 }
