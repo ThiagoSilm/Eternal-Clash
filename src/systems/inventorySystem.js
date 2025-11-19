@@ -1,4 +1,4 @@
-Import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
+import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
 import { getCardXPValue, levelUpCard } from "./xpSystem.js";
 import { spendGold, addGold } from "./economySystem.js";
 

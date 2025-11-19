@@ -14,7 +14,6 @@ export default {
   name: "upgrade",
   description: "Aumenta o nível de uma carta em seu inventário usando XP e Ouro.",
   usage: "<Índice do Inventário> [Quantidade de Níveis (padrão: 1)]",
-  aliases: ["up"],
   
   async execute(message, args, user) {
     // IMPORTANTE: O inventorySystem utiliza o uniqueId ou a posição do array (índice - 1).
@@ -32,17 +31,13 @@ export default {
     
     try {
       // O sistema `upgradeCard` gerencia a lógica complexa (custo, máximo, etc.)
-      // Note que a função upgradeCard no inventorySystem usa o uniqueId, não o index.
-      // Se você pretende usar o índice, a lógica de busca precisa ser ajustada no inventorySystem
-      // ou você deve passar o uniqueId. Para compatibilidade, usaremos o índice por enquanto.
-      
       const result = upgradeCard(user, inventoryIndex, levelsToUpgrade);
       
       const {
         cardName,
         oldLevel,
         newLevel,
-        xpSpent, // O inventorySystem atual não retorna XP gasto, apenas ouro. Ajuste isso.
+        xpSpent,
         goldSpent,
       } = result;
       
