@@ -6,6 +6,7 @@ import {
   arenaReward
 } from "../../src/systems/arenaSystem.js";
 
+
 export default {
   name: "arena",
   description: "Desafie jogadores na Arena, veja status ou colete recompensas.",
