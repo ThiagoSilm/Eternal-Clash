@@ -33,10 +33,11 @@ function createSimplifiedEnergyBar(current = 0, max = 10, size = 10) {
 
 // Formata o deck para um resumo mais limpo, focando no Guardião
 function formatDeckSummary(deck) {
+  // O check inicial aqui já é suficiente se garantirmos que 'deck' é um array no 'execute'
   if (!deck || deck.length === 0) return "Nenhuma carta equipada.";
   
   const totalCards = deck.length;
-  // Tenta encontrar o Guardião (assumindo type: 'guardian' ou ID prefixado 'g')
+  // Esta linha (deck.find) era a fonte do erro se deck não fosse um array
   const guardian = deck.find(c => c.type === 'guardian' || c.id.startsWith('g')); 
   
   const guardianInfo = guardian 
@@ -69,12 +70,17 @@ export default {
         dailyStatus = getDailyStatus(userId) ?? "⚠️ (indefinido)";
       } catch {}
       
-      // CORREÇÃO AQUI: Garante que 'deck' é um array mesmo que viewDeck falhe
+      // CORREÇÃO CRÍTICA APLICADA AQUI: Verifica explicitamente se o retorno é um Array.
       let deck = [];
       try {
-        deck = viewDeck(user, "main") || [];
+        const result = viewDeck(user, "main");
+        // Somente atribui o resultado se for um array válido
+        if (Array.isArray(result)) {
+            deck = result;
+        }
       } catch (e) {
         console.error("Erro ao carregar o deck (Fallback para []):", e);
+        // Deck permanece como []
       }
       const deckSummary = formatDeckSummary(deck);
       
