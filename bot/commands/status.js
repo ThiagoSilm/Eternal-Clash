@@ -9,7 +9,6 @@ function createSimpleXPBar(current, max, size = 10) {
   const filled = Math.round(ratio * size);
   const empty = size - filled;
   
-  // Usando quadrados sólidos para clareza visual
   const filledChar = "🟦";
   const emptyChar = "⬜";
   
@@ -25,7 +24,6 @@ function createSimplifiedEnergyBar(current = 0, max = 10, size = 10) {
   const filled = Math.round(ratio * size);
   const empty = size - filled;
   
-  // Usando emoji de raio para consistência
   const filledChar = "⚡";
   const emptyChar = "⚪";
   
@@ -60,7 +58,7 @@ export default {
       const username = message.author.username;
       
       // -----------------------
-      // Obter Dados
+      // Obter Dados Com Resiliência
       // -----------------------
       const maxEnergy = 10;
       const energy = getEnergyStatus(userId) ?? 0;
@@ -71,7 +69,13 @@ export default {
         dailyStatus = getDailyStatus(userId) ?? "⚠️ (indefinido)";
       } catch {}
       
-      const deck = viewDeck(user, "main");
+      // CORREÇÃO AQUI: Garante que 'deck' é um array mesmo que viewDeck falhe
+      let deck = [];
+      try {
+        deck = viewDeck(user, "main") || [];
+      } catch (e) {
+        console.error("Erro ao carregar o deck (Fallback para []):", e);
+      }
       const deckSummary = formatDeckSummary(deck);
       
       const level = Number(user.level) || 1;
@@ -95,7 +99,7 @@ export default {
           // --- RECURSOS ---
           { 
             name: "💰 ECONOMIA", 
-            value: `**Ouro:** ${user.gold?.toLocaleString() ?? 0}\n**Gemas:** ${user.gems?.toLocaleString() ?? 0}`, // Gems adicionadas
+            value: `**Ouro:** ${user.gold?.toLocaleString() ?? 0}\n**Gemas:** ${user.gems?.toLocaleString() ?? 0}`,
             inline: true 
           },
           { 
@@ -110,15 +114,15 @@ export default {
             inline: false 
           }
         )
-        .setColor("#3498DB") // Cor azul para clareza
+        .setColor("#3498DB")
         .setFooter({ text: `Próximo Nível em ${xpForNext - currentXP} XP | Use !inventario para detalhes.` })
         .setTimestamp();
       
       await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
       
     } catch (err) {
-      console.error("❌ Erro no comando !status:", err);
-      await message.reply("❌ Ocorreu um erro ao exibir seu status.");
+      console.error("❌ Erro fatal no comando !status:", err);
+      await message.reply("❌ Ocorreu um erro fatal ao exibir seu status.");
     }
   }
 };
