@@ -1,56 +1,35 @@
 // src/systems/couponSystem.js
-//------------------------------------------------------------
-// Coupon System - Gerenciamento de Cupons / Recompensas
-//------------------------------------------------------------
+// Sistema de cupons diários ou recompensas
 
-// Banco de cupons fictício
-const COUPONS = [
-  { code: "WELCOME100", type: "gold", value: 100 },
-  { code: "DAILY50", type: "gold", value: 50 },
-  { code: "GEM10", type: "gem", value: 10 }
-];
+const userCoupons = new Map();
 
-// ------------------ FUNÇÃO PARA OBTER CUPOM ------------------
 /**
- * Retorna um cupom pelo código
- * @param {string} code 
- * @returns {Object|null}
+ * Adiciona cupons a um usuário
+ * @param {object} user 
+ * @param {number} amount 
  */
-export function getCoupon(code) {
-  if (!code) return null;
-  return COUPONS.find(c => c.code.toUpperCase() === code.toUpperCase()) || null;
-}
-
-// ------------------ FUNÇÃO PARA VALIDAR CUPOM ------------------
-/**
- * Verifica se o cupom é válido
- * @param {string} code 
- * @returns {boolean}
- */
-export function isValidCoupon(code) {
-  return !!getCoupon(code);
-}
-
-// ------------------ FUNÇÃO PARA RESGATAR CUPOM ------------------
-/**
- * Resgata um cupom para um usuário (simples placeholder)
- * @param {Object} user 
- * @param {string} code 
- * @returns {boolean} sucesso
- */
-export function redeemCoupon(user, code) {
-  const coupon = getCoupon(code);
-  if (!coupon) return false;
-
-  switch (coupon.type) {
-    case "gold":
-      user.gold = (user.gold || 0) + coupon.value;
-      break;
-    case "gem":
-      user.gems = (user.gems || 0) + coupon.value;
-      break;
-    default:
-      return false;
+export function addCoupons(user, amount) {
+  if (!userCoupons.has(user.id)) {
+    userCoupons.set(user.id, 0);
   }
-  return true;
+  userCoupons.set(user.id, userCoupons.get(user.id) + amount);
+}
+
+/**
+ * Consulta a quantidade de cupons de um usuário
+ * @param {object} user 
+ * @returns {number}
+ */
+export function getCoupons(user) {
+  return userCoupons.get(user.id) || 0;
+}
+
+/**
+ * Remove cupons de um usuário
+ * @param {object} user 
+ * @param {number} amount 
+ */
+export function removeCoupons(user, amount) {
+  if (!userCoupons.has(user.id)) return;
+  userCoupons.set(user.id, Math.max(0, userCoupons.get(user.id) - amount));
 }
