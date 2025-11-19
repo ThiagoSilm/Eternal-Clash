@@ -254,3 +254,14 @@ export function giveGuardianShard(user, shardId, amount = 1) {
     user.guardianShards[shardId] += amount;
     markUserDirty(user.id);
 }
+
+// ----------------------------------------------
+// ⏱️ GASTAR UMA TENTATIVA DA TORRE
+// ----------------------------------------------
+export function spendTowerAttempt(user, amount = 1) {
+    initTower(user); // garante que o objeto tower exista
+    if (user.tower.attempts < amount) return false;
+    user.tower.attempts -= amount;
+    markUserDirty(user.id);
+    return true;
+}
