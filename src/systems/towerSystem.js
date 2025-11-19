@@ -224,3 +224,22 @@ export function getTowerStatus(user) {
     const gems = user.tower.tempGems.length ? `💎 Gemas ativas: ${user.tower.tempGems.join(", ")}` : "";
     return `🗼 Torre - Andar ${floor}/${MAX_FLOOR}\nTentativas: ${attempts}/${DAILY_ATTEMPTS}\nWin Streak: ${user.tower.winStreak}\n${gems}`;
 }
+
+// ----------------------------------------------
+// 📊 RANKING DA TORRE
+// ----------------------------------------------
+export function getTowerRankings(users) {
+    return users
+        .filter(u => u.tower) // garante que o usuário tenha torre
+        .map(u => ({
+            id: u.id,
+            name: u.name || `Player ${u.id}`,
+            floor: u.tower.floor,
+            winStreak: u.tower.winStreak
+        }))
+        .sort((a, b) => {
+            // ordena primeiro pelo andar, depois pelo winStreak
+            if (b.floor !== a.floor) return b.floor - a.floor;
+            return b.winStreak - a.winStreak;
+        });
+}
