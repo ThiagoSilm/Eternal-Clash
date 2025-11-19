@@ -138,7 +138,7 @@ export async function arenaChallenge(user, index) {
     );
 
     while (state.turn <= 60 && state.player.hp > 0 && state.enemy.hp > 0) {
-        battleSystem.runTurn(state);
+        battleSystem.runBattle(state);
     }
 
     const win = state.player.hp > 0 && state.enemy.hp <= 0;
