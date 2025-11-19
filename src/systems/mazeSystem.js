@@ -4,32 +4,58 @@ import { runBattle } from "./battleSystem.js";
 import { markUserDirty } from "./userCacheSystem.js";
 
 /* --------------------------
-   CONSTANTS & SAFE UTILS
+   CONFIGURAÇÕES GLOBAIS
    -------------------------- */
 const MAZE_CONFIG = Object.freeze({
-  energyCost: 4,
-  goldDiceGemCost: 20,
-  maps: {
-    map1: { maxHouses: 40, baseForce: 10, unlocked: true, rewardScale: 1 },
-    map2: { maxHouses: 60, baseForce: 20, unlocked: false, rewardScale: 1.3 },
-    map3: { maxHouses: 80, baseForce: 30, unlocked: false, rewardScale: 1.6 },
+  ENERGY_COST: 4,
+  GOLD_DICE_GEM_COST: 20,
+  DAILY_LIMIT: 2,
+  DAILY_RESET_MS: 86400000, // 24 horas
+  MAPS: {
+    map1: { id: "map1", maxHouses: 40, baseForce: 10, unlocked: true, rewardScale: 1 },
+    map2: { id: "map2", maxHouses: 60, baseForce: 20, unlocked: false, rewardScale: 1.3 },
+    map3: { id: "map3", maxHouses: 80, baseForce: 30, unlocked: false, rewardScale: 1.6 },
   }
 });
 
-const SAFE = Object.freeze({
+/* --------------------------
+   UTILITÁRIOS SEGUROS (SAFE UTILS)
+   -------------------------- */
+const UTILS = Object.freeze({
   now: () => Date.now(),
   rand: () => Math.random(),
   clamp: (v, min, max) => Math.min(Math.max(v, min), max),
-  assertUser: (u) => { if (!u || typeof u !== "object") throw new Error("User inválido"); },
-  assertMap: (m) => { if (!m) throw new Error("Mapa inválido"); }
+  assertUser: (u) => { if (!u || typeof u !== "object") throw new Error("User inválido."); },
+  assertMap: (m) => { if (!m) throw new Error("Mapa inválido."); }
 });
 
 /* --------------------------
-   STATE MANAGEMENT
+   GERENCIAMENTO DE ESTADO
    -------------------------- */
 
+/**
+ * Verifica se um reset diário é necessário e aplica-o.
+ * @param {object} state O estado do labirinto específico (user.mazes[mapId]).
+ * @returns {boolean} True se um reset ocorreu.
+ */
+function checkDailyReset(state) {
+  if (UTILS.now() - state.lastDailyReset >= MAZE_CONFIG.DAILY_RESET_MS) {
+    state.usedToday = 0;
+    state.resetUsed = false;
+    state.lastDailyReset = UTILS.now();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Obtém o estado do labirinto para um mapa e garante que o estado diário esteja atualizado.
+ * @param {object} user Objeto do usuário.
+ * @param {string} mapId ID do mapa.
+ * @returns {object} O estado do labirinto mutável.
+ */
 function getMazeState(user, mapId) {
-  SAFE.assertUser(user);
+  UTILS.assertUser(user);
   user.mazes = user.mazes || {};
   
   if (!user.mazes[mapId]) {
@@ -37,95 +63,115 @@ function getMazeState(user, mapId) {
       position: 0,
       usedToday: 0,
       resetUsed: false,
-      lastDailyReset: SAFE.now(),
+      lastDailyReset: UTILS.now(),
     };
   }
   
-  checkDailyReset(user.mazes[mapId]);
+  // Garante que o estado é validado/resetado e marca o usuário se houver mudança
+  if (checkDailyReset(user.mazes[mapId])) {
+     markUserDirty(user.id);
+  }
+  
   return user.mazes[mapId];
 }
 
-function checkDailyReset(state) {
-  const DAY_MS = 86400000;
-  if (SAFE.now() - state.lastDailyReset >= DAY_MS) {
-    state.usedToday = 0;
-    state.resetUsed = false;
-    state.lastDailyReset = SAFE.now();
+/* --------------------------
+   VALIDAÇÃO DE ENTRADA
+   -------------------------- */
+
+/** Valida se o usuário pode rolar o labirinto. */
+function validateMazeEntry(user, state) {
+  if (state.usedToday >= MAZE_CONFIG.DAILY_LIMIT) {
+    throw new Error(`Limite diário atingido (${MAZE_CONFIG.DAILY_LIMIT}/${MAZE_CONFIG.DAILY_LIMIT}).`);
+  }
+  
+  if (!spendEnergy(user, ENERGY_TYPES.ADVENTURE, MAZE_CONFIG.ENERGY_COST)) {
+    throw new Error(`Energia insuficiente. Custo: ${MAZE_CONFIG.ENERGY_COST} de Aventura.`);
   }
 }
 
 /* --------------------------
-   CORE: ROLL MAZE
+   CORE: ROLAGEM DO LABIRINTO
    -------------------------- */
 
 export async function rollMaze(user, mapId) {
-  SAFE.assertUser(user);
-  const map = MAZE_CONFIG.maps[mapId];
-  SAFE.assertMap(map);
+  UTILS.assertUser(user);
+  const map = MAZE_CONFIG.MAPS[mapId];
+  UTILS.assertMap(map);
   if (!map.unlocked) throw new Error("Mapa bloqueado.");
 
   const state = getMazeState(user, mapId);
-  validateMazeEntry(user, state); // Helper to reduce lines
+  validateMazeEntry(user, state); 
 
-  // Action: Move
-  const dice = 1 + Math.floor(SAFE.rand() * 6);
-  state.position = SAFE.clamp(state.position + dice, 0, map.maxHouses);
+  // 1. Ação: Mover
+  const dice = 1 + Math.floor(UTILS.rand() * 6);
+  state.position = UTILS.clamp(state.position + dice, 0, map.maxHouses);
   state.usedToday++;
 
-  // Action: Resolve Tile
-  let result = await resolveTile(user, map, state.position);
-
-  // Action: Apply Rollback (if any)
-  if (result.rollback) {
-    state.position = SAFE.clamp(state.position - result.rollback, 0, map.maxHouses);
-  }
-
-  // Action: Boss Check
+  // 2. Ação: Resolver Tile (pode ser Boss ou Tile normal)
+  let result;
+  
   if (state.position === map.maxHouses) {
-    result = await handleBossEncounter(user, map, state, result);
+    // 3. Ação: Checagem do Boss Final
+    result = await handleBossEncounter(user, map, state);
+  } else {
+    // 3. Ação: Resolução do Tile Normal
+    result = await resolveTile(user, map, state.position);
+  }
+  
+  // 4. Ação: Aplicar Rollback (se houver, ex: derrota ou armadilha)
+  if (result.rollback && result.rollback > 0) {
+    state.position = UTILS.clamp(state.position - result.rollback, 0, map.maxHouses);
   }
 
   markUserDirty(user.id);
-  return result;
-}
-
-function validateMazeEntry(user, state) {
-  if (state.usedToday >= 2) throw new Error("Limite diário atingido (2/2).");
-  if (!spendEnergy(user, ENERGY_TYPES.ADVENTURE, MAZE_CONFIG.energyCost)) {
-    throw new Error("Energia insuficiente.");
-  }
+  return { 
+    ...result, 
+    dice,
+    newPosition: state.position,
+    maxHouses: map.maxHouses
+  };
 }
 
 /* --------------------------
-   TILE RESOLUTION logic
+   LÓGICA DE RESOLUÇÃO DE TILE
    -------------------------- */
 
-async function resolveTile(user, map, position) {
-  const type = determineTileType(map, position);
+/** Mapeamento de chances de Tile baseado no progresso. */
+const TILE_PROBABILITIES = (progress) => {
+  const baseEnemy = 0.1;
+  const baseQuest = 0.2;
+  const progressBonus = progress * 0.25;
+
+  const enemyChance = UTILS.clamp(baseEnemy + progressBonus, 0.1, 0.5);
+  const questChance = UTILS.clamp(baseQuest + progressBonus, 0.2, 0.5);
   
-  switch (type) {
-    case "empty": return processEmptyTile(user, map);
-    case "question": return processQuestionTile(user, map, position);
-    case "enemy": return processEnemyTile(user, map, position);
-    default: return { message: "Nada aconteceu.", rollback: 0 };
+  return { enemy: enemyChance, question: questChance };
+};
+
+
+async function resolveTile(user, map, position) {
+  const progress = position / map.maxHouses;
+  const chances = TILE_PROBABILITIES(progress);
+  
+  const roll = UTILS.rand();
+
+  if (roll < chances.enemy) {
+    return processEnemyTile(user, map, position);
   }
+  
+  if (roll < chances.enemy + chances.question) {
+    return processQuestionTile(user, map, position);
+  }
+  
+  return processEmptyTile(user, map);
 }
 
-function determineTileType(map, position) {
-  const progress = position / map.maxHouses;
-  // Probabilities increase slightly as player progresses
-  const enemyChance = Math.min(0.1 + (progress * 0.25), 0.5);
-  const questChance = Math.min(0.2 + (progress * 0.25), 0.5);
-  
-  const roll = SAFE.rand();
-  if (roll < enemyChance) return "enemy";
-  if (roll < enemyChance + questChance) return "question";
-  return "empty";
-}
+// --- Processadores de Tile ---
 
 function processEmptyTile(user, map) {
-  const gold = Math.floor((200 + SAFE.rand() * 300) * map.rewardScale);
-  const xp = Math.floor((50 + SAFE.rand() * 50) * map.rewardScale);
+  const gold = Math.floor((200 + UTILS.rand() * 300) * map.rewardScale);
+  const xp = Math.floor((50 + UTILS.rand() * 50) * map.rewardScale);
   
   addGold(user, gold);
   addXP(user, xp);
@@ -137,26 +183,27 @@ function processEmptyTile(user, map) {
   };
 }
 
-/* --------------------------
-   ENCOUNTER LOGIC
-   -------------------------- */
-
 async function processQuestionTile(user, map, position) {
-  const roll = SAFE.rand();
+  const roll = UTILS.rand();
   
-  if (roll < 0.5) { // 50% Gold
-    const gold = Math.floor((400 + SAFE.rand() * 600) * map.rewardScale);
+  if (roll < 0.5) { // 50% Ouro
+    const gold = Math.floor((400 + UTILS.rand() * 600) * map.rewardScale);
     addGold(user, gold);
     return { message: `🎁 Casa [?]: Encontrou **${gold} ouro**!`, rollback: 0 };
   }
   
-  if (roll < 0.8) { // 30% Cards
-    const cards = summonMultiple(user, "mazeCard", 2 + Math.floor(SAFE.rand() * 3));
+  if (roll < 0.8) { // 30% Cartas (2-4 cartas)
+    const cardCount = 2 + Math.floor(UTILS.rand() * 3);
+    const cards = summonMultiple(user, "gems", cardCount); // Assumindo 'gems' ou uma moeda de Labirinto
     return { message: `🎴 Casa [?]: Cartas encontradas!\n${cards}`, rollback: 0 };
   }
   
-  // 20% Trap (Enemy)
-  return processEnemyTile(user, map, position);
+  // 20% Armadilha (Inimigo)
+  const result = await processEnemyTile(user, map, position);
+  return { 
+    ...result, 
+    message: `🪤 Casa [?]: Armadilha! ${result.message}` 
+  };
 }
 
 async function processEnemyTile(user, map, position) {
@@ -169,86 +216,119 @@ async function processEnemyTile(user, map, position) {
   return { message: `⚔️ Vitória! O caminho está seguro.`, rollback: 0 };
 }
 
+/* --------------------------
+   LÓGICA DE INIMIGOS E BOSS
+   -------------------------- */
+
 function createEnemy(map, position, isBoss) {
-  const base = map.baseForce + Math.floor(SAFE.rand() * 10);
-  const power = base + Math.floor(position * (isBoss ? 5 : 0.5));
+  const base = map.baseForce + Math.floor(UTILS.rand() * 10);
+  const powerScale = isBoss ? 5 : 0.5;
+  const power = base + Math.floor(position * powerScale);
   
+  const stats = {
+    hpMultiplier: isBoss ? 20 : 10,
+    attackMultiplier: isBoss ? 5 : 1,
+  };
+
   return {
-    id: `maze_${isBoss ? 'boss' : 'mob'}_${SAFE.now()}`,
+    id: `maze_${isBoss ? 'boss' : 'mob'}_${UTILS.now()}`,
     type: isBoss ? "mazeBoss" : "mazeEnemy",
-    hp: power * (isBoss ? 20 : 10),
-    maxHp: power * (isBoss ? 20 : 10),
-    attack: isBoss ? power * 5 : power,
+    hp: power * stats.hpMultiplier,
+    maxHp: power * stats.hpMultiplier,
+    attack: power * stats.attackMultiplier,
     deck: "deck_random",
-    guardian: isBoss ? "Boss Supremo" : "Monstro"
+    guardian: isBoss ? "Boss Supremo" : "Monstro do Labirinto"
+  };
+}
+
+async function handleBossEncounter(user, map, state) {
+  const boss = createEnemy(map, state.position, true);
+  const battle = await runBattle(user, boss);
+  
+  if (!battle.win) {
+    // Recua o jogador, mas sem retroceder além do início
+    const newPosition = UTILS.clamp(state.position - 3, 0, map.maxHouses);
+    state.position = newPosition; 
+    
+    return { 
+      message: `BOSS: Derrota! Recuou 3 casas. Posição atual: ${newPosition}/${map.maxHouses}`, 
+      rollback: 0 // Rollback já aplicado manualmente
+    };
+  }
+  
+  // Vitória
+  const gold = Math.floor((5000 + UTILS.rand() * 2000) * map.rewardScale);
+  addGold(user, gold);
+  // Invocações de recompensa de boss (3 cartas de Boss)
+  const summonMsg = summonMultiple(user, "gems", 3); 
+  
+  // O labirinto se reseta após a vitória do boss para poder ser rolado novamente.
+  state.usedToday = MAZE_CONFIG.DAILY_LIMIT; // Bloqueia a entrada até o reset diário
+  state.position = 0; // Move para o início
+  
+  return { 
+    message: `🏆 BOSS: VITÓRIA! Recompensas lendárias (${gold} ouro + Cartas) recebidas! ${summonMsg}`, 
+    rollback: 0, 
+    bossDefeated: true
   };
 }
 
 /* --------------------------
-   BOSS LOGIC
-   -------------------------- */
-
-async function handleBossEncounter(user, map, state, prevResult) {
-  const boss = createEnemy(map, state.position, true);
-  const battle = await runBattle(user, boss);
-  
-  let msg = "";
-  if (!battle.win) {
-    state.position = SAFE.clamp(state.position - 3, 0, map.maxHouses);
-    msg = `\n💀 BOSS: Derrota! Recuou 3 casas.`;
-  } else {
-    const gold = Math.floor((5000 + SAFE.rand() * 2000) * map.rewardScale);
-    addGold(user, gold);
-    summonMultiple(user, "mazeBoss", 3);
-    msg = `\n🏆 BOSS: VITÓRIA! Recompensas lendárias recebidas!`;
-  }
-  
-  return { ...prevResult, message: prevResult.message + msg };
-}
-
-/* --------------------------
-   GOLD DICE & UTILS
+   GOLD DICE E UTILITÁRIOS
    -------------------------- */
 
 export function useGoldDice(user, mapId, target) {
-  SAFE.assertUser(user);
-  const map = MAZE_CONFIG.maps[mapId];
+  UTILS.assertUser(user);
+  const map = MAZE_CONFIG.MAPS[mapId];
+  UTILS.assertMap(map);
   const state = getMazeState(user, mapId);
 
-  if (!spendGems(user, MAZE_CONFIG.goldDiceGemCost)) {
-    throw new Error("Gemas insuficientes.");
+  const cost = MAZE_CONFIG.GOLD_DICE_GEM_COST;
+  if (!spendGems(user, cost)) {
+    throw new Error(`Gemas insuficientes. Custo: ${cost} Gemas.`);
   }
-  if (target <= state.position) throw new Error("Gold Dice apenas avança.");
+  
+  const finalTarget = UTILS.clamp(target, state.position + 1, map.maxHouses);
 
-  state.position = SAFE.clamp(target, 0, map.maxHouses);
+  if (finalTarget <= state.position) throw new Error("O Gold Dice deve avançar para uma casa superior à atual.");
+
+  state.position = finalTarget;
   markUserDirty(user.id);
-  return { message: `🎲 Gold Dice: Teleportado para a casa ${state.position}.` };
+  return { 
+    message: `🎲 Gold Dice: Teleportado para a casa **${state.position}** (Custo: ${cost} Gemas).`,
+    newPosition: state.position 
+  };
 }
 
 export function resetMaze(user, mapId) {
-  SAFE.assertUser(user);
+  UTILS.assertUser(user);
   const state = getMazeState(user, mapId);
   
-  if (state.resetUsed) throw new Error("Reset diário já utilizado.");
+  if (state.resetUsed) throw new Error("Reset diário já utilizado. Retorne amanhã!");
   
   state.position = 0;
   state.usedToday = 0;
   state.resetUsed = true;
   markUserDirty(user.id);
-  return "🔄 Labirinto resetado com sucesso!";
+  return "🔄 Labirinto resetado com sucesso! Você pode tentar novamente.";
 }
 
-// Read-only Exports
+// Exports de Leitura
 export function getMazeMapInfo(user, mapId) {
-  const map = MAZE_CONFIG.maps[mapId];
+  const map = MAZE_CONFIG.MAPS[mapId];
   if (!map) return null;
-  const s = getMazeState(user, mapId);
+  const state = getMazeState(user, mapId);
   return {
     totalHouses: map.maxHouses,
-    currentHouse: s.position,
-    visitedHouses: s.position 
+    currentHouse: state.position,
+    usedToday: state.usedToday,
+    limit: MAZE_CONFIG.DAILY_LIMIT,
+    isResetAvailable: !state.resetUsed
   };
 }
 
-export const getCurrentMapId = () => "map1";
-export const startMaze = (u) => { getMazeState(u, "map1"); return "Iniciado"; };
+export const getCurrentMapId = () => "map1"; // Simplesmente retorna o mapa padrão
+export const startMaze = (user, mapId = "map1") => { 
+  getMazeState(user, mapId); 
+  return `Labirinto ${mapId} iniciado/carregado.`; 
+};

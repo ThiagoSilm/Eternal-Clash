@@ -2,96 +2,159 @@
 
 import { markUserDirty } from "./userCacheSystem.js";
 import { addGold, addXP } from "./economySystem.js";
-import { giveCardToUser, addShardsToUser } from "./cardSystem.js";
-import { initBattle, runBattle } from "./battleSystem.js";
+// Assumindo que giveCardToUser será substituído por addShardsToUser
+import { addShardsToUser } from "./shardSystem.js"; 
+// Importa o sistema de RNG
+import { rng, choice } from "./rngSystem.js"; 
+import { initBattle, runBattle } from "./battleSystem.js"; // Assume estas funções de batalha
 
-/* ---------------------------------------------------------
-   CONFIG
---------------------------------------------------------- */
+// =========================================================
+// ⚙️ CONFIGURAÇÃO & CONSTANTES
+// =========================================================
+
 const MAX_FLOOR = 120;
 const DAILY_ATTEMPTS = 3;
-const REWARD_SCALING_FACTOR = 1.15;
-const SHARD_TIERS = {
+const REWARD_SCALING_FACTOR = 1.15; // Fator de escala geométrica para recompensas
+const TOWER_TOKENS_NAME = "Tower Token (TT)"; // Nome da moeda da torre
+
+/** Mapeamento de raridade para IDs de cartas que podem ser dropadas como Shards. */
+const SHARD_TIERS = Object.freeze({
     3: ["golem3", "ninja3", "minotauro3"],
     4: ["dragao4", "anjo4", "lich4"],
     5: ["fenix5", "celestial5"]
-};
-const GEMS = ["Fúria", "Proteção", "Velocidade", "Crítico"];
+});
+const GEMS = Object.freeze(["Fúria", "Proteção", "Velocidade", "Crítico"]); // Gemas temporárias
 
-/* ---------------------------------------------------------
-   FAILSAFE - sempre garantir estrutura mínima
---------------------------------------------------------- */
-function sanitizeTower(user) {
+// =========================================================
+// 🛡️ FAILSAFE E ESTRUTURA DE ESTADO
+// =========================================================
+
+/**
+ * @typedef {object} TowerState
+ * @property {number} floor - Andar atual que o usuário tentará (começa em 1).
+ * @property {number} attempts - Tentativas restantes do dia.
+ * @property {number} lastAccess - Timestamp do último acesso/reset diário.
+ * @property {number} winStreak - Sequência de vitórias.
+ * @property {string[]} tempGems - IDs das gemas temporárias ativas.
+ * @property {number} tokens - Moeda da Torre (Tower Tokens).
+ */
+
+/**
+ * @typedef {object} TowerShopState
+ * @property {number} lastReset - Timestamp do último reset da loja.
+ * @property {object[]} items - Itens disponíveis para compra.
+ */
+
+/**
+ * @typedef {object} UserState
+ * @property {string} id
+ * @property {string} [name] - Nome do usuário.
+ * @property {TowerState} [tower]
+ * @property {TowerShopState} [towerShop]
+ * @property {Object.<string, number>} [guardianShards] - Shards de guardião.
+ */
+
+
+/**
+ * Garante que todas as estruturas relacionadas à Torre existam e tenham valores válidos.
+ * @param {UserState} user - Objeto do usuário (mutável).
+ */
+function initTowerStructures(user) {
+    let dirty = false;
+    
+    // 1. TowerState
     if (!user.tower || typeof user.tower !== "object") {
-        user.tower = {
-            floor: 1,
-            attempts: DAILY_ATTEMPTS,
-            lastAccess: 0,
-            winStreak: 0,
-            tempGems: [],
-            tokens: 0
-        };
-        markUserDirty(user.id);
-        return;
+        user.tower = { floor: 1, attempts: DAILY_ATTEMPTS, lastAccess: 0, winStreak: 0, tempGems: [], tokens: 0 };
+        dirty = true;
+    } else {
+        const t = user.tower;
+        if (Number(t.floor) <= 0) t.floor = 1;
+        if (Number(t.attempts) < 0) t.attempts = DAILY_ATTEMPTS;
+        if (Number(t.lastAccess) < 0) t.lastAccess = 0;
+        if (Number(t.winStreak) < 0) t.winStreak = 0;
+        if (!Array.isArray(t.tempGems)) t.tempGems = [];
+        if (typeof t.tokens !== "number" || t.tokens < 0) t.tokens = 0;
+        dirty = true;
     }
-
-    const t = user.tower;
-
-    t.floor = Number(t.floor) > 0 ? Number(t.floor) : 1;
-    t.attempts = Number(t.attempts) >= 0 ? Number(t.attempts) : DAILY_ATTEMPTS;
-    t.lastAccess = Number(t.lastAccess) >= 0 ? Number(t.lastAccess) : 0;
-    t.winStreak = Number(t.winStreak) >= 0 ? Number(t.winStreak) : 0;
-
-    if (!Array.isArray(t.tempGems)) t.tempGems = [];
-    if (typeof t.tokens !== "number" || t.tokens < 0) t.tokens = 0;
-
-    markUserDirty(user.id);
-}
-
-function sanitizeTowerShop(user) {
+    
+    // 2. TowerShopState
     if (!user.towerShop || typeof user.towerShop !== "object") {
         user.towerShop = { lastReset: 0, items: [] };
-        markUserDirty(user.id);
-        return;
+        dirty = true;
+    } else if (!Array.isArray(user.towerShop.items)) {
+        user.towerShop.items = [];
+        dirty = true;
     }
 
-    if (!Array.isArray(user.towerShop.items)) user.towerShop.items = [];
-}
-
-function sanitizeGuardianShards(user) {
+    // 3. GuardianShards
     if (!user.guardianShards || typeof user.guardianShards !== "object") {
         user.guardianShards = {};
-        markUserDirty(user.id);
+        dirty = true;
     }
+
+    if (dirty) markUserDirty(user.id);
 }
 
-/* ---------------------------------------------------------
-   GEMS TEMPORÁRIAS
---------------------------------------------------------- */
+/**
+ * Ponto de entrada para garantir a inicialização da Torre.
+ * @param {UserState} user
+ */
+export function initTower(user) {
+    initTowerStructures(user);
+    // Chama o reset diário para garantir que as tentativas e a loja estejam atualizadas
+    resetDaily(user); 
+    initTowerShop(user);
+}
+
+// =========================================================
+// 💎 GEMS TEMPORÁRIAS (Buffs de Torre)
+// =========================================================
+
+/**
+ * Adiciona uma gema temporária ativa para o run da Torre.
+ * @param {UserState} user - Objeto do usuário (mutável).
+ * @param {string} gem - Nome da gema.
+ */
 export function addTemporaryGem(user, gem) {
-    sanitizeTower(user);
+    initTowerStructures(user);
     user.tower.tempGems.push(gem);
     markUserDirty(user.id);
 }
 
+/**
+ * Remove todas as gemas temporárias.
+ * @param {UserState} user - Objeto do usuário (mutável).
+ */
 export function clearTemporaryGems(user) {
-    sanitizeTower(user);
-    user.tower.tempGems = [];
-    markUserDirty(user.id);
+    initTowerStructures(user);
+    if (user.tower.tempGems.length > 0) {
+        user.tower.tempGems = [];
+        markUserDirty(user.id);
+    }
 }
 
-/* ---------------------------------------------------------
-   ENEMIES
---------------------------------------------------------- */
+// =========================================================
+// 👹 INIMIGOS E Batalha
+// =========================================================
+
+/**
+ * Gera a definição do inimigo para um dado andar da Torre.
+ * @param {number} floor - O andar atual.
+ * @returns {object} Definição do inimigo.
+ */
 export function getFloorEnemy(floor) {
     const seed = floor % 10;
-    const suffix = seed % 3 === 0 ? "Golem" : seed % 3 === 1 ? "Dragão" : "Assassino";
+    
+    const names = ["Golem", "Dragão", "Assassino", "Lich", "Minotauro"];
+    const suffix = choice(names) || "Guardião";
+
+    // Fórmulas de escala
     const hp = Math.floor((500 + floor * 50) * (1 + seed * 0.05));
     const atk = Math.floor((50 + floor * 10) * (1 + seed * 0.05));
     const isBoss = floor % 5 === 0;
 
     return {
-        id: `E_TOWER_${floor}`,
+        id: `E_TOWER_${floor}_${suffix.slice(0, 3)}`,
         name: isBoss ? `👑 Boss do Andar ${floor} (${suffix})` : `Guardião ${floor} (${suffix})`,
         hp,
         maxHp: hp,
@@ -102,143 +165,223 @@ export function getFloorEnemy(floor) {
     };
 }
 
+/**
+ * Gera um deck básico para o inimigo da Torre.
+ * @param {number} floor
+ * @param {boolean} isBoss
+ * @returns {object[]} O deck.
+ */
 function generateEnemyDeck(floor, isBoss) {
     const amount = isBoss ? 8 : 5;
     const deck = [];
     for (let i = 0; i < amount; i++) {
+        // Dano e Defesa aumentam com o andar
         deck.push({ id: `atk${floor}_${i}`, type: "attack", value: 50 + floor * 5 });
         deck.push({ id: `def${floor}_${i}`, type: "defense", value: 20 + floor * 2 });
     }
     return deck;
 }
 
-/* ---------------------------------------------------------
-   RANDOM EVENTS
---------------------------------------------------------- */
-export function getRandomTowerEvent(floor) {
-    const roll = Math.random();
+// =========================================================
+// ❓ EVENTOS ALEATÓRIOS
+// =========================================================
 
-    if (roll < 0.25) return { type: "buff", value: 0.2, description: "Inimigo enfraquecido" };
-    if (roll < 0.45) return { type: "debuff", value: 0.2, description: "Inimigo fortalecido" };
-    if (roll < 0.65) {
-        const gem = GEMS[Math.floor(Math.random() * GEMS.length)];
-        return { type: "gem", gem, description: `Gema temporária recebida: ${gem}` };
+/**
+ * Retorna um evento aleatório que ocorre antes da batalha.
+ * @param {number} floor
+ * @returns {{type: string, value?: number, gem?: string, description: string} | null} O evento.
+ */
+export function getRandomTowerEvent(floor) {
+    // Usando rng para escolher o evento
+    const roll = rng(1, 100); 
+
+    if (roll <= 25) return { type: "buff", value: 0.2, description: "Inimigo enfraquecido (20% menos HP)." };
+    if (roll <= 45) return { type: "debuff", value: 0.2, description: "Inimigo fortalecido (20% mais ataque)." };
+    
+    // Chance de Gema Temporária
+    if (roll <= 65) {
+        const gem = choice(GEMS);
+        return { type: "gem", gem, description: `Gema temporária recebida: **${gem}**` };
     }
-    if (roll < 0.85) {
+    
+    // Lore ou evento neutro
+    if (roll <= 85) {
         const lore = [
-            "Um vento gelado percorre a Torre.",
-            "As paredes sussurram segredos antigos.",
-            "Inscrições brilhantes surgem nas pedras.",
+            "Um vento gelado percorre a Torre, recarregando suas forças.",
+            "As paredes sussurram segredos antigos, ganhando um pouco de EXP extra.",
+            "Inscrições brilhantes surgem nas pedras, te dando uma moeda da Torre.",
             "Passos ecoam em um andar distante."
         ];
-        return { type: "lore", description: lore[Math.floor(Math.random() * lore.length)] };
+        return { type: "lore", description: choice(lore) || "Evento neutro." };
     }
-    return null;
+    return null; // Nada acontece
 }
 
-/* ---------------------------------------------------------
-   REWARDS
---------------------------------------------------------- */
+// =========================================================
+// 🎁 RECOMPENSAS
+// =========================================================
+
+/**
+ * Calcula a recompensa estática de um andar.
+ * @param {number} floor - Andar completado.
+ * @returns {{gold: number, xp: number, shards: object[]}} Recompensa.
+ */
 export function getFloorReward(floor) {
+    // Crescimento exponencial do Gold e XP
     const gold = Math.floor(500 * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
     const xp = Math.floor(200 * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
 
+    // Shards a cada 5 andares, mais chances de drop raro
     const shards = floor % 5 === 0 ? [rollShard()] : [];
     return { gold, xp, shards };
 }
 
+/**
+ * Rola um Shard de carta aleatório com base na raridade.
+ * @returns {{rarity: number, id: string, amount: number}} Detalhes do shard.
+ */
 function rollShard() {
-    const r = Math.random();
-    if (r < 0.7) return { rarity: 3, id: rand(SHARD_TIERS[3]) };
-    if (r < 0.95) return { rarity: 4, id: rand(SHARD_TIERS[4]) };
-    return { rarity: 5, id: rand(SHARD_TIERS[5]) };
+    // Usando rng para controle explícito
+    const r = rng(1, 100); 
+    let rarity, amount;
+
+    if (r <= 70) { // 70% R3
+        rarity = 3;
+        amount = rng(1, 3);
+    } else if (r <= 95) { // 25% R4
+        rarity = 4;
+        amount = rng(1, 2);
+    } else { // 5% R5
+        rarity = 5;
+        amount = 1;
+    }
+    
+    const idList = SHARD_TIERS[rarity];
+    const cardId = choice(idList);
+    
+    return { rarity, id: cardId, amount };
 }
 
-function rand(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
 
-/* ---------------------------------------------------------
-   INIT TOWER
---------------------------------------------------------- */
-export function initTower(user) {
-    sanitizeTower(user);
-}
+// =========================================================
+// 🏃 EXECUTAR ANDAR (CORE)
+// =========================================================
 
-/* ---------------------------------------------------------
-   EXECUTAR ANDAR
---------------------------------------------------------- */
+/**
+ * Tenta subir um andar na Torre.
+ * @param {UserState} user - Objeto do usuário (mutável).
+ * @returns {{success: boolean, msg?: string, log?: string[], event?: string, rewardMsg?: string}} Resultado.
+ */
 export function climbFloor(user) {
-    sanitizeTower(user);
+    initTowerStructures(user); // Garante a estrutura
 
     if (user.tower.attempts <= 0)
-        return { success: false, msg: "❌ Sem tentativas restantes." };
+        return { success: false, msg: "❌ Sem tentativas restantes. Volte amanhã ou compre mais tentativas." };
 
+    // 1. Gasta 1 tentativa
     user.tower.attempts--;
 
-    const enemy = getFloorEnemy(user.tower.floor);
-    const event = getRandomTowerEvent(user.tower.floor);
+    const currentFloor = user.tower.floor;
+    const enemy = getFloorEnemy(currentFloor);
+    const event = getRandomTowerEvent(currentFloor);
 
     let eventMsg = "";
     if (event) {
-        if (event.type === "gem") addTemporaryGem(user, event.gem);
         eventMsg = event.description;
+        // Aplica o efeito do evento
+        if (event.type === "gem") addTemporaryGem(user, event.gem);
+        // Exemplo de aplicação de buff/debuff (o battleSystem precisaria ler isso)
+        if (event.type === "buff" && event.value) enemy.hp = Math.floor(enemy.hp * (1 - event.value));
+        if (event.type === "debuff" && event.value) enemy.attack = Math.floor(enemy.attack * (1 + event.value));
     }
 
-    const state = initBattle(user, enemy, { auto: true });
-    runBattle(state);
+    // 2. Inicia e executa a batalha
+    // As tempGems (buffs) devem ser passadas para o battleSystem aqui via options
+    const state = initBattle(user, enemy, { auto: true, towerGems: user.tower.tempGems });
+    const battleResult = runBattle(state); // runBattle deve retornar o resultado final
 
-    const win = state.enemy.hp <= 0;
+    const win = battleResult?.winner === "player"; 
     let rewardMsg = "";
 
     if (win) {
-        const oldFloor = user.tower.floor;
+        // 3. VITORIA
         user.tower.floor++;
         user.tower.winStreak++;
 
-        const reward = getFloorReward(oldFloor);
-
+        const reward = getFloorReward(currentFloor);
+        const tokensGained = 1; // Exemplo: 1 Token por vitória
+        
+        // Concede recompensas
         addGold(user, reward.gold);
         addXP(user, reward.xp);
-        reward.shards.forEach(s => giveShardToUser(user, s.id, 1));
+        user.tower.tokens += tokensGained;
+        
+        // Concede Shards
+        reward.shards.forEach(s => addShardsToUser(user, s.id, s.amount));
 
         rewardMsg =
-            `🎁 +${reward.gold} Ouro, +${reward.xp} XP` +
-            (reward.shards.length ? `, Shard: ${reward.shards.map(s => `${s.id} (${s.rarity}★)`).join(", ")}` : "");
+            `🎁 +${reward.gold} Ouro, +${reward.xp} XP, +${tokensGained} TT.` +
+            (reward.shards.length ? `\n💎 Shards: ${reward.shards.map(s => `${s.id} x${s.amount}`).join(", ")}` : "");
+            
     } else {
+        // 4. DERROTA
         user.tower.winStreak = 0;
-        rewardMsg = "❌ Você foi derrotado!";
+        rewardMsg = "❌ Você foi derrotado! Sua sequência de vitórias foi reiniciada.";
+        // Perde as gemas temporárias em caso de derrota
+        clearTemporaryGems(user); 
     }
 
     markUserDirty(user.id);
-    return { success: win, log: state.log, event: eventMsg, rewardMsg };
+    return { 
+        success: win, 
+        msg: win ? `Andar **${currentFloor}** Concluído!` : `Falha no Andar **${currentFloor}**!`, 
+        event: eventMsg, 
+        rewardMsg 
+    };
 }
 
-/* ---------------------------------------------------------
-   RESET DIÁRIO
---------------------------------------------------------- */
+
+// =========================================================
+// 📅 RESET DIÁRIO
+// =========================================================
+
+/**
+ * Verifica e executa o reset diário de tentativas e gemas.
+ * @param {UserState} user - Objeto do usuário (mutável).
+ * @returns {string | null} Mensagem de reset, ou null se não for necessário.
+ */
 export function resetDaily(user) {
-    sanitizeTower(user);
+    initTowerStructures(user);
 
     const now = Date.now();
+    // Cria strings de data simples para comparação (formato YYYY-MM-DD)
     const today = new Date(now).toISOString().split("T")[0];
     const last = new Date(user.tower.lastAccess).toISOString().split("T")[0];
 
     if (today !== last) {
         user.tower.attempts = DAILY_ATTEMPTS;
         user.tower.lastAccess = now;
-        clearTemporaryGems(user);
+        clearTemporaryGems(user); // Limpa as gemas ao resetar
         markUserDirty(user.id);
-        return `✅ Tentativas resetadas: ${DAILY_ATTEMPTS}`;
+        
+        // Também garante o reset da loja aqui
+        initTowerShop(user); 
+        
+        return `✅ Tentativas da Torre resetadas para: ${DAILY_ATTEMPTS}`;
     }
     return null;
 }
 
-/* ---------------------------------------------------------
-   TOWER SHOP
---------------------------------------------------------- */
+// =========================================================
+// 🏬 TOWER SHOP
+// =========================================================
+
+/**
+ * Inicializa/Reseta a loja da Torre diariamente.
+ * @param {UserState} user - Objeto do usuário (mutável).
+ */
 export function initTowerShop(user) {
-    sanitizeTowerShop(user);
+    initTowerStructures(user);
 
     const now = Date.now();
     const today = new Date(now).toISOString().split("T")[0];
@@ -248,12 +391,14 @@ export function initTowerShop(user) {
         user.towerShop.lastReset = now;
         user.towerShop.items = [];
 
+        // Gera 3 ofertas aleatórias de Shards
         for (let i = 0; i < 3; i++) {
             const s = rollShard();
             user.towerShop.items.push({
                 id: s.id,
                 rarity: s.rarity,
-                cost: s.rarity * 30
+                amount: s.amount,
+                cost: s.rarity * 30 * s.amount // Custo de TT escala com raridade e quantidade
             });
         }
 
@@ -261,44 +406,65 @@ export function initTowerShop(user) {
     }
 }
 
+/**
+ * Compra um item da loja da Torre usando Tower Tokens (TT).
+ * @param {UserState} user - Objeto do usuário (mutável).
+ * @param {number} index - Índice do item na lista (1-baseado).
+ * @returns {string} Mensagem de resultado da compra.
+ */
 export function buyTowerShopItem(user, index) {
-    sanitizeTower(user);
-    sanitizeTowerShop(user);
+    initTowerStructures(user);
 
     const item = user.towerShop.items[index - 1];
-    if (!item) return "❌ Item inválido.";
+    if (!item) return "❌ Item inválido. Use o número de 1 a 3.";
 
-    if (user.tower.tokens < item.cost)
-        return `❌ Você precisa de ${item.cost} TT.`;
+    if (user.tower.tokens < item.cost) {
+        return `❌ Você precisa de **${item.cost} TT**. (Possui: ${user.tower.tokens}).`;
+    }
 
     user.tower.tokens -= item.cost;
-    giveShardToUser(user, item.id, 1);
+    addShardsToUser(user, item.id, item.amount); // Adiciona os shards
 
     markUserDirty(user.id);
-    return `✅ Comprou ${item.id} (${item.rarity}★)`;
+    return `✅ Comprou **${item.amount}x Shard de ${item.id}** (${item.rarity}★) por **${item.cost} TT**.`;
 }
 
-/* ---------------------------------------------------------
-   STATUS
---------------------------------------------------------- */
+// =========================================================
+// ℹ️ STATUS E RANKING
+// =========================================================
+
+/**
+ * Retorna o status atual da Torre para o usuário.
+ * @param {UserState} user
+ * @returns {string} Status formatado.
+ */
 export function getTowerStatus(user) {
-    sanitizeTower(user);
-
+    initTowerStructures(user);
     const t = user.tower;
-    const gems = t.tempGems.length ? `💎 Gemas: ${t.tempGems.join(", ")}` : "";
+    
+    // Garante que o reset diário tenha ocorrido
+    resetDaily(user); 
 
-    return `🗼 Torre - Andar ${t.floor}/${MAX_FLOOR}
-Tentativas: ${t.attempts}/${DAILY_ATTEMPTS}
-Win Streak: ${t.winStreak}
-${gems}`;
+    const gems = t.tempGems.length ? `💎 Gemas: **${t.tempGems.join(", ")}**` : "💎 Gemas: Nenhuma";
+
+    return `
+🗼 **Torre da Ascensão** - Andar **${t.floor}/${MAX_FLOOR}**
+----------------------------------
+Tentativas: **${t.attempts}/${DAILY_ATTEMPTS}**
+Win Streak: **${t.winStreak}**
+Tokens: **${t.tokens} TT**
+${gems}
+`.trim();
 }
 
-/* ---------------------------------------------------------
-   RANKING
---------------------------------------------------------- */
+/**
+ * Gera um ranking de usuários baseado no progresso da Torre.
+ * @param {UserState[]} users - Lista de todos os usuários.
+ * @returns {object[]} Ranking ordenado.
+ */
 export function getTowerRankings(users) {
     return users
-        .filter(u => u.tower)
+        .filter(u => u.tower && u.tower.floor > 1)
         .map(u => ({
             id: u.id,
             name: u.name || `Player ${u.id}`,
@@ -306,30 +472,41 @@ export function getTowerRankings(users) {
             winStreak: u.tower.winStreak
         }))
         .sort((a, b) =>
+            // Ordem primária: Andar (descendente)
             b.floor !== a.floor ? b.floor - a.floor :
+            // Ordem secundária: Win Streak (descendente)
             b.winStreak - a.winStreak
         );
 }
 
-/* ---------------------------------------------------------
-   GUARDIAN SHARDS
---------------------------------------------------------- */
+// =========================================================
+// ⚔️ GUARDIAN SHARDS E GASTO DE TENTATIVAS (Utilidades)
+// =========================================================
+
+/**
+ * Adiciona um Shard de Guardião (moeda especial para evolução de guardiões).
+ * @param {UserState} user - Objeto do usuário (mutável).
+ * @param {string} shardId - ID do Shard de Guardião.
+ * @param {number} [amount=1] - Quantidade.
+ */
 export function giveGuardianShard(user, shardId, amount = 1) {
-    sanitizeGuardianShards(user);
+    initTowerStructures(user);
 
     if (!user.guardianShards[shardId])
         user.guardianShards[shardId] = 0;
 
     user.guardianShards[shardId] += amount;
-
     markUserDirty(user.id);
 }
 
-/* ---------------------------------------------------------
-   SPEND ATTEMPTS
---------------------------------------------------------- */
+/**
+ * Gasta tentativas de Torre (usado por itens da loja ou ações externas).
+ * @param {UserState} user - Objeto do usuário (mutável).
+ * @param {number} [amount=1] - Quantidade a gastar.
+ * @returns {boolean} True se o gasto foi bem-sucedido.
+ */
 export function spendTowerAttempt(user, amount = 1) {
-    sanitizeTower(user);
+    initTowerStructures(user);
 
     if (user.tower.attempts < amount) return false;
 
