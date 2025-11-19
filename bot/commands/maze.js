@@ -19,7 +19,12 @@ export default {
     async execute(message, args, user) {
         const sub = (args[0] || "roll").toLowerCase();
         const toInt = (v) => { const n = parseInt(v); return Number.isInteger(n) && n > 0 ? n : null; };
-        const currentMapId = getCurrentMapId(user) || "map1";
+
+        // ✅ Garantir mapa atual válido
+        let currentMapId = getCurrentMapId(user);
+        if (!currentMapId && sub !== "start") {
+            return message.reply("❌ Você ainda não iniciou o Maze. Use `!maze start` primeiro.");
+        }
 
         const renderMiniMap = (mapInfo) => {
             if (!mapInfo) return "❌ Mapa não disponível.";
@@ -82,12 +87,16 @@ export default {
 
                 const prizeMsg = renderPrizeMessage(actionResult.prize);
 
+                const currentHouse = mapInfo.currentHouse ?? 0;
+                const visitedHousesLength = mapInfo.visitedHouses?.length ?? 0;
+                const totalHouses = mapInfo.totalHouses ?? 0;
+
                 const embed = new EmbedBuilder()
                     .setTitle(`🎲 Maze - ${type === "roll" ? "Rolagem" : "Gold Dice"}`)
                     .addFields(
                         { name: "Mapa", value: `#${mapIdArg}`, inline: true },
-                        { name: "Casa Atual", value: `${mapInfo.currentHouse ?? 0}`, inline: true },
-                        { name: "Progresso", value: `${(mapInfo.visitedHouses?.length ?? 0)}/${mapInfo.totalHouses ?? 0}` },
+                        { name: "Casa Atual", value: `${currentHouse}`, inline: true },
+                        { name: "Progresso", value: `${visitedHousesLength}/${totalHouses}` },
                         { name: "Resultado", value: actionResult.message }
                     );
 
@@ -110,12 +119,16 @@ export default {
                 const result = resetMaze(user, mapIdArg);
                 const updatedMapInfo = getMazeMapInfo(user, mapIdArg);
 
+                const currentHouseBefore = mapInfo.currentHouse ?? 0;
+                const visitedHousesLength = updatedMapInfo.visitedHouses?.length ?? 0;
+                const totalHouses = updatedMapInfo.totalHouses ?? 0;
+
                 const embed = new EmbedBuilder()
                     .setTitle(`🔄 Maze - Reset`)
                     .addFields(
                         { name: "Mapa", value: `#${mapIdArg}`, inline: true },
-                        { name: "Casa Antes do Reset", value: `${mapInfo.currentHouse ?? 0}` },
-                        { name: "Progresso", value: `${(updatedMapInfo.visitedHouses?.length ?? 0)}/${updatedMapInfo.totalHouses ?? 0}` },
+                        { name: "Casa Antes do Reset", value: `${currentHouseBefore}` },
+                        { name: "Progresso", value: `${visitedHousesLength}/${totalHouses}` },
                         { name: "Resultado", value: result },
                         { name: "Tabuleiro", value: renderMiniMap(updatedMapInfo) }
                     )
