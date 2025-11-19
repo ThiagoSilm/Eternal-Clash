@@ -1,7 +1,7 @@
 import { addGems, addGold, addXP } from "./economySystem.js";
 import { battleSystem } from "./battleSystem.js";
 import { generateOpponentForRank } from "./userCacheSystem.js";
-import { CardController } from "./CardController.js";
+import { CardController } from "../controllers/CardController.js";
 
 /* --------------------------
    CONFIG & CONSTANTS

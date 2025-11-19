@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { spendEnergy, ENERGY_TYPES, addGold, addItem } from "./economySystem.js";
 import { battleSystem } from "./battleSystem.js";
-import { CardController } from "./CardController.js";
+import { CardController } from "../controllers/CardController.js";
 import { markUserDirty } from "./userCacheSystem.js";
 
 /* --------------------------
