@@ -1,417 +1,449 @@
-// src/systems/battleSystem.js
 import { getCardTemplate } from "./cardSystem.js";
 import { runEffectsTrigger, applyFactionModifiers } from "./effectSystem.js";
 import { getGuardian } from "./guardianSystem.js";
-import { rng, chanceDecimal, weightedChoice, setSeed } from "./rngSystem.js";
-import { CardController } from "./CardController.js"; // <-- INTEGRADO
+import { rng, chanceDecimal, setSeed } from "./rngSystem.js";
+import { CardController } from "./CardController.js";
 
-// ------------------ CONFIGS ------------------
-const MAX_TURNS = 60;
-const MAX_HAND = 5;
-const MAX_BATTLE_LOOPS = 500;
+/* --------------------------
+   CONFIG & CONSTANTS
+   -------------------------- */
+const BATTLE_CONFIG = Object.freeze({
+  MAX_TURNS: 60,
+  MAX_HAND: 5,
+  MAX_LOOPS: 500,
+  CRIT_DEFAULT: 0.07
+});
 
-// ------------------ HELPERS ------------------
-const opposite = (side, state) => (side === "player" ? state.enemy : state.player);
-const pushLog = (state, entry) => { entry.turn = state.turn; state.log.push(entry); };
+const LOG = (state, entry) => { 
+  entry.turn = state.turn; 
+  state.log.push(entry); 
+};
 
-// ------------------ ENTITIES ------------------
+const OPPONENT = (side, state) => (side === "player" ? state.enemy : state.player);
+
+/* --------------------------
+   INITIALIZATION
+   -------------------------- */
+
 export function initBattle(user, enemy, options = {}) {
-  setSeed(Date.now()); // define seed para RNG
-
-  // preserva o raw input (protegido) para auditoria / debug — outros devs não devem alterar isso
+  setSeed(Date.now());
   const rawUser = JSON.parse(JSON.stringify(user || {}));
   const rawEnemy = JSON.parse(JSON.stringify(enemy || {}));
 
-  const state = {
-    turn: 1,
-    attacker: "player",
-    log: [],
-    player: createEntity(rawUser, "player"),
-    enemy: createEntity(rawEnemy, "enemy"),
-    summons: [],
-    options: { auto: !!options.auto, mapStage: options.mapStage || null },
-    hooks: { beforeTurn: [], afterTurn: [], beforeCard: [], afterCard: [], battleStart: [], death: [] },
-    _raw: { player: Object.freeze(rawUser), enemy: Object.freeze(rawEnemy) } // congelado para proteção
-  };
+  const state = buildBaseState(rawUser, rawEnemy, options);
 
-  // Prepara e aplica pacotes de cartas via CardController (embaralha, resolve templates e monta deck/hand/discard).
-  // Isso garante que decks nunca sejam a referência original e evita alterações acidentais por terceiros.
   try {
-    const { applyToEntities } = CardController.prepareBattleCardPackages(state.player, state.enemy);
-    applyToEntities();
+    // Integração blindada com CardController
+    const pkg = CardController.prepareBattleCardPackages(state.player, state.enemy);
+    pkg.applyToEntities();
   } catch (err) {
-    // fallback: mantém os decks originais caso CardController falhe — evita quebrar o jogo por completo
-    pushLog(state, { actor: "system", note: `CardController failed: ${err?.message || err}` });
+    LOG(state, { actor: "SYS", note: `Deck prep failed: ${err.message}` });
   }
 
-  if (state.player.guardian) state.player.guardian = createGuardian(state.player.guardian, "player");
-  if (state.enemy.guardian) state.enemy.guardian = createGuardian(state.enemy.guardian, "enemy");
-
-  if (typeof state.player.applyPerks === "function") state.player.applyPerks(state.player);
-  if (typeof state.enemy.applyPerks === "function") state.enemy.applyPerks(state.enemy);
-
+  initializeEntityFeatures(state.player, "player");
+  initializeEntityFeatures(state.enemy, "enemy");
+  
   return state;
+}
+
+function buildBaseState(user, enemy, options) {
+  return {
+    turn: 1,
+    attacker: "player",
+    winner: null,
+    log: [],
+    player: createEntity(user, "player"),
+    enemy: createEntity(enemy, "enemy"),
+    summons: [],
+    options: { auto: !!options.auto, mapStage: options.mapStage || null },
+    // Snapshot para auditoria se necessário
+    _meta: { timestamp: Date.now(), seed: Date.now() } 
+  };
 }
 
 function createEntity(data, role) {
   return {
     ...data,
+    id: data.id || role,
     name: data.name || role,
     hp: data.maxHp ?? data.hp ?? 100,
     maxHp: data.maxHp ?? data.hp ?? 100,
-    block: data.block ?? 0,
+    block: 0,
     deck: [...(data.deck || [])],
     hand: [],
     discard: [],
-    guardian: getGuardian(data.guardianId) || data.guardian || null,
-    status: data.status || {},
-    critChance: data.critChance ?? 0.07,
+    guardian: null, // Inicializado depois
+    guardianId: data.guardianId || data.guardian,
+    status: {},
     energy: data.energy ?? 0,
-    cardsPlayed: 0,
-    hitsTaken: 0,
-    meta: {},
+    stats: { cardsPlayed: 0, hitsTaken: 0, critChance: BATTLE_CONFIG.CRIT_DEFAULT }
   };
 }
 
-function createGuardian(template, ownerRole) {
-  if (!template) return null;
+function initializeEntityFeatures(entity, role) {
+  // Setup Guardian
+  if (entity.guardianId) {
+    const template = getGuardian(entity.guardianId) || entity.guardian;
+    if (template) entity.guardian = createGuardianState(template, role);
+  }
+  // Apply Perks
+  if (typeof entity.applyPerks === "function") {
+    entity.applyPerks(entity);
+  }
+}
+
+function createGuardianState(tpl, owner) {
   return {
-    id: template.id,
-    name: template.name || "Guardian",
-    owner: ownerRole,
-    level: template.level || 1,
-    hp: template.maxHp || 0,
-    maxHp: template.maxHp || 0,
-    rage: 0, // substitui energia, aumenta quando sofre dano ou cartas morrem
-    rageMax: template.rageMax || 100,
-    passive: template.passive || [],
-    active: template.active || null,
-    ultimate: template.ultimate || null,
-    cooldown: 0,
-    ultimateCharge: 0,
-    summons: [],
-    effects: template.effects || []
+    id: tpl.id,
+    name: tpl.name || "Guardian",
+    owner,
+    rage: 0,
+    rageMax: tpl.rageMax || 100,
+    active: tpl.active,
+    ultimate: tpl.ultimate,
+    summons: []
   };
 }
 
-// ------------------ SUMMONS ------------------
-function createSummon(template, ownerRole) {
-  return {
-    id: `summon_${rng(0, 1e9)}`,
-    owner: ownerRole,
-    name: template.name || "Minion",
-    hp: template.hp || 10,
-    atk: template.atk || 3,
-    ttl: template.turns || 3
-  };
-}
+/* --------------------------
+   CORE: BATTLE LOOP
+   -------------------------- */
 
-function cleanupSummons(state) {
-  state.summons = state.summons.filter(s => s.hp > 0 && s.ttl > 0);
-}
-
-// ------------------ DECK / DRAW ------------------
-function refillDeckIfEmpty(entity) {
-  if (!entity.deck || entity.deck.length === 0) {
-    entity.deck = [...(entity.discard || [])];
-    entity.discard = [];
-  }
-}
-
-function drawCard(entity, state) {
-  if (entity.hand.length >= MAX_HAND) return null;
-  refillDeckIfEmpty(entity);
-  if (!entity.deck || entity.deck.length === 0) return null;
-
-  const i = rng(0, entity.deck.length - 1);
-  const card = entity.deck.splice(i, 1)[0];
-  entity.hand.push(card);
-
-  runEffectsTrigger("onCardDraw", entity, null, { card }, (m) => pushLog(state, { actor: entity.name, note: m }));
-  pushLog(state, { actor: entity.name, action: "draw", card: card.id });
-  return card;
-}
-
-// ------------------ STATUS ------------------
-function getStatus(entity, name) { return entity.status?.[name] || null; }
-function hasStatus(entity, name) { return !!getStatus(entity, name); }
-function getStatusValue(entity, name) { return entity.status?.[name]?.value || 0; }
-
-function applyStatusAdvanced(entity, name, options = {}) {
-  const { value = 1, turns = 1, maxStacks = null, stacking = "add", type = "debuff", source = null, meta = {} } = options;
-  if (!entity.status) entity.status = {};
-  const ex = entity.status[name];
-  if (!ex) { entity.status[name] = { value, turns, stacks: 1, type, source, meta }; return entity.status[name]; }
-  if (stacking === "add") ex.value += value;
-  if (stacking === "refresh") ex.turns = Math.max(ex.turns, turns);
-  ex.stacks = Math.min((ex.stacks || 1) + 1, maxStacks || Infinity);
-  ex.turns = Math.max(ex.turns, turns);
-  ex.meta = { ...ex.meta, ...meta };
-  return ex;
-}
-
-function removeStatusAdvanced(entity, name) { if (entity.status?.[name]) delete entity.status[name]; }
-
-function tickStatusStartAdvanced(entity, target, state) {
-  if (hasStatus(entity, "regen")) {
-    const amt = Math.max(0, Math.floor(getStatusValue(entity, "regen")));
-    entity.hp = Math.min(entity.maxHp, entity.hp + amt);
-    pushLog(state, { actor: entity.name, action: "regen_start", heal: amt });
-  }
-  entity.meta = entity.meta || {};
-  entity.meta.armorMultiplier = hasStatus(entity, "armorUp") ? 1 + getStatusValue(entity, "armorUp") : 1;
-}
-
-function tickStatusEndAdvanced(entity, target, state) {
-  if (hasStatus(entity, "poison")) {
-    const dmg = Math.max(0, Math.floor(getStatusValue(entity, "poison")));
-    entity.hp -= dmg;
-    pushLog(state, { actor: entity.name, action: "poison_end", dmg });
-  }
-  if (hasStatus(entity, "burn") && entity.cardsPlayed) {
-    const burn = Math.floor(getStatusValue(entity, "burn") * entity.cardsPlayed);
-    entity.hp -= burn;
-    pushLog(state, { actor: entity.name, action: "burn_end", dmg: burn });
-  }
-  if (hasStatus(entity, "bleed") && entity.hitsTaken) {
-    const bleed = Math.floor(getStatusValue(entity, "bleed") * entity.hitsTaken);
-    entity.hp -= bleed;
-    pushLog(state, { actor: entity.name, action: "bleed_end", dmg: bleed });
-  }
-
-  for (const k of Object.keys({ ...entity.status })) {
-    const st = entity.status[k];
-    if (!st) continue;
-    st.turns = typeof st.turns === "number" ? st.turns - 1 : st.turns;
-    if (st.turns <= 0) removeStatusAdvanced(entity, k);
-  }
-
-  entity.cardsPlayed = 0;
-  entity.hitsTaken = 0;
-  if (entity.meta) {
-    entity.meta.armorMultiplier = 1;
-    entity.meta.multiplierTaken = 1;
-  }
-}
-
-// ------------------ DAMAGE ------------------
-function calculateDamage(attacker, defender, card) {
-  let dmg = card?.value ?? card?.attack ?? card?.atk ?? 0;
-  if (hasStatus(attacker, "strength")) dmg += Math.floor(getStatusValue(attacker, "strength"));
-  if (hasStatus(attacker, "weaken")) dmg *= 1 - (getStatusValue(attacker, "weaken") / 100);
+export function runBattle(state) {
+  let loopCount = 0;
   
-  const vuln = hasStatus(defender, "vulnerable") ? getStatusValue(defender, "vulnerable") : 0;
-  if (vuln) dmg *= 1 + (vuln / 100);
-  
-  if (chanceDecimal(attacker.critChance ?? 0.07)) dmg = Math.floor(dmg * 1.5);
-  
-  const frailFactor = hasStatus(defender, "frail") ? 1 - getStatusValue(defender, "frail") / 100 : 1;
-  const effectiveBlock = (defender.block || 0) * frailFactor;
-  
-  if (effectiveBlock > 0) {
-    const absorbed = Math.min(effectiveBlock, dmg);
-    defender.block -= absorbed;
-    dmg -= absorbed;
-  }
-  
-  const factionResult = applyFactionModifiers(attacker, defender, Math.max(0, Math.floor(dmg)));
-  dmg = factionResult.damage;
-  
-  return Math.max(0, Math.floor(dmg));
-}
+  while (!state.winner && state.turn <= BATTLE_CONFIG.MAX_TURNS) {
+    if (++loopCount > BATTLE_CONFIG.MAX_LOOPS) break;
 
-// ------------------ CARD EXECUTION ------------------
-function executeCardEffect(state, side, card) {
-  const actor = state[side];
-  const target = opposite(side, state);
-  const logEffect = (m) => pushLog(state, { actor: actor.name, note: m });
-  
-  // Triggers antes da carta
-  runEffectsTrigger("beforeCard", actor, target, { card }, logEffect);
-  
-  // ATAQUE
-  if (card.type === "attack") {
-    let totalDmg = 0;
-    for (let i = 0; i < (card.hits || 1); i++) {
-      const dmg = calculateDamage(actor, target, card);
-      target.hp -= dmg;
-      totalDmg += dmg;
-      actor.cardsPlayed++;
-      target.hitsTaken++;
-      
-      runEffectsTrigger("onHit", actor, target, { card, damage: dmg }, logEffect);
-      runEffectsTrigger("onDamageTaken", target, actor, { card, damage: dmg }, logEffect);
-      
-      // Thorns
-      if (hasStatus(target, "thorns")) {
-        const th = Math.floor(getStatusValue(target, "thorns"));
-        actor.hp -= th;
-        pushLog(state, { actor: actor.name, action: "thorns", dmg: th });
-      }
-      
-      // Rage do guardião do alvo
-      if (target.guardian) {
-        target.guardian.rage = Math.min(target.guardian.rageMax, (target.guardian.rage || 0) + dmg);
-      }
-    }
-    pushLog(state, { actor: actor.name, action: "attack", card: card.id, dmg: totalDmg });
-  }
-  
-  // DEFESA
-  if (card.type === "defense") {
-    const armorMult = actor.meta?.armorMultiplier ?? 1;
-    const frail = getStatusValue(actor, "frail") || 0;
-    const val = Math.max(0, Math.floor((card.value || card.block || 0) * armorMult - frail));
-    actor.block += val;
-    pushLog(state, { actor: actor.name, action: "block", block: val });
-  }
-  
-  // CURA
-  if (card.type === "heal") {
-    const healAmt = Math.min(card.value || card.heal || 0, actor.maxHp - actor.hp);
-    actor.hp += healAmt;
-    pushLog(state, { actor: actor.name, action: "heal", heal: healAmt });
-  }
-  
-  // APLICAR STATUS
-  if (Array.isArray(card.apply)) {
-    for (const a of card.apply) {
-      const dest = a.target === "self" ? actor : target;
-      applyStatusAdvanced(dest, a.name, { value: a.value ?? 1, turns: a.turns ?? 1, maxStacks: a.maxStacks || null, stacking: a.stacking || "add", type: a.type || "debuff", source: actor.name, meta: a.meta || {} });
-      pushLog(state, { actor: actor.name, action: "applyStatus", status: a.name, value: a.value || 1, turns: a.turns || 1, target: dest.name });
-      runEffectsTrigger("onApplyStatus", dest, actor, { sourceCard: card }, (m) => pushLog(state, { actor: actor.name, note: m }));
+    const actor = state[state.attacker];
+    const target = OPPONENT(state.attacker, state);
+
+    processTurnStart(state, actor, target);
+    processTurnAction(state, actor, target);
+    processTurnEnd(state, actor, target);
+
+    checkWinCondition(state);
+    if (!state.winner) {
+      state.attacker = state.attacker === "player" ? "enemy" : "player";
+      state.turn++;
     }
   }
   
-  // Triggers após a carta
-  runEffectsTrigger("afterCard", actor, target, { card }, logEffect);
+  state.winner = state.winner || "draw";
+  LOG(state, { actor: "SYS", action: "end", winner: state.winner });
+  return { state, winner: state.winner };
+}
+
+function checkWinCondition(state) {
+  if (state.player.hp <= 0) state.winner = "enemy";
+  else if (state.enemy.hp <= 0) state.winner = "player";
+}
+
+/* --------------------------
+   TURN PHASES
+   -------------------------- */
+
+function processTurnStart(state, actor, target) {
+  // 1. Status Effects (Regen, etc)
+  handleStatusStart(actor, state);
   
-  // Mover carta para discard
-  actor.discard.push(card);
-  
-  // Guardião do jogador
+  // 2. Draw Card
+  drawCard(actor, state);
+
+  // 3. Triggers
+  runEffectsTrigger("onTurnStart", actor, target, {}, (m) => 
+    LOG(state, { actor: actor.name, note: m })
+  );
+
   if (actor.guardian) {
-    runEffectsTrigger("guardianOnOwnerCard", actor.guardian, actor, { card }, (m) => pushLog(state, { actor: `guardian:${actor.guardian.name}`, note: m }));
-    actor.guardian.rage = Math.min(actor.guardian.rageMax, (actor.guardian.rage || 0) + (card.grantsGuardianRage || 0));
-    
-    // Tentativa de ativar ultimate com rage
-    if ((actor.guardian.rage || 0) >= actor.guardian.rageMax) {
-      pushLog(state, { actor: `guardian:${actor.guardian.name}`, action: "rage_ultimate" });
-      actor.guardian.rage = 0;
-      runEffectsTrigger("guardianUltimate", actor.guardian, actor, { opponent: target }, (m) => pushLog(state, { actor: `guardian:${actor.guardian.name}`, note: m }));
-      
-      if (actor.guardian.ultimate?.summon) {
-        const s = createSummon(actor.guardian.ultimate.summon, actor.name);
-        state.summons.push(s);
-        actor.guardian.summons.push(s.id);
-        pushLog(state, { actor: actor.guardian.name, action: "summon", summon: s.name, owner: actor.name });
-      }
+    runEffectsTrigger("guardianStartTurn", actor.guardian, actor, { opponent: target }, 
+      (m) => LOG(state, { actor: `G:${actor.guardian.name}`, note: m })
+    );
+  }
+}
+
+function processTurnAction(state, actor, target) {
+  const isAI = state.attacker === "enemy" || (state.attacker === "player" && state.options.auto);
+  const playable = [...actor.hand]; // Snapshot da mão
+
+  // Limite de jogadas por turno pode ser implementado aqui se necessário
+  while (playable.length > 0 && actor.hp > 0 && target.hp > 0) {
+    let card = null;
+
+    if (isAI) {
+      card = selectAICard(actor, target);
+      if (!card) break; // AI decidiu parar ou não tem cartas úteis
+    } else {
+      // Modo manual: em runBattle síncrono, assume-se que a AI joga tudo ou 
+      // que a função runBattle é apenas para simulação/AI vs AI.
+      // Para player real, usa-se playCard externamente.
+      card = playable[0]; 
+    }
+
+    if (card) {
+      playCardInternal(state, state.attacker, card);
+      // Remove da lista local para não repetir no loop
+      const idx = playable.findIndex(c => c.id === card.id);
+      if (idx > -1) playable.splice(idx, 1);
+    } else {
+      break;
     }
   }
 }
 
-// ------------------ PLAY CARD ------------------
-function playCard(state, side, cardId) {
+function processTurnEnd(state, actor, target) {
+  handleStatusEnd(actor, state);
+  
+  runEffectsTrigger("onTurnEnd", actor, target, {}, (m) => 
+    LOG(state, { actor: actor.name, note: m })
+  );
+  
+  // Cleanup summons expirados
+  state.summons = state.summons.filter(s => s.hp > 0 && --s.ttl > 0);
+}
+
+/* --------------------------
+   CARD EXECUTION
+   -------------------------- */
+
+// Ponto de entrada público para jogada manual
+export function playCard(state, side, cardId) {
   const actor = state[side];
   const idx = actor.hand.findIndex(c => c.id === cardId);
   if (idx === -1) return;
-  const cardTemplate = actor.hand[idx];
-
-  // resolve template robustamente: aceita object ou id
-  let card;
-  if (!cardTemplate) return;
-  if (typeof cardTemplate === "string" || typeof cardTemplate === "number") {
-    card = getCardTemplate(cardTemplate) || { id: cardTemplate };
-  } else if (cardTemplate && typeof cardTemplate === "object") {
-    card = getCardTemplate(cardTemplate.id) || cardTemplate;
-  } else {
-    card = cardTemplate;
-  }
-
-  actor.hand.splice(idx, 1);
-  executeCardEffect(state, side, card);
+  
+  const card = actor.hand[idx]; // Ref
+  playCardInternal(state, side, card);
 }
 
-// ------------------ AI AVANÇADA ------------------
-function chooseAutoCardAdvanced(actor, target, state) {
-  if (!actor.hand?.length) return null;
+function playCardInternal(state, side, cardTemplate) {
+  const actor = state[side];
+  const target = OPPONENT(side, state);
+  const card = resolveCardObject(cardTemplate);
   
-  const lowHpSelf = actor.hp / actor.maxHp < 0.35;
-  const lowHpTarget = target.hp / target.maxHp < 0.3;
-  const highBlockTarget = target.block / target.maxHp > 0.25;
-  const hasDebuff = actor.hand.some(c => c.apply?.some(a => a.type === "debuff"));
+  // Remove from hand
+  const handIdx = actor.hand.findIndex(c => c.id === card.id);
+  if (handIdx > -1) actor.hand.splice(handIdx, 1);
+
+  // Pre-Trigger
+  runEffectsTrigger("beforeCard", actor, target, { card }, (m) => LOG(state, { note: m }));
+
+  // Resolve Effects
+  resolveCardEffects(state, actor, target, card);
+
+  // Post-Trigger & Cleanup
+  runEffectsTrigger("afterCard", actor, target, { card }, (m) => LOG(state, { note: m }));
+  actor.stats.cardsPlayed++;
+  actor.discard.push(card);
   
-  let cardPriority = [];
+  checkGuardianReaction(state, actor, target, card);
+}
+
+function resolveCardEffects(state, actor, target, card) {
+  // Attack
+  if (card.type === "attack") {
+    const hits = card.hits || 1;
+    let totalDmg = 0;
+    for (let i = 0; i < hits; i++) {
+      const dmg = applyDamage(state, actor, target, card);
+      totalDmg += dmg;
+    }
+    LOG(state, { actor: actor.name, action: "attack", card: card.id, value: totalDmg });
+  }
   
-  if (lowHpTarget) cardPriority.push(...actor.hand.filter(c => c.type === "attack"));
-  if (lowHpSelf) cardPriority.push(...actor.hand.filter(c => c.type === "defense"));
-  if (lowHpSelf) cardPriority.push(...actor.hand.filter(c => c.type === "heal"));
-  if (hasDebuff) cardPriority.push(...actor.hand.filter(c => c.apply?.some(a => a.type === "debuff")));
-  if (!cardPriority.length) cardPriority.push(...actor.hand.filter(c => c.type === "attack"));
-  if (!cardPriority.length) cardPriority.push(actor.hand[0]);
+  // Block
+  if (card.type === "defense") {
+    const val = calculateBlock(actor, card);
+    actor.block += val;
+    LOG(state, { actor: actor.name, action: "block", value: val });
+  }
+
+  // Heal
+  if (card.type === "heal") {
+    const val = Math.min(card.value || 0, actor.maxHp - actor.hp);
+    actor.hp += val;
+    LOG(state, { actor: actor.name, action: "heal", value: val });
+  }
+
+  // Status
+  if (card.apply) {
+    card.apply.forEach(eff => applyStatusEffect(state, actor, target, eff));
+  }
+}
+
+/* --------------------------
+   DAMAGE & MATH
+   -------------------------- */
+
+function applyDamage(state, attacker, defender, card) {
+  let dmg = calculateRawDamage(attacker, defender, card);
   
-  cardPriority.sort((a, b) => {
-    const aScore = (a.value || a.atk || 0) + (a.apply?.reduce((s, x) => s + (x.value || 0), 0) || 0);
-    const bScore = (b.value || b.atk || 0) + (b.apply?.reduce((s, x) => s + (x.value || 0), 0) || 0);
-    return bScore - aScore;
+  // Block Mitigation
+  if (defender.block > 0) {
+    const blocked = Math.min(defender.block, dmg);
+    defender.block -= blocked;
+    dmg -= blocked;
+  }
+
+  defender.hp -= dmg;
+  defender.stats.hitsTaken++;
+
+  // Thorns Logic
+  if (hasStatus(defender, "thorns")) {
+    const thorns = getStatusValue(defender, "thorns");
+    attacker.hp -= thorns;
+    LOG(state, { actor: defender.name, action: "thorns", value: thorns });
+  }
+
+  // Triggers
+  const ctx = { card, damage: dmg };
+  runEffectsTrigger("onHit", attacker, defender, ctx, () => {});
+  runEffectsTrigger("onDamageTaken", defender, attacker, ctx, () => {});
+
+  return dmg;
+}
+
+function calculateRawDamage(attacker, defender, card) {
+  let dmg = card.value ?? card.atk ?? 0;
+  
+  // Buffs/Debuffs
+  dmg += getStatusValue(attacker, "strength");
+  if (hasStatus(attacker, "weaken")) dmg *= 0.75; // Standard 25% weak
+  if (hasStatus(defender, "vulnerable")) dmg *= 1.25; // Standard 25% vuln
+  
+  // Crit
+  if (chanceDecimal(attacker.stats.critChance)) dmg = Math.floor(dmg * 1.5);
+  
+  // Faction Modifiers
+  const fRes = applyFactionModifiers(attacker, defender, Math.max(0, Math.floor(dmg)));
+  return Math.max(0, Math.floor(fRes.damage));
+}
+
+function calculateBlock(actor, card) {
+  let val = card.value || card.block || 0;
+  if (hasStatus(actor, "frail")) val *= 0.75;
+  return Math.floor(val);
+}
+
+/* --------------------------
+   STATUS SYSTEM
+   -------------------------- */
+
+function applyStatusEffect(state, actor, target, effect) {
+  const dest = effect.target === "self" ? actor : target;
+  const name = effect.name;
+  
+  if (!dest.status[name]) {
+    dest.status[name] = { value: 0, turns: 0, stacks: 0, type: effect.type || "debuff" };
+  }
+  
+  const st = dest.status[name];
+  st.value += (effect.value || 0);
+  st.turns = Math.max(st.turns, effect.turns || 1);
+  st.stacks = Math.min((st.stacks || 0) + 1, effect.maxStacks || 99);
+  
+  LOG(state, { actor: actor.name, action: "apply", status: name, target: dest.name });
+}
+
+function handleStatusStart(entity, state) {
+  if (hasStatus(entity, "regen")) {
+    const val = getStatusValue(entity, "regen");
+    entity.hp = Math.min(entity.maxHp, entity.hp + val);
+    LOG(state, { actor: entity.name, action: "regen", value: val });
+  }
+}
+
+function handleStatusEnd(entity, state) {
+  // DoT Effects
+  const dots = ["poison", "burn", "bleed"]; // Expansível
+  dots.forEach(type => {
+    if (hasStatus(entity, type)) {
+      const val = getStatusValue(entity, type); // Simplificado: valor direto
+      entity.hp -= val;
+      LOG(state, { actor: entity.name, action: type, value: val });
+    }
   });
-  
-  return cardPriority[0];
-}
 
-// ------------------ BATTLE LOOP ------------------
-export function runBattle(state) {
-  let loop = 0;
-  
-  while (state.player.hp > 0 && state.enemy.hp > 0 && state.turn <= MAX_TURNS) {
-    loop++;
-    if (loop > MAX_BATTLE_LOOPS) {
-      pushLog(state, { actor: "system", note: "loop limit reached" });
-      break;
-    }
-    
-    const actorSide = state.attacker;
-    const actor = state[actorSide];
-    const target = opposite(actorSide, state);
-    
-    // INÍCIO DO TURNO
-    tickStatusStartAdvanced(actor, target, state);
-    
-    drawCard(actor, state);
-    if (actor.guardian) runEffectsTrigger("guardianStartTurn", actor.guardian, actor, { opponent: target }, (m) => pushLog(state, { actor: `guardian:${actor.guardian.name}`, note: m }));
-    
-    runEffectsTrigger("onTurnStart", actor, target, {}, (m) => pushLog(state, { actor: actor.name, note: m }));
-    
-    // EXECUÇÃO DE CARTAS
-    const playable = [...actor.hand];
-    while (playable.length) {
-      const card = actorSide === "enemy" ? chooseAutoCardAdvanced(actor, target, state) : playable.shift();
-      if (!card) break;
-      
-      executeCardEffect(state, actorSide, card);
-      playable.splice(playable.indexOf(card), 1);
-    }
-    
-    // FIM DO TURNO
-    tickStatusEndAdvanced(actor, target, state);
-    runEffectsTrigger("onTurnEnd", actor, target, {}, (m) => pushLog(state, { actor: actor.name, note: m }));
-    
-    cleanupSummons(state);
-    
-    // Alterna turno
-    state.attacker = actorSide === "player" ? "enemy" : "player";
-    state.turn++;
+  // Decrement & Cleanup
+  for (const k in entity.status) {
+    const st = entity.status[k];
+    if (--st.turns <= 0) delete entity.status[k];
   }
   
-  const winner = state.player.hp > 0 ? "player" : state.enemy.hp > 0 ? "enemy" : "draw";
-  pushLog(state, { actor: "system", action: "battle_end", winner });
-  return { state, winner };
+  // Reset turn stats
+  entity.stats.cardsPlayed = 0;
+  entity.stats.hitsTaken = 0;
 }
 
-// ------------------ EXPORT ------------------
-export const battleSystem = {
-  initBattle,
-  runBattle,
-  drawCard,
-  playCard,
-};
+function hasStatus(e, n) { return !!e.status[n]; }
+function getStatusValue(e, n) { return e.status[n]?.value || 0; }
+
+/* --------------------------
+   GUARDIAN & UTILS
+   -------------------------- */
+
+function checkGuardianReaction(state, actor, target, card) {
+  if (!actor.guardian) return;
+  
+  const g = actor.guardian;
+  g.rage = Math.min(g.rageMax, g.rage + (card.grantsGuardianRage || 0));
+
+  if (g.rage >= g.rageMax) {
+    g.rage = 0;
+    LOG(state, { actor: g.name, action: "ULTIMATE" });
+    runEffectsTrigger("guardianUltimate", g, actor, { opponent: target }, () => {});
+    
+    // Exemplo de summon via ult
+    if (g.ultimate?.summon) {
+      const s = { id: `sum_${Date.now()}`, name: g.ultimate.summon.name, hp: 10, ttl: 3, owner: actor.id };
+      state.summons.push(s);
+    }
+  }
+}
+
+export function drawCard(entity, state) {
+  if (entity.hand.length >= BATTLE_CONFIG.MAX_HAND) return;
+  
+  if (!entity.deck.length) {
+    entity.deck = [...entity.discard];
+    entity.discard = [];
+  }
+  
+  if (entity.deck.length) {
+    const i = rng(0, entity.deck.length - 1);
+    const card = entity.deck.splice(i, 1)[0];
+    entity.hand.push(card);
+    LOG(state, { actor: entity.name, action: "draw", card: card.id });
+  }
+}
+
+function resolveCardObject(template) {
+  if (typeof template === "string") return getCardTemplate(template) || { id: template };
+  return getCardTemplate(template.id) || template;
+}
+
+/* --------------------------
+   AI LOGIC
+   -------------------------- */
+
+function selectAICard(actor, target) {
+  if (!actor.hand.length) return null;
+  
+  const danger = actor.hp < (actor.maxHp * 0.3);
+  const killChance = target.hp < (target.maxHp * 0.3);
+
+  // Sistema de pontuação simples
+  const scored = actor.hand.map(c => {
+    let score = (c.value || c.atk || 0);
+    if (c.type === "defense" && danger) score += 50;
+    if (c.type === "attack" && killChance) score += 50;
+    if (c.type === "heal" && danger) score += 100;
+    return { c, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].c;
+}
+
+// Export único e limpo
+export const battleSystem = { initBattle, runBattle, drawCard, playCard };
