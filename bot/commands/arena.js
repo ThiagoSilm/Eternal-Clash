@@ -7,7 +7,7 @@ import {
   arenaChallenge,
   arenaReward,
   arenaLeaderboard // Assumindo que você tem uma forma de buscar todos os usuários (users)
-} from "../../src/systems/arenaSystem.js"; // Importa as funções do seu sistema
+} from "../src/systems/arenaSystem.js"; // Importa as funções do seu sistema
 
 // Variáveis globais para a busca de usuários (ajustar conforme seu bot)
 // OBS: Você precisará injetar ou importar uma função que retorne a lista de todos os usuários
