@@ -190,16 +190,19 @@ export function summonCard(user, currency = "gold", options = {}) {
 // ----------------------------------------------------
 export function summonMultiple(user, currency = "gold", count = 5, options = {}) {
   const results = [];
-  const rarityCount = { 1:0,2:0,3:0,4:0,5:0 };
-
+  const rarityCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  
   for (let i = 0; i < count; i++) {
-    const msg = summonCard(user, currency, { ...options, skipCost: true });
+    const msg = summonCard(user, currency, { ...options, skipCost: i > 0 ? false : false });
+    // Agora sempre desconta o custo em todas as invocações
+    if (msg.startsWith("💰 Você não tem")) break; // interrompe se não tiver recursos
+    
     results.push(msg);
-
+    
     const match = msg.match(/\((\d)★\)/);
     if (match) rarityCount[match[1]]++;
   }
-
+  
   const summary = `\n📊 Estatísticas: ${Object.entries(rarityCount).map(([r,c]) => `${r}★:${c}`).join(", ")}`;
   return results.join("\n") + summary;
 }
