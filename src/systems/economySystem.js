@@ -203,3 +203,11 @@ export function updateLastShopVisit(user) {
   markUserDirty(user.id);
   return true;
 }
+
+// economySystem.js
+export function addItem(user, itemId, quantity = 1) {
+  if (!user.inventory) user.inventory = {};
+  user.inventory[itemId] = (user.inventory[itemId] || 0) + quantity;
+  markUserDirty(user.id);
+  return true;
+}
