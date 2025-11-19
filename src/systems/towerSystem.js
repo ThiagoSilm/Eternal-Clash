@@ -243,3 +243,14 @@ export function getTowerRankings(users) {
             return b.winStreak - a.winStreak;
         });
 }
+
+// ----------------------------------------------
+// 🛡️ CONCEDER SHARD DE GUARDIÃO
+// ----------------------------------------------
+
+export function giveGuardianShard(user, shardId, amount = 1) {
+    if (!user.guardianShards) user.guardianShards = {};
+    if (!user.guardianShards[shardId]) user.guardianShards[shardId] = 0;
+    user.guardianShards[shardId] += amount;
+    markUserDirty(user.id);
+}
