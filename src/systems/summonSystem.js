@@ -21,10 +21,10 @@ import boosters from "../../data/boosters.json" with { type: "json" };
 // ----------------------------------------------------
 const dropRatesBase = { 1: 45, 2: 30, 3: 15, 4: 7, 5: 3 };
 
-const summonCosts = {
-  gold:    { single: 5000, multi: 22500 },
-  gems:    { single: 150,  multi: 675 },
-  coupons: { single: 1,    multi: 5 },
+export const summonCosts = {
+  gold: { single: 5000, multi: 22500 },
+  gems: { single: 150, multi: 675 },
+  coupons: { single: 1, multi: 5 },
 };
 
 // pity system configurável
