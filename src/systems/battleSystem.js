@@ -509,3 +509,25 @@ function finalizeBattle(state, winner) {
   pushLog(state, { actor: "system", action: "end", winner, rewards });
   return { state, winner, rewards };
 }
+
+export const battleSystem = {
+  initBattle,
+  runTurn,
+  playCard,
+  drawCard,
+  getStatus,
+  hasStatus,
+  getStatusValue,
+  applyStatusAdvanced,
+  removeStatusAdvanced,
+  tickStatusStartAdvanced,
+  tickStatusEndAdvanced,
+  calculateDamage,
+  chooseBestAICard,
+  determineEnemyArchetype,
+  guardianStartTurn,
+  guardianTryActivate,
+  guardianTryUltimate,
+  guardianEndTurn,
+  applyTowerGems
+};

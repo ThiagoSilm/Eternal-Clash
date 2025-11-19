@@ -195,3 +195,11 @@ export function claimOfflineRewards(user) {
   
   return `⏳ Você recebeu **${gold} ouro** e **${xp} XP** por ${hours}h offline.`;
 }
+
+// Atualiza a última visita do usuário à loja
+export function updateLastShopVisit(user) {
+  if (!user) return false;
+  user.lastShopVisit = Date.now();
+  markUserDirty(user.id);
+  return true;
+}

@@ -1,7 +1,7 @@
 // src/systems/mapSystem.js
 //------------------------------------------------------------
 import { runBattle } from "./battleSystem.js";
-import { addGold, addXp } from "./economySystem.js";
+import { addGold, addXP } from "./economySystem.js";
 
 //------------------------------------------------------------
 // CONFIG BASE
