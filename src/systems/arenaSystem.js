@@ -1,12 +1,9 @@
 // src/systems/arenaSystem.js
-
 import { addGems, addGold, addXP } from "./economySystem.js";
 import { battleSystem } from "./battleSystem.js";
 import { generateOpponentForRank } from "./userCacheSystem.js";
 
-// =====================================================================
-// CONFIGURAÇÃO
-// =====================================================================
+// ======================= CONFIGURAÇÃO =======================
 const ARENA = {
     MAX_ATTEMPTS: 8,
     ATTACK_COOLDOWN_MS: 20 * 1000,
@@ -21,9 +18,7 @@ const ARENA = {
     MIN_ELO: 0
 };
 
-// =====================================================================
-// HELPERS
-// =====================================================================
+// ======================= HELPERS =======================
 const now = () => Date.now();
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
@@ -40,9 +35,7 @@ function formatCooldown(ms) {
     return ms <= 0 ? "Pronto para lutar!" : `Cooldown: ${(ms / 1000).toFixed(0)}s`;
 }
 
-// =====================================================================
-// INICIALIZAÇÃO
-// =====================================================================
+// ======================= ARENA =======================
 export function initializeArena(user) {
     if (!user.arena) {
         user.arena = {
@@ -59,13 +52,9 @@ export function initializeArena(user) {
     }
 }
 
-// =====================================================================
-// OPPONENTS
-// =====================================================================
 function generateOpponentList(user) {
     const baseElo = user.arena?.elo || 0;
     const list = [];
-
     for (let i = 0; i < ARENA.OPPONENT_COUNT; i++) {
         const offset = Math.floor(Math.random() * 80 - 40);
         const targetElo = clamp(baseElo + offset, 0, 9999);
@@ -75,9 +64,6 @@ function generateOpponentList(user) {
     return list;
 }
 
-// =====================================================================
-// RESET SEMANAL
-// =====================================================================
 function applyWeeklyReset(user) {
     const a = user.arena;
     if (now() - a.lastWeeklyReset >= ARENA.WEEKLY_RESET_MS) {
@@ -91,16 +77,14 @@ function applyWeeklyReset(user) {
     return false;
 }
 
-// =====================================================================
-// STATUS
-// =====================================================================
+// ======================= STATUS =======================
 export function arenaStatus(user) {
     initializeArena(user);
     const a = user.arena;
     const weeklyReset = applyWeeklyReset(user);
     const cd = ARENA.ATTACK_COOLDOWN_MS - (now() - a.lastBattleTime);
 
-    const opsText = a.opponents.map((o, idx) => 
+    const opsText = a.opponents.map((o, idx) =>
         `${idx + 1}. ${o.name} [${o.elo} ELO] — ${o.defeated ? "Vencido" : "Disponível"}`
     ).join("\n");
 
@@ -117,9 +101,7 @@ export function arenaStatus(user) {
     );
 }
 
-// =====================================================================
-// BATTLE
-// =====================================================================
+// ======================= BATTLE =======================
 export async function arenaChallenge(user, index) {
     initializeArena(user);
     const a = user.arena;
@@ -135,14 +117,12 @@ export async function arenaChallenge(user, index) {
 
     const opponent = a.opponents[i];
 
-    // Inicializa batalha
     const state = battleSystem.initBattle(
         { name: user.name, deck: user.decks?.main || [], hp: user.hp || 100 },
         generateOpponentForRank(opponent.elo),
         { auto: true }
     );
 
-    // Executa batalha
     while (state.turn <= 60 && state.player.hp > 0 && state.enemy.hp > 0) {
         battleSystem.runTurn(state);
     }
@@ -187,9 +167,7 @@ export async function arenaChallenge(user, index) {
     return msg;
 }
 
-// =====================================================================
-// CHEST
-// =====================================================================
+// ======================= REWARD =======================
 export function arenaReward(user) {
     initializeArena(user);
     const a = user.arena;
