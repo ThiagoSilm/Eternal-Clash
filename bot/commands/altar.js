@@ -1,91 +1,90 @@
 // src/commands/altar.js
-//
-// 🔮 Sistema de Invocação
-// Este comando lida com:
-// - Invocação simples (gold, gem, coupon)
-// - Invocação múltipla (limite automático)
-// - Abertura de boosters específicos
-//
-// O salvamento do USER é feito pelo middleware -> NÃO inclui saveUser aqui.
 
 import {
   summonCard,
   summonMultiple,
-  summonBooster
+  summonBooster,
+  getSummonLuck,
+  increaseSummonLuck,
+  resetSummonLuck,
+  altarJackpotRoll
 } from "../../src/systems/summonSystem.js";
 
 export default {
   name: "altar",
-  description: "Invoca cartas ou abre boosters com gold, gem, coupon ou booster.",
-  usage: "!altar <gold|gem|coupon|booster> [quantidade|booster_id]",
+  description: "Invoca cartas, abre boosters e usa rituais especiais.",
+  usage: "!altar <gold|gem|coupon|booster|sagrado|corrupto> [quantidade|booster_id]",
   
   async execute(message, args, user) {
-    // ----------------------------
-    // 1. NORMALIZAÇÃO
-    // ----------------------------
     const type = (args[0] || "").toLowerCase();
-    const validTypes = ["gold", "gem", "coupon", "booster"];
+    const validTypes = ["gold", "gem", "coupon", "booster", "sagrado", "corrupto"];
     
     if (!validTypes.includes(type)) {
-      return message.reply(
-        "❌ Tipo inválido.\nUse: `gold`, `gem`, `coupon` ou `booster`."
-      );
+      return message.reply("❌ Tipo inválido.\nTipos: `gold`, `gem`, `coupon`, `booster`, `sagrado`, `corrupto`.");
     }
     
     try {
-      // ----------------------------
-      // 2. MODO BOOSTER
-      // ----------------------------
-      if (type === "booster") {
-        const boosterId = args[1];
-        
-        if (!boosterId) {
-          return message.reply(
-            "❌ Você deve informar o **ID do booster**.\nExemplo: `!altar booster premium_pack`"
-          );
-        }
-        
-        const result = summonBooster(user, boosterId);
-        
+      // ======================================================
+      // 🔮 1. RITUAL SAGRADO — aumenta drasticamente o Pity
+      // ======================================================
+      if (type === "sagrado") {
+        const luck = increaseSummonLuck(user, 20); // +20% pity
         return message.reply(
-          `🎁 **Booster aberto:** \`${boosterId}\`\n\n${result}`
+          `✨ **RITUAL SAGRADO ATIVADO!**\nSua sorte agora está em **${luck}%** para cartas raras.`
         );
       }
       
-      // ----------------------------
-      // 3. MODO INVOCAR CARTAS (GOLD / GEM / COUPON)
-      // ----------------------------
-      const MAX_SUMMON = 10; // limite seguro
-      let count = parseInt(args[1]) || 1;
+      // ======================================================
+      // 🔥 2. RITUAL CORRUPTO — risco alto, recompensa insana
+      // ======================================================
+      if (type === "corrupto") {
+        const roll = altarJackpotRoll(user);
+        if (roll.jackpot) {
+          resetSummonLuck(user);
+          return message.reply(
+            `💀🔥 **RITUAL CORRUPTO — JACKPOT ABSOLUTO!**\nVocê ganhou uma carta **LENDÁRIA** automática:\n${roll.card}`
+          );
+        }
+        return message.reply(
+          `💀 Ritual corrupto falhou… você perdeu **10% de sorte!**\nSorte atual: ${getSummonLuck(user)}%`
+        );
+      }
       
+      // ======================================================
+      // 🎁 3. MODO BOOSTER
+      // ======================================================
+      if (type === "booster") {
+        const boosterId = args[1];
+        if (!boosterId) {
+          return message.reply("❌ Informe o ID do booster.\nEx: `!altar booster premium_pack`");
+        }
+        const result = summonBooster(user, boosterId);
+        return message.reply(`🎁 **Booster aberto:** \`${boosterId}\`\n\n${result}`);
+      }
+      
+      // ======================================================
+      // 🔮 4. INVOCAR CARTAS NORMAIS
+      // ======================================================
+      const MAX_SUMMON = 10;
+      let count = parseInt(args[1]) || 1;
       if (count < 1) count = 1;
       if (count > MAX_SUMMON) count = MAX_SUMMON;
       
-      let result;
+      let result = count === 1 ?
+        summonCard(user, type) :
+        summonMultiple(user, type, count);
       
-      if (count === 1) {
-        result = summonCard(user, type);
-      } else {
-        result = summonMultiple(user, type, count);
-      }
+      // ↪️ Progressão de sorte por invocação (pity system)
+      increaseSummonLuck(user, count * 1); // +1% por carta
       
       return message.reply(
-        `🔮 **Invocação usando ${type.toUpperCase()} (x${count})**\n\n${result}`
+        `🔮 **Invocação usando ${type.toUpperCase()} (x${count})**\n` +
+        `🎲 Sorte atual: ${getSummonLuck(user)}%\n\n` +
+        result
       );
-      
-      // ----------------------------
-      // FIM DO TRY
-      // ----------------------------
-      
     } catch (err) {
-      console.error("❌ Erro no comando ALtar:", err);
-      
-      const msg =
-        err instanceof Error ?
-        `⚠️ ${err.message}` :
-        "⚠️ Erro inesperado ao realizar a invocação.";
-      
-      return message.reply(msg);
+      console.error("❌ Erro no comando Altar:", err);
+      return message.reply(err instanceof Error ? `⚠️ ${err.message}` : "⚠️ Erro inesperado.");
     }
   }
 };

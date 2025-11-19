@@ -1,83 +1,136 @@
 // src/commands/maze.js
 
-import { rollMaze, useGoldDice, resetMaze, getCurrentMapId } from "../../src/systems/mazeSystem.js";
+import {
+    rollMaze,
+    useGoldDice,
+    resetMaze,
+    getCurrentMapId,
+    getMazeMapInfo
+} from "../../src/systems/mazeSystem.js";
+import { EmbedBuilder } from "discord.js";
 
 export default {
     name: "maze",
     description: "Jogue no Maze, role o dado, use Gold Dice ou resete o mapa.",
-    usage: "[roll | gold <mapId> <targetHouse> | reset]",
+    usage: "[roll | gold <mapId?> <targetHouse> | reset]",
     
     async execute(message, args, user) {
-        
         const sub = (args[0] || "roll").toLowerCase();
         
-        // Função segura para validar IDs numéricos
         const toInt = (v) => {
             const n = parseInt(v);
             return Number.isInteger(n) && n > 0 ? n : null;
         };
         
-        // Sempre tenta usar o mapId atual se não foi passado
-        const mapIdArg = toInt(args[1]);
-        const effectiveMapId = mapIdArg || getCurrentMapId(user) || 1;
+        const currentMapId = getCurrentMapId(user) || 1;
+        
+        const renderMiniMap = (mapInfo, targetHouse = null) => {
+            const housesPerLine = 10;
+            let mapStr = "";
+            for (let i = 1; i <= mapInfo.totalHouses; i++) {
+                if (i === mapInfo.currentHouse) mapStr += "🧍";
+                else if (i === targetHouse) mapStr += "🎯";
+                else if (mapInfo.visitedHouses.includes(i)) mapStr += "✅";
+                else if (mapInfo.prizeHouses[i]) {
+                    switch (mapInfo.prizeHouses[i]) {
+                        case "coin":
+                            mapStr += "💰";
+                            break;
+                        case "trophy":
+                            mapStr += "🏆";
+                            break;
+                        case "rare":
+                            mapStr += "✨";
+                            break;
+                        default:
+                            mapStr += "💎";
+                    }
+                } else mapStr += "⬜";
+                
+                if (i % housesPerLine === 0) mapStr += "\n";
+            }
+            return mapStr;
+        };
+        
+        const renderPrizeMessage = (prize) => {
+            if (!prize) return null;
+            switch (prize.type) {
+                case "coin":
+                    return `🎉 Você encontrou 💰 **${prize.amount} moedas**!`;
+                case "trophy":
+                    return `🏆 Parabéns! Você ganhou um troféu!`;
+                case "rare":
+                    return `✨ Incrível! Você conseguiu um item raro!`;
+                default:
+                    return `💎 Você encontrou um prêmio especial!`;
+            }
+        };
+        
+        const celebratePrize = async (prizeType) => {
+            if (!["trophy", "rare"].includes(prizeType)) return;
+            const frames = ["🎉✨🏆💎", "✨🎉🏆💎", "🏆✨🎉💎", "🎉🏆✨💎"];
+            for (let frame of frames) {
+                await message.channel.send(frame);
+                await new Promise(res => setTimeout(res, 500));
+            }
+        };
         
         try {
             
-            // -----------------------------
-            // 🎲 ROLL
-            // -----------------------------
-            if (sub === "roll") {
+            const handleRollOrGold = async (type) => {
+                const mapIdArg = toInt(args[1]) || currentMapId;
+                const targetHouse = type === "gold" ? toInt(args[2]) : null;
                 
-                const result = rollMaze(user, effectiveMapId);
+                if (type === "gold" && !targetHouse)
+                    return message.reply("❌ Informe a **casa alvo**: `!maze gold <mapId?> <casa>`");
                 
-                return message.reply({
-                    content: `🎲 **Rolagem Executada**\n${result}`,
-                    allowedMentions: { repliedUser: false }
-                });
-            }
+                const mapInfo = getMazeMapInfo(user, mapIdArg);
+                
+                if (targetHouse && targetHouse > mapInfo.totalHouses)
+                    return message.reply(`❌ Essa casa não existe neste mapa. O máximo é ${mapInfo.totalHouses}.`);
+                
+                const actionResult = type === "roll" ?
+                    rollMaze(user, mapIdArg) :
+                    useGoldDice(user, mapIdArg, targetHouse);
+                
+                const prizeMsg = renderPrizeMessage(actionResult.prize);
+                
+                const embed = new EmbedBuilder()
+                    .setTitle(`🎲 Maze - ${type === "roll" ? "Rolagem" : "Gold Dice"}`)
+                    .addFields({ name: "Mapa", value: `#${mapIdArg}`, inline: true }, { name: "Casa Atual", value: `${mapInfo.currentHouse}`, inline: true }, { name: "Progresso", value: `${mapInfo.visitedHouses.length}/${mapInfo.totalHouses}` }, { name: "Resultado", value: actionResult.message }, );
+                
+                if (prizeMsg)
+                    embed.addFields({ name: "Prêmio Recebido", value: prizeMsg });
+                
+                embed.addFields({ name: "Tabuleiro", value: renderMiniMap(mapInfo, targetHouse) });
+                embed.setColor(type === "roll" ? "Random" : "Gold");
+                
+                await message.reply({ embeds: [embed] });
+                
+                // 🎆 Efeito de celebração
+                if (actionResult.prize) await celebratePrize(actionResult.prize.type);
+            };
             
-            // -----------------------------
-            // ✨ GOLD DICE
-            // -----------------------------
-            if (sub === "gold") {
-                
-                const goldMapId = mapIdArg;
-                const targetHouse = toInt(args[2]);
-                
-                if (!goldMapId)
-                    return message.reply("❌ Informe: `!maze gold <mapId> <casa>`");
-                
-                if (!targetHouse)
-                    return message.reply("❌ Informe a **casa alvo**: `!maze gold 2 15`");
-                
-                const result = useGoldDice(user, goldMapId, targetHouse);
-                
-                return message.reply({
-                    content: `✨ **Gold Dice Usado**\n${result}`,
-                    allowedMentions: { repliedUser: false }
-                });
-            }
+            if (sub === "roll") return handleRollOrGold("roll");
+            if (sub === "gold") return handleRollOrGold("gold");
             
-            // -----------------------------
-            // 🔄 RESET
-            // -----------------------------
             if (sub === "reset") {
+                const mapIdArg = toInt(args[1]) || currentMapId;
+                const mapInfo = getMazeMapInfo(user, mapIdArg);
+                const result = resetMaze(user, mapIdArg);
                 
-                const result = resetMaze(user, effectiveMapId);
+                const embed = new EmbedBuilder()
+                    .setTitle(`🔄 Maze - Reset`)
+                    .addFields({ name: "Mapa", value: `#${mapIdArg}`, inline: true }, { name: "Casa Antes do Reset", value: `${mapInfo.currentHouse}` }, { name: "Progresso", value: `${mapInfo.visitedHouses.length}/${mapInfo.totalHouses}` }, { name: "Resultado", value: result }, { name: "Tabuleiro", value: renderMiniMap(mapInfo) })
+                    .setColor("Red");
                 
-                return message.reply({
-                    content: `🔄 **Maze Resetado**\n${result}`,
-                    allowedMentions: { repliedUser: false }
-                });
+                return message.reply({ embeds: [embed] });
             }
             
-            // -----------------------------
-            // ❓ Subcomando inválido
-            // -----------------------------
             return message.reply(
                 "❌ Subcomando inválido.\nUse:\n" +
                 "`!maze roll [mapId]`\n" +
-                "`!maze gold <mapId> <casa>`\n" +
+                "`!maze gold <mapId?> <casa>`\n" +
                 "`!maze reset [mapId]`"
             );
             

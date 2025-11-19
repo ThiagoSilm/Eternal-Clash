@@ -20,9 +20,6 @@ export default {
     const num = Number(args[1]);
     
     try {
-      // Sempre checa reset diário antes de qualquer ação
-      await arenaStatus(user, { checkReset: true }).catch(() => {});
-      
       let reply;
       
       switch (sub) {
@@ -40,10 +37,9 @@ export default {
         case "lutar": {
           if (!Number.isInteger(num) || num < 1 || num > 5) {
             return message.reply(
-              "❌ Escolha inválida.\nUse: `!arena lutar <1-5>` para selecionar o oponente pelo índice."
+              "❌ Escolha inválida.\nUse: `!arena lutar <1-5>` para selecionar o adversário ou nível de desafio."
             );
           }
-          
           reply = await arenaChallenge(user, num);
           break;
         }
@@ -61,11 +57,11 @@ export default {
         // ----------------------------------------------------
         default: {
           reply =
-            "🏆 **Comandos da Arena**\n" +
+            "⚔️ **Comandos da Arena**\n" +
             "━━━━━━━━━━━━━━\n" +
-            "`!arena status` — Ver tentativas, cooldown e lista de oponentes.\n" +
-            "`!arena lutar <1-5>` — Desafiar um oponente da sua lista.\n" +
-            "`!arena recompensa` — Resgatar recompensas diárias/semanal.\n";
+            "`!arena status` — Ver seu status, vitórias e derrotas.\n" +
+            "`!arena lutar <1-5>` — Desafiar um adversário ou nível na Arena.\n" +
+            "`!arena recompensa` — Coletar recompensas da Arena.\n";
         }
       }
       

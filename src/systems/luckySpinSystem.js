@@ -3,118 +3,92 @@ import { addGold, addXP, addGems, spendGold } from "./economySystem.js";
 import { giveCardToUser, getCardList } from "./cardSystem.js";
 import { getRandomCardIdByRarity } from "./summonSystem.js";
 
-// ==========================================
-// NOVAS CONFIGURAÇÕES
-// ==========================================
-const SPIN_COST = 100;
-const LUCK_GAIN = 12; // por spin normal
-const LUCK_GAIN_MEGA = 25; // por mega
-const LUCK_MAX = 100;
-
-// Normal Spin com raridades novas
-const spinNormal = [
-  { type: "gold", value: 150, chance: 25 },
-  { type: "gold", value: 300, chance: 15 },
-  { type: "xp", value: 120, chance: 20 },
-  { type: "card", value: 2, chance: 20 }, // ★★
-  { type: "card", value: 3, chance: 10 }, // ★★★
-  { type: "token", value: 1, chance: 8 },
-  { type: "gems", value: 1, chance: 2 }
+// --- Configuração de prêmios ---
+const normalItems = [
+  { type: "gold", value: 200, chance: 30, rarity: "common" },
+  { type: "gold", value: 500, chance: 20, rarity: "rare" },
+  { type: "xp", value: 100, chance: 20, rarity: "common" },
+  { type: "xp", value: 250, chance: 10, rarity: "rare" },
+  { type: "card", value: 3, chance: 15, rarity: "rare" },
+  { type: "gems", value: 1, chance: 5, rarity: "legendary" }
 ];
 
-// Mega Spin com raridades altas
-const spinMega = [
-  { type: "gold", value: 600, chance: 20 },
-  { type: "xp", value: 400, chance: 20 },
-  { type: "card", value: 4, chance: 25 }, // ★★★★
-  { type: "card", value: 5, chance: 15 }, // ★★★★★
-  { type: "chest", value: "epic", chance: 10 },
-  { type: "gems", value: 10, chance: 5 },
-  { type: "jackpot", value: null, chance: 5 }
+const megaItems = [
+  { type: "gold", value: 500, chance: 15, rarity: "common" },
+  { type: "gold", value: 1000, chance: 10, rarity: "rare" },
+  { type: "xp", value: 200, chance: 15, rarity: "common" },
+  { type: "xp", value: 500, chance: 10, rarity: "rare" },
+  { type: "card", value: 4, chance: 25, rarity: "rare" },
+  { type: "gems", value: 5, chance: 10, rarity: "legendary" },
+  { type: "lottery", value: null, chance: 10, rarity: "legendary" },
+  { type: "guardian", value: null, chance: 5, rarity: "legendary" }
 ];
 
-// ==========================================
-// HELPERS
-// ==========================================
-function rollItem(items) {
-  const total = items.reduce((s, i) => s + i.chance, 0);
-  let roll = Math.random() * total;
-  for (const i of items) {
-    if (roll < i.chance) return i;
-    roll -= i.chance;
-  }
+// --- Helpers ---
+function roll(items) {
+  const total = items.reduce((a, i) => a + i.chance, 0);
+  let r = Math.random() * total;
+  for (const i of items) { if (r < i.chance) return i; r -= i.chance; }
   return items[0];
 }
 
-function getGuardians() {
-  return getCardList().filter(c => c.type === "guardian").map(c => c.id);
+function getAvailableGuardians(user) {
+  const all = getCardList().filter(c => c.type === "guardian").map(c => c.id);
+  if (!user.guardians) user.guardians = [];
+  return all.filter(id => !user.guardians.includes(id));
 }
 
-function reward(user, item) {
-  switch (item.type) {
-    case "gold": addGold(user, item.value); return `💰 ${item.value} ouro`;
-    case "xp": addXP(user, item.value); return `✨ ${item.value} XP`;
-    case "gems": addGems(user, item.value); return `💎 ${item.value} gemas`;
-    case "token":
-      user.eventTokens = (user.eventTokens || 0) + item.value;
-      return `🎟️ ${item.value} Token de Evento`;
-    case "card":
-      const id = getRandomCardIdByRarity(item.value);
-      const c = giveCardToUser(user, id);
-      return `🎴 Carta ${c.name} (${item.value}★)`;
-    case "chest":
-      user.chests = user.chests || [];
-      user.chests.push(item.value);
-      return `🟪 Baú ${item.value}`;
-    case "jackpot":
-      const gems = 500;
-      addGems(user, gems);
-      return `💥 JACKPOT! ${gems} gemas`;
-    default:
-      return "❓ Item desconhecido";
-  }
-}
+// --- Executa um spin e retorna objeto para embed ---
+export function executeSpin(user, isMega = false) {
+  const items = isMega ? megaItems : normalItems;
+  const selected = roll(items);
+  let msg = "", lvlMsg = null;
 
-// ==========================================
-// SPIN PRINCIPAL
-// ==========================================
-export function spinLucky(user, count = 1) {
-  if (!user.spinCount) user.spinCount = 0;
-  if (!user.luck) user.luck = 0;
-
-  const msgs = [];
-
-  for (let n = 0; n < count; n++) {
-    const isMega = (user.spinCount + 1) % 10 === 0;
-    const isSuperMega = user.luck >= LUCK_MAX;
-
-    if (!isMega && !isSuperMega) {
-      try { spendGold(user, SPIN_COST); }
-      catch (e) { msgs.push(`❌ Sem ouro: ${e.message}`); break; }
+  switch (selected.type) {
+    case "gold": addGold(user, selected.value); msg = `${selected.value} ouro 💰`; break;
+    case "xp": lvlMsg = addXP(user, selected.value); msg = `${selected.value} XP ✨`; break;
+    case "gems": addGems(user, selected.value); msg = `${selected.value} gema(s) 💎`; break;
+    case "card": {
+      const cardId = getRandomCardIdByRarity(selected.value);
+      const card = giveCardToUser(user, cardId);
+      msg = `Carta: ${card.name} (${selected.value}★) 🎴`; break;
     }
-
-    const pool = isSuperMega ? spinMega : (isMega ? spinMega : spinNormal);
-    const item = rollItem(pool);
-    const rewardMsg = reward(user, item);
-
-    msgs.push(
-      isSuperMega ? `🌌 SUPER MEGA SPIN! ${rewardMsg}` :
-      isMega ? `🌟 Mega Spin! ${rewardMsg}` :
-      `🎉 Spin! ${rewardMsg}`
-    );
-
-    user.spinCount++;
-    user.luck = Math.min(
-      LUCK_MAX,
-      user.luck + (isMega ? LUCK_GAIN_MEGA : LUCK_GAIN)
-    );
-
-    if (isSuperMega) user.luck = 0;
+    case "lottery": {
+      if (Math.random() < 0.5) {
+        const cardId = getRandomCardIdByRarity(5);
+        const card = giveCardToUser(user, cardId);
+        msg = `🎰 Loteria! Carta 5★: ${card.name}`;
+      } else { addGems(user, 50); msg = `🎰 Loteria! 50 gemas 💎`; }
+      break;
+    }
+    case "guardian": {
+      const available = getAvailableGuardians(user);
+      if (available.length === 0) msg = "Nenhum Guardian disponível 😅";
+      else { const id = available[Math.floor(Math.random() * available.length)]; user.guardians.push(id); msg = `🛡️ Guardian obtido (ID: ${id})!`; }
+      break;
+    }
+    default: msg = "Nada sorteado 🤨";
   }
 
-  msgs.push(`---`);
-  msgs.push(`🔥 Sorte: ${user.luck}/${LUCK_MAX}`);
-  msgs.push(`🌀 Mega Spin em: ${10 - (user.spinCount % 10)}`);
+  if (lvlMsg) msg += `\n${lvlMsg}`;
+  return { msg, rarity: selected.rarity };
+}
 
-  return msgs.join("\n");
+// --- Função principal do Lucky Spin ---
+export function spinLucky(user, useFree = false) {
+  if (!user.luckySpin) user.luckySpin = { spins: 0, freeSpins: 0 };
+  const cost = 100;
+
+  if (!useFree) {
+    try { spendGold(user, cost); }
+    catch (err) { return { msg: `💰 ${err.message}`, rarity: "common" }; }
+  }
+
+  const isMega = (user.luckySpin.spins + 1) % 10 === 0;
+  const result = executeSpin(user, isMega);
+
+  user.luckySpin.spins += 1;
+  if (!useFree && isMega) user.luckySpin.freeSpins += 1;
+
+  return result;
 }

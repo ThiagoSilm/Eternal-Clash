@@ -1,258 +1,153 @@
-// src/systems/clanSystem.js
-//------------------------------------------------------------
-// SISTEMA DE CLÃ — EXPANSÃO COMPLETA
-//------------------------------------------------------------
+import fs from "fs/promises";
+import path from "path";
 
-import { spendCurrency, addXP, addGold } from "./economySystem.js";
-import { CLAN_DATA_MOCK } from "../data/clanDataMock.js";
+const CLANS_FILE = path.resolve("./src/data/clans.json");
+const USERS_FILE = path.resolve("./src/data/users.json");
 
-//------------------------------------------------------------
-// 🔹 Funções Mock
-//------------------------------------------------------------
-function loadClanData() {
-  return JSON.parse(JSON.stringify(CLAN_DATA_MOCK));
+const MAX_CLAN_MEMBERS = 50;
+const CLAN_XP_PER_LEVEL = 1000;
+const CLAN_CREATION_COST = 5000;
+
+// Leitura/escrita JSON
+async function readJSON(file) {
+  try {
+    const data = await fs.readFile(file, "utf-8");
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
 }
 
-function saveClanData(data) {
-  Object.keys(CLAN_DATA_MOCK).forEach(k => delete CLAN_DATA_MOCK[k]);
-  Object.assign(CLAN_DATA_MOCK, data);
+async function writeJSON(file, data) {
+  await fs.writeFile(file, JSON.stringify(data, null, 2), "utf-8");
 }
 
-const genId = () => Math.random().toString(36).substring(2, 8).toUpperCase();
-const clanXPReq = lvl => 1000 + lvl * 500;
+// Registrar usuário
+export async function registerUser(userId, username, gold = 0) {
+  const users = await readJSON(USERS_FILE);
+  let user = users.find(u => u.id === userId);
+  if (!user) {
+    user = { id: userId, username, gold, clanId: null };
+    users.push(user);
+    await writeJSON(USERS_FILE, users);
+  }
+  return user;
+}
 
-//------------------------------------------------------------
-// 🔥 CONFIG NOVA
-//------------------------------------------------------------
-const MAX_BASE_MEMBERS = 10;
-const MAX_UPGRADES = 5;
+// Salvar usuário
+async function saveUser(updatedUser) {
+  const users = await readJSON(USERS_FILE);
+  const index = users.findIndex(u => u.id === updatedUser.id);
+  if (index !== -1) users[index] = updatedUser;
+  else users.push(updatedUser);
+  await writeJSON(USERS_FILE, users);
+}
 
-const CASTLE_UPGRADES = {
-  treasury: { cost: 2000, buff: 0.05 },   // +5% gold ganho pelo clã
-  training: { cost: 2500, buff: 0.03 },   // +3% XP dos membros
-  shrine:   { cost: 3000, buff: 0.02 },   // +2% dmg no PvP clan war
-};
-
-const WEEKLY_QUESTS = [
-  { id: "donate_5k", desc: "Doar 5000 ouro ao clã", req: 5000, reward: 20 },
-  { id: "kill_50",   desc: "Vencer 50 batalhas", req: 50, reward: 15 },
-  { id: "xp_3k",     desc: "Ganhar 3000 XP total", req: 3000, reward: 20 },
-];
-
-//------------------------------------------------------------
-// 🔥 Criação do Clã
-//------------------------------------------------------------
-export function createClan(user, name) {
-  if (user.clanId) return "❌ Já está em um clã.";
-  if (name.length < 3) return "❌ Nome muito curto.";
-
-  const all = loadClanData();
-  if (Object.values(all).some(c => c.name.toLowerCase() === name.toLowerCase()))
-    return `❌ O clã "${name}" já existe.`;
-
-  if (!spendCurrency(user, "gold", 5000))
-    return "💰 Você precisa de 5000 ouro.";
-
+// Criar clã
+export async function createClan(user, name) {
+  if (!name) return "❌ Nome do clã inválido.";
+  
+  const clans = await readJSON(CLANS_FILE);
+  if (clans.find(c => c.name.toLowerCase() === name.toLowerCase())) return "❌ Já existe um clã com esse nome.";
+  if (user.gold < CLAN_CREATION_COST) return `❌ Você precisa de ${CLAN_CREATION_COST} Ouro para criar um clã.`;
+  
   const clan = {
-    id: genId(),
+    id: String(clans.length + 1),
     name,
     level: 1,
     xp: 0,
-    gold: 0,
-    tokens: 0,
-    members: [{
-      userId: user.id,
-      username: user.username,
-      role: "LIDER",
-      donated: 0,
-      joinedAt: new Date().toISOString()
-    }],
-    upgrades: { treasury: 0, training: 0, shrine: 0 },
-    skills: { passive: "Nenhuma" },
-    weekly: WEEKLY_QUESTS.map(q => ({ ...q, progress: 0, done: false })),
-    logs: [],
-    createdAt: new Date().toISOString(),
-    wars: []
+    members: [user.id]
   };
-
-  all[clan.id] = clan;
+  
+  clans.push(clan);
   user.clanId = clan.id;
-  saveClanData(all);
-  return `🏰 Clã **${name}** criado!`;
+  user.gold -= CLAN_CREATION_COST;
+  
+  await writeJSON(CLANS_FILE, clans);
+  await saveUser(user);
+  
+  return `✅ Clã **${name}** criado com sucesso! Você agora é o líder e gastou ${CLAN_CREATION_COST} Ouro.`;
 }
 
-//------------------------------------------------------------
-// 🔥 Entrar no Clã
-//------------------------------------------------------------
-export function joinClan(user, tag) {
-  if (user.clanId) return "❌ Já está em um clã.";
-  const all = loadClanData();
-  const clan = Object.values(all).find(
-    c => c.id === tag.toUpperCase() || c.name.toLowerCase() === tag.toLowerCase()
-  );
+// Entrar em clã
+export async function joinClan(user, nameOrId) {
+  if (!nameOrId) return "❌ Informe o nome ou ID do clã.";
+  const clans = await readJSON(CLANS_FILE);
+  const clan = clans.find(c => c.id === nameOrId || c.name.toLowerCase() === nameOrId.toLowerCase());
   if (!clan) return "❌ Clã não encontrado.";
-
-  const cap = MAX_BASE_MEMBERS + clan.level;
-  if (clan.members.length >= cap) return "❌ Clã cheio.";
-
-  clan.members.push({
-    userId: user.id,
-    username: user.username,
-    role: "MEMBRO",
-    donated: 0,
-    joinedAt: new Date().toISOString()
-  });
-
+  if (clan.members.includes(user.id)) return "❌ Você já está nesse clã.";
+  if (clan.members.length >= MAX_CLAN_MEMBERS) return "❌ Este clã atingiu o limite máximo de membros.";
+  
+  clan.members.push(user.id);
   user.clanId = clan.id;
-  saveClanData(all);
-  return `🤝 Entrou no clã **${clan.name}**!`;
+  
+  await writeJSON(CLANS_FILE, clans);
+  await saveUser(user);
+  
+  return `✅ Você entrou no clã **${clan.name}** com sucesso!`;
 }
 
-//------------------------------------------------------------
-// 🔥 Doação (melhorada) → dá Tokens, XP e progresso de quests
-//------------------------------------------------------------
-export function donateToClan(user, amount) {
-  if (!user.clanId) return "❌ Entre em um clã.";
-  if (amount <= 0) return "❌ Quantia inválida.";
+// Sair de clã
+export async function leaveClan(user) {
+  if (!user.clanId) return "❌ Você não está em nenhum clã.";
+  
+  const clans = await readJSON(CLANS_FILE);
+  const clan = clans.find(c => c.id === user.clanId);
+  if (clan) {
+    clan.members = clan.members.filter(id => id !== user.id);
+    await writeJSON(CLANS_FILE, clans);
+  }
+  
+  user.clanId = null;
+  await saveUser(user);
+  
+  return clan ?
+    `✅ Você saiu do clã **${clan.name}**.` :
+    "⚠️ Clã não encontrado, mas você foi removido do registro.";
+}
 
-  const all = loadClanData();
-  const clan = all[user.clanId];
+// Doar ouro para clã
+export async function donateToClan(user, amount) {
+  if (!user.clanId) return "❌ Você precisa estar em um clã para doar.";
+  if (!amount || amount <= 0) return "❌ Valor inválido para doação.";
+  if (user.gold < amount) return "❌ Você não tem ouro suficiente.";
+  
+  const clans = await readJSON(CLANS_FILE);
+  const clan = clans.find(c => c.id === user.clanId);
   if (!clan) return "❌ Clã não encontrado.";
-
-  if (!spendCurrency(user, "gold", amount))
-    return "💰 Ouro insuficiente.";
-
-  const xp = Math.floor(amount / 10);
-  clan.gold += amount;
-  clan.xp += xp;
-  clan.tokens += Math.floor(amount / 500);
-
-  const m = clan.members.find(m => m.userId === user.id);
-  m.donated += amount;
-
-  // progresso em quests
-  const q = clan.weekly.find(q => q.id === "donate_5k");
-  if (q && !q.done) {
-    q.progress += amount;
-    if (q.progress >= q.req) {
-      q.done = true;
-      clan.tokens += q.reward;
-    }
+  
+  user.gold -= amount;
+  clan.xp += amount;
+  
+  // Level up automático
+  while (clan.xp >= CLAN_XP_PER_LEVEL) {
+    clan.level += 1;
+    clan.xp -= CLAN_XP_PER_LEVEL;
   }
-
-  // level up
-  let msg = "";
-  while (clan.xp >= clanXPReq(clan.level)) {
-    clan.xp -= clanXPReq(clan.level);
-    clan.level++;
-    msg += `\n⬆️ Clã subiu para **Nível ${clan.level}**!`;
-  }
-
-  clan.logs.push({
-    type: "donation",
-    user: user.username,
-    amount,
-    date: new Date().toISOString()
-  });
-
-  saveClanData(all);
-  return `💖 Doou **${amount} ouro** (+${xp} XP)!${msg}`;
+  
+  await saveUser(user);
+  await writeJSON(CLANS_FILE, clans);
+  
+  return `💰 Você doou **${amount} Ouro** para o clã **${clan.name}**!`;
 }
 
-//------------------------------------------------------------
-// 🔥 Upgrades do Castelo
-//------------------------------------------------------------
-export function upgradeClanBuilding(user, building) {
-  if (!user.clanId) return "❌ Entre em um clã.";
-  const all = loadClanData();
-  const clan = all[user.clanId];
-
-  const data = CASTLE_UPGRADES[building];
-  if (!data) return "❌ Upgrade inválido.";
-  if (clan.upgrades[building] >= MAX_UPGRADES)
-    return "❌ Este upgrade está no máximo.";
-
-  const cost = data.cost * (clan.upgrades[building] + 1);
-  if (clan.tokens < cost) return "❌ Tokens insuficientes.";
-
-  clan.tokens -= cost;
-  clan.upgrades[building]++;
-  clan.logs.push({
-    type: "upgrade",
-    building,
-    level: clan.upgrades[building],
-    date: new Date().toISOString()
-  });
-
-  saveClanData(all);
-  return `🛠️ ${building} agora é **Nível ${clan.upgrades[building]}**!`;
+// Info do clã
+export async function getClanInfo(nameOrId) {
+  const clans = await readJSON(CLANS_FILE);
+  const clan = clans.find(c => c.id === nameOrId || c.name.toLowerCase() === nameOrId.toLowerCase());
+  if (!clan) return "❌ Clã não encontrado.";
+  
+  return `🏰 **${clan.name}** (ID: ${clan.id})
+Nv.: ${clan.level}
+XP: ${clan.xp}/${CLAN_XP_PER_LEVEL}
+Membros: ${clan.members.length}/${MAX_CLAN_MEMBERS}`;
 }
 
-//------------------------------------------------------------
-// 🔥 Iniciar guerra entre clãs (PvP entre membros)
-//------------------------------------------------------------
-export function startClanWar(user, targetTag) {
-  if (!user.clanId) return "❌ Sem clã.";
-  const all = loadClanData();
-  const clanA = all[user.clanId];
-  const clanB = Object.values(all).find(c => c.id === targetTag);
-
-  if (!clanB) return "❌ Clã alvo inexistente.";
-  if (clanA.id === clanB.id) return "❌ Não pode guerrear consigo.";
-
-  const war = {
-    id: genId(),
-    clans: [clanA.id, clanB.id],
-    score: { [clanA.id]: 0, [clanB.id]: 0 },
-    startedAt: new Date().toISOString()
-  };
-
-  clanA.wars.push(war);
-  clanB.wars.push(war);
-  saveClanData(all);
-
-  return `⚔️ Guerra iniciada entre **${clanA.name}** e **${clanB.name}**!`;
-}
-
-//------------------------------------------------------------
-// 🔥 Info do Clã
-//------------------------------------------------------------
-export function getClanInfo(tag) {
-  const all = loadClanData();
-  const clan = Object.values(all).find(
-    c => c.id === tag.toUpperCase() || c.name.toLowerCase() === tag.toLowerCase()
-  );
-  if (!clan) return "❌ Clã não existe.";
-
-  const cap = MAX_BASE_MEMBERS + clan.level;
-  const members = clan.members
-    .sort((a, b) => b.donated - a.donated)
-    .map(m => ` • ${m.role === "LIDER" ? "👑" : "🔸"} ${m.username} (${m.donated}G)`);
-
-  return `
-🏰 **${clan.name} [${clan.id}]**
-Nível: ${clan.level}
-XP: ${clan.xp}/${clanXPReq(clan.level)}
-Gold: ${clan.gold} | Tokens: ${clan.tokens}
-Membros: ${clan.members.length}/${cap}
-
-🛠️ Upgrades:
-${Object.entries(clan.upgrades).map(([k,v]) => ` - ${k}: Nível ${v}`).join("\n")}
-
-📜 Quests Semanais:
-${clan.weekly.map(q => ` - ${q.desc}: ${q.progress}/${q.req} ${q.done ? "✔" : ""}`).join("\n")}
-
-👥 Membros:
-${members.join("\n")}
-`;
-}
-
-//------------------------------------------------------------
-// 🔥 Ranking
-//------------------------------------------------------------
-export function getClanRankings() {
-  const all = loadClanData();
-  return Object.values(all)
-    .sort((a,b) => b.level - a.level || b.xp - a.xp)
+// Ranking top 10
+export async function getClanRankings() {
+  const clans = await readJSON(CLANS_FILE);
+  return clans
+    .slice()
+    .sort((a, b) => b.level - a.level || b.xp - a.xp)
     .slice(0, 10);
 }

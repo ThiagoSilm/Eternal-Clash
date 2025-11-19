@@ -373,22 +373,53 @@ function guardianEndTurn(guardian, state) {
   }
 }
 
-// ------------------ TURN FLOW ------------------
+// ------------------ TOWER GEM EFFECTS ------------------
+export function applyTowerGems(entity, state) {
+  if (!entity.tempGems || entity.tempGems.length === 0) return;
+  for (const gem of entity.tempGems) {
+    switch (gem.toLowerCase()) {
+      case "fúria":
+        applyStatusAdvanced(entity, "strength", { value: 5, turns: 1, stacking: "add", source: "Tower Gem: Fúria" });
+        pushLog(state, { actor: entity.name, action: "gem_buff", gem, note: "+5 Strength" });
+        break;
+      case "proteção":
+        applyStatusAdvanced(entity, "armorUp", { value: 0.25, turns: 1, stacking: "add", source: "Tower Gem: Proteção" });
+        pushLog(state, { actor: entity.name, action: "gem_buff", gem, note: "+25% Armor" });
+        break;
+      case "velocidade":
+        applyStatusAdvanced(entity, "haste", { value: 1, turns: 1, stacking: "add", source: "Tower Gem: Velocidade" });
+        pushLog(state, { actor: entity.name, action: "gem_buff", gem, note: "Extra Draw / Action" });
+        break;
+      case "crítico":
+        applyStatusAdvanced(entity, "critBuff", { value: 0.15, turns: 1, stacking: "add", source: "Tower Gem: Crítico" });
+        pushLog(state, { actor: entity.name, action: "gem_buff", gem, note: "+15% Crit Chance" });
+        break;
+      default:
+        pushLog(state, { actor: entity.name, action: "gem_buff", gem, note: "Gema não reconhecida" });
+    }
+  }
+}
+
+// ------------------ INTEGRAR NO TURN ------------------
 function runTurn(state) {
   const side = state.attacker;
   const actor = state[side];
   const target = opposite(side, state);
-
-  // push logs via runEffectsTrigger
+  
   const logger = (m) => pushLog(state, { actor: actor.name, note: m });
-
+  
   runEffectsTrigger("startTurn", actor, target, {}, logger);
-
+  
+  // 1️⃣ Aplicar efeitos de status no início
   tickStatusStartAdvanced(actor, target, state);
-
+  
+  // 2️⃣ Aplicar GEMAS TOWER
+  if (actor.tempGems && actor.tempGems.length) applyTowerGems(actor, state);
+  
+  // 3️⃣ Guardian start
   if (actor.guardian) guardianStartTurn(actor.guardian, actor, target, state);
-
-  // stun check
+  
+  // 4️⃣ Verifica stun
   if (hasStatus(actor, "stun") || actor.stunned) {
     pushLog(state, { actor: actor.name, action: "stunned_skip" });
     runEffectsTrigger("endTurn", actor, target, {}, logger);
@@ -399,27 +430,27 @@ function runTurn(state) {
     state.attacker = side === "player" ? "enemy" : "player";
     return;
   }
-
-  // draw unless frozen
+  
+  // 5️⃣ Draw cards
   if (!hasStatus(actor, "freeze")) {
     for (let i = 0; i < BASE_DRAW; i++) drawCard(actor, state);
   } else removeStatusAdvanced(actor, "freeze");
-
-  // guardian auto actions
+  
+  // 6️⃣ Guardian actions
   if (actor.guardian) {
     guardianTryUltimate(actor.guardian, actor, target, state);
     if (side === "enemy" || state.options.auto) guardianTryActivate(actor.guardian, actor, target, state, false);
   }
-
-  // action selection
+  
+  // 7️⃣ Escolha de ação
   if (side === "enemy" || state.options.auto) {
     const best = chooseBestAICard(state, actor, target);
     if (best) playCard(state, side, best.id);
   } else {
     if (actor.hand.length > 0) playCard(state, side, actor.hand[0].id);
   }
-
-  // summons act
+  
+  // 8️⃣ Summons atacam
   for (const s of state.summons.filter(x => x.owner === actor.name)) {
     if (s.hp > 0) {
       target.hp -= s.atk;
@@ -427,19 +458,17 @@ function runTurn(state) {
       runEffectsTrigger("onSummonHit", s, target, { summon: s }, logger);
     }
   }
-
-  // end-turn effects
+  
+  // 9️⃣ End turn effects
   runEffectsTrigger("endTurn", actor, target, {}, logger);
   tickStatusEndAdvanced(actor, target, state);
-
   if (actor.guardian) guardianEndTurn(actor.guardian, state);
-
+  
   cleanupSummons(state);
   if (actor.hp <= 0) runEffectsTrigger("death", actor, target, {}, logger);
   if (target.hp <= 0) runEffectsTrigger("death", target, actor, {}, logger);
-
   runEffectsTrigger("afterTurn", actor, target, {}, logger);
-
+  
   state.turn++;
   state.attacker = side === "player" ? "enemy" : "player";
 }

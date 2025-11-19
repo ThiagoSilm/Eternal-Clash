@@ -1,12 +1,11 @@
-// src/commands/clan.js
-
 import {
   createClan,
   joinClan,
   leaveClan,
   donateToClan,
   getClanInfo,
-  getClanRankings
+  getClanRankings,
+  registerUser
 } from "../../src/systems/clanSystem.js";
 
 export default {
@@ -14,64 +13,54 @@ export default {
   description: "Gerencie ou participe de um clã.",
   usage: "[criar <nome> | entrar <nome> | sair | doar <quantia> | info [nome] | ranking]",
   
-  // O objeto 'user' é passado corretamente pelo middleware
   async execute(message, args, user) {
     const sub = args[0]?.toLowerCase();
     let response = "";
     
-    // Assumimos que o campo 'username' está no objeto user para logging no clanSystem
-    if (!user.username) {
-        user.username = message.author.username;
-    }
+    // Registrar usuário no sistema (simula banco)
+    if (!user.username) user.username = message.author.username;
+    user = await registerUser(user.id, user.username, user.gold || 0);
     
     try {
       switch (sub) {
         case "criar":
           const clanName = args.slice(1).join(" ");
-          response = createClan(user, clanName);
+          if (!clanName) return await message.reply("❌ Informe um nome para o clã.");
+          if (user.clanId) return await message.reply("❌ Você já está em um clã!");
+          response = await createClan(user, clanName);
           break;
-            
+          
         case "entrar":
           const joinTarget = args.slice(1).join(" ");
-          response = joinClan(user, joinTarget);
+          if (!joinTarget) return await message.reply("❌ Informe o nome ou ID do clã que deseja entrar.");
+          if (user.clanId) return await message.reply("❌ Saia do seu clã atual antes de entrar em outro.");
+          response = await joinClan(user, joinTarget);
           break;
-            
+          
         case "sair":
-          response = leaveClan(user);
+          response = await leaveClan(user);
           break;
-            
+          
         case "doar":
           const amount = parseInt(args[1]);
-          if (!amount || amount <= 0) {
-            response = "❌ Informe um valor válido para doar (Ouro).";
-          } else {
-            response = donateToClan(user, amount);
-          }
+          if (!amount || amount <= 0) return await message.reply("❌ Informe um valor válido para doar (Ouro).");
+          response = await donateToClan(user, amount);
           break;
-            
-        case "info":
-          // Se não houver nome, mostra info do clã do usuário
-          const infoTarget = args.slice(1).join(" ") || user.clanId; 
-          if (!infoTarget) {
-              response = "❌ Informe o nome/ID do clã ou entre em um para ver as informações.";
-          } else {
-              response = getClanInfo(infoTarget);
-          }
-          break;
-            
-        case "ranking":
-          const topClans = getClanRankings();
-          response = "🏆 **Ranking Global de Clãs (TOP 10):**\n---";
           
-          if (topClans.length === 0) {
-              response += "\nNenhum clã no ranking.";
-          } else {
-              topClans.forEach((clan, i) => {
-                  response += `\n${i + 1}. **${clan.name}** (Nv. ${clan.level}) — XP: ${clan.xp}, Membros: ${clan.members?.length || 'N/A'}`;
-              });
-          }
+        case "info":
+          const infoTarget = args.slice(1).join(" ") || user.clanId;
+          response = await getClanInfo(infoTarget);
           break;
-            
+          
+        case "ranking":
+          const topClans = await getClanRankings();
+          response = "🏆 **Ranking Global de Clãs (TOP 10):**\n---";
+          if (!topClans.length) response += "\nNenhum clã no ranking.";
+          else topClans.forEach((clan, i) => {
+            response += `\n${i + 1}. **${clan.name}** (Nv. ${clan.level}) — XP: ${clan.xp}, Membros: ${clan.members.length}`;
+          });
+          break;
+          
         default:
           response =
             "🏰 **Comandos do Clã:**\n" +
@@ -83,13 +72,11 @@ export default {
             "`!clan ranking` — Ranking global dos clãs";
       }
       
-      // O salvamento do objeto 'user' (alterado em criar, entrar, sair, doar)
-      // é delegado ao index.js.
       await message.reply({ content: response, allowedMentions: { repliedUser: false } });
-
+      
     } catch (err) {
-        console.error("❌ Erro no comando do clã:", err);
-        await message.reply("⚠️ Ocorreu um erro ao processar o comando do clã.");
+      console.error("❌ Erro no comando do clã:", err);
+      await message.reply(`⚠️ Ocorreu um erro ao processar o comando do clã:\n\`${err.message}\``);
     }
   }
 };

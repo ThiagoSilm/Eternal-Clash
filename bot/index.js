@@ -5,109 +5,182 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { Client, GatewayIntentBits, Collection } from "discord.js";
 import dotenv from "dotenv";
+import chalk from "chalk";
+import { performance } from "perf_hooks";
 
-// Importa os sistemas (ajuste o caminho se necessário)
-import { loadUser } from "../src/systems/userSystem.js"; 
-import { markUserDirty, flushCache } from "../src/systems/userCacheSystem.js"; 
+// Sistemas
+import { loadUser } from "../src/systems/userSystem.js";
+import { markUserDirty, flushCache } from "../src/systems/userCacheSystem.js";
 
-// A função startBot recebe o objeto config que foi carregado no arquivo principal
+// Cooldowns + Stats
+const cooldowns = new Map();
+let totalCommandsExecuted = 0;
+
+// ----------------------------------------------------
+// 🔹 LOGGER AVANÇADO
+// ----------------------------------------------------
+function log(type, msg) {
+  const ts = new Date().toLocaleTimeString("pt-BR");
+  const colors = {
+    info: chalk.blue,
+    warn: chalk.yellow,
+    error: chalk.red,
+    success: chalk.green,
+    event: chalk.magenta
+  };
+  console.log(colors[type](`[${ts}] ${msg}`));
+}
+
+// ----------------------------------------------------
+// 🔹 ANTI-CRASH GLOBAL
+// ----------------------------------------------------
+process.on("unhandledRejection", err => log("error", `Unhandled Rejection: ${err}`));
+process.on("uncaughtException", err => log("error", `Uncaught Exception: ${err}`));
+
+
+// ====================================================
+// 🚀 INÍCIO DO BOT
+// ====================================================
 export async function startBot(config) {
-
-    dotenv.config(); // Carregar variáveis de ambiente
-
-    // ----------------------------------------------------
-    // 🔹 CONFIGURAÇÕES E INICIALIZAÇÃO
-    // ----------------------------------------------------
-
-    if (!process.env.DISCORD_TOKEN) {
-        console.error("❌ ERRO FATAL: Variável DISCORD_TOKEN não encontrada. Crie um arquivo .env.");
-        return; // Retorna em vez de process.exit, deixando o main() tratar
+  
+  dotenv.config();
+  
+  if (!process.env.DISCORD_TOKEN) {
+    log("error", "DISCORD_TOKEN não encontrado no .env");
+    return;
+  }
+  
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  
+  const PREFIX = config.prefix || "!";
+  
+  const client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent
+    ]
+  });
+  
+  // Auto salvar cache
+  setInterval(flushCache, 30000);
+  log("event", "Auto salvamento a cada 30s ativado.");
+  
+  // ====================================================
+  // 🔹 CARREGAMENTO DE COMANDOS + HOT RELOAD
+  // ====================================================
+  client.commands = new Collection();
+  const commandsPath = path.join(__dirname, "commands");
+  const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"));
+  
+  for (const file of commandFiles) {
+    try {
+      const { default: command } = await import(`./commands/${file}`);
+      if (command?.name && typeof command.execute === "function") {
+        client.commands.set(command.name, command);
+        log("success", `Comando carregado: ${command.name}`);
+      } else {
+        log("warn", `Ignorado (export inválido): ${file}`);
+      }
+    } catch (err) {
+      log("error", `Erro ao carregar ${file}: ${err}`);
     }
-
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    
-    // O prefixo agora vem da configuração
-    const PREFIX = config.prefix || "!"; 
-
-    const client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-      ]
-    });
-
-    // Auto-salvar usuários a cada 30 segundos
-    const SAVE_INTERVAL_SECONDS = 30;
-    setInterval(flushCache, SAVE_INTERVAL_SECONDS * 1000); 
-    console.log(`⏱️ Auto-salvamento de usuários configurado a cada ${SAVE_INTERVAL_SECONDS} segundos.`);
-
-
-    // ----------------------------------------------------
-    // 🔹 CARREGAMENTO DE COMANDOS
-    // ----------------------------------------------------
-
-    client.commands = new Collection();
-    // Ajuste o caminho dos comandos relativo a 'bot/index.js'
-    const commandsPath = path.join(__dirname, ".", "commands"); 
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith(".js"));
-
-    for (const file of commandFiles) {
+  }
+  
+  // Hot reload em devMode
+  if (config.devMode) {
+    fs.watch(commandsPath, async (_, filename) => {
+      if (!filename.endsWith(".js")) return;
       try {
-        // Ajuste o caminho de import dinâmico
-        const { default: command } = await import(`./commands/${file}`); 
-        if (command?.name && typeof command?.execute === "function") {
-          client.commands.set(command.name, command);
-          console.log(`✅ Comando carregado: \x1b[32m${command.name}\x1b[0m`);
-        } else {
-          console.warn(`⚠️ Ignorado (sem export válido): \x1b[33m${file}\x1b[0m`);
+        const full = path.join(commandsPath, filename);
+        delete import.cache?.[full];
+        const { default: cmd } = await import(`./commands/${filename}?v=${Date.now()}`);
+        if (cmd?.name) {
+          client.commands.set(cmd.name, cmd);
+          log("success", `HotReload → ${cmd.name}`);
         }
-      } catch (err) {
-        console.error(`❌ Erro ao carregar comando ${file}:`, err);
+      } catch (e) {
+        log("error", `Falha ao recarregar ${filename}: ${e}`);
       }
+    });
+  }
+  
+  // ====================================================
+  // 🔹 READY
+  // ====================================================
+  client.once("ready", () => {
+    log("success", `${config.gameName} ONLINE como ${client.user.tag}`);
+    log("info", `Prefixo → ${PREFIX}`);
+    
+    const statuses = [
+      `${config.gameName} Online`,
+      `${PREFIX}help para ajuda`,
+      `🔥 ${totalCommandsExecuted} comandos usados`,
+    ];
+    
+    setInterval(() => {
+      client.user.setActivity(statuses[Math.floor(Math.random() * statuses.length)]);
+    }, 15000);
+  });
+  
+  // ====================================================
+  // 🔹 EVENTO PRINCIPAL messageCreate
+  // ====================================================
+  client.on("messageCreate", async (message) => {
+    
+    // Ignora bots e mensagens sem prefixo
+    if (message.author.bot || !message.content.startsWith(PREFIX)) return;
+    
+    // Anti-links suspeitos
+    if (/discord\.gg\/|http:\/\/|https:\/\//i.test(message.content))
+      log("warn", `Possível link suspeito → ${message.author.tag}`);
+    
+    const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
+    const command = client.commands.get(commandName);
+    if (!command) return;
+    
+    // ⭐ Cooldown global
+    const cdTime = command.cooldown || 1500;
+    const cdKey = `${message.author.id}-${commandName}`;
+    const last = cooldowns.get(cdKey);
+    
+    if (last && Date.now() < last + cdTime) {
+      return message.reply(`⏳ Aguarde **${((last + cdTime - Date.now()) / 1000).toFixed(1)}s**.`);
     }
-
-
-    // ----------------------------------------------------
-    // 🔹 EVENTOS (READY e messageCreate)
-    // ----------------------------------------------------
-
-    client.once("ready", () => {
-      console.log(`\n🤖 ${config.gameName} Bot online como \x1b[36m${client.user.tag}\x1b[0m`); 
-      console.log(`Prefixo de comando: \x1b[35m${PREFIX}\x1b[0m\n`);
-    });
-
-
-    client.on("messageCreate", async (message) => {
-      // 1. Verificações iniciais
-      if (message.author.bot || !message.content.startsWith(PREFIX)) return;
+    
+    cooldowns.set(cdKey, Date.now());
+    
+    try {
+      // Middleware: carregar user
+      const user = loadUser(message.author.id);
       
-      const args = message.content.slice(PREFIX.length).trim().split(/ +/);
-      const commandName = args.shift().toLowerCase();
-      const command = client.commands.get(commandName);
+      // Performance tracking
+      const start = performance.now();
       
-      if (!command) return;
+      await command.execute(message, args, user);
       
-      try {
-        // 2. MIDDLEWARE: Carrega o objeto user
-        const user = loadUser(message.author.id);
-        
-        // 3. EXECUÇÃO
-        await command.execute(message, args, user);
-        
-        // 4. PÓS-EXECUÇÃO: Sinaliza que o objeto no cache está modificado
-        markUserDirty(message.author.id); 
-        
-      } catch (err) {
-        console.error(`\n❌ ERRO DE EXECUÇÃO em ${commandName} (${message.author.tag}):`, err);
-        message.reply("⚠️ Ocorreu um erro ao executar esse comando. O administrador foi notificado.");
-      }
-    });
-
-    // ----------------------------------------------------
-    // 🔹 LOGIN
-    // ----------------------------------------------------
-
-    await client.login(process.env.DISCORD_TOKEN);
+      const end = performance.now();
+      log("info", `Cmd '${commandName}' por ${message.author.tag} → ${Math.round(end - start)}ms`);
+      
+      // Usuário modificado
+      markUserDirty(message.author.id);
+      
+      // Estatística global
+      totalCommandsExecuted++;
+      
+    } catch (err) {
+      log("error", `Erro no comando ${commandName}: ${err}`);
+      message.reply("⚠️ Erro ao executar o comando.");
+    }
+  });
+  
+  // Estatísticas de uso a cada 1 min
+  setInterval(() => {
+    log("event", `📊 Total executados: ${totalCommandsExecuted}`);
+  }, 60000);
+  
+  // Login
+  await client.login(process.env.DISCORD_TOKEN);
 }

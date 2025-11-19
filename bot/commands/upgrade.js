@@ -1,14 +1,10 @@
 // src/commands/upgrade.js
 
-// -----------------------------
-// 📦 IMPORTAÇÕES CORRETAS
-// -----------------------------
-
+import { EmbedBuilder } from "discord.js";
 import { getCardTemplate } from "../../src/systems/cardSystem.js";
 import {
     levelUpCard,
-    burnCardForXp,
-    getCardXPValue
+    burnCardForXp
 } from "../systems/xpSystem.js";
 import { spendGold } from "../systems/economySystem.js";
 
@@ -18,107 +14,111 @@ export default {
     usage: "<carta_principal> <carta_doadora_1> [carta_doadora_2 ...]",
     
     async execute(message, args, user) {
-        
-        // -------------------------------------------------------
-        // 1. VALIDAÇÕES GERAIS
-        // -------------------------------------------------------
-        if (!user.cards || user.cards.length === 0) {
-            return message.reply("📭 Você não possui cartas.");
-        }
-        
-        if (args.length < 2) {
-            return message.reply("❌ Use: `!upgrade <principal> <doadora1> <doadora2> ...`");
-        }
-        
+        // ------------------------------
+        // 1. VALIDAÇÕES INICIAIS
+        // ------------------------------
+        if (!user.cards || user.cards.length === 0) return message.reply("📭 Você não possui cartas.");
+        if (args.length < 2) return message.reply("❌ Use: `!upgrade <principal> <doadora1> <doadora2> ...`");
+
         const mainIndex = parseInt(args[0]);
-        const mainCard = user.cards[mainIndex - 1];
-        
-        if (!mainCard) {
+        if (isNaN(mainIndex) || mainIndex < 1 || mainIndex > user.cards.length) {
             return message.reply("❌ Índice da carta principal inválido.");
         }
-        
-        if (mainCard.isGuardian) {
-            return message.reply("⚠️ Guardiões não podem ser upados.");
-        }
-        
-        // -------------------------------------------------------
+
+        const mainCard = user.cards[mainIndex - 1];
+        if (!mainCard) return message.reply("❌ Carta principal não encontrada.");
+        if (mainCard.isGuardian) return message.reply("⚠️ Guardiões não podem ser upados.");
+
+        const previousLevel = mainCard.level;
+        const previousXP = mainCard.xp || 0;
+
+        // ------------------------------
         // 2. SELEÇÃO DAS CARTAS SACRIFICADAS
-        // -------------------------------------------------------
-        
+        // ------------------------------
         const sacrificeIndexes = args.slice(1).map(n => parseInt(n) - 1);
-        
-        const sacrificeCards = sacrificeIndexes
-            .map(i => user.cards[i])
-            .filter(c => c && !c.isGuardian && c.uniqueId !== mainCard.uniqueId);
-        
-        if (sacrificeCards.length === 0) {
-            return message.reply("⚠️ Nenhuma carta válida para sacrifício foi encontrada.");
+        const ignoredCards = [];
+        const sacrificeCards = [];
+
+        for (const i of sacrificeIndexes) {
+            const card = user.cards[i];
+            if (!card) continue;
+            if (card.uniqueId === mainCard.uniqueId) {
+                ignoredCards.push(`${card.name} (principal)`);
+                continue;
+            }
+            if (card.isGuardian) {
+                ignoredCards.push(`${card.name} (guardião)`);
+                continue;
+            }
+            sacrificeCards.push(card);
         }
-        
-        // -------------------------------------------------------
-        // 3. CÁLCULO DO CUSTO EM OURO E XP TOTAL
-        // -------------------------------------------------------
-        
+
+        if (sacrificeCards.length === 0) return message.reply("⚠️ Nenhuma carta válida para sacrifício foi encontrada.");
+
+        // ------------------------------
+        // 3. CÁLCULO DE CUSTO EM OURO
+        // ------------------------------
         let totalGoldCost = 0;
-        let totalXP = 0;
-        
-        for (const card of sacrificeCards) {
-            totalGoldCost += Math.floor(card.level * 100);
-            totalXP += getCardXPValue(card);
-        }
-        
-        // -------------------------------------------------------
-        // 4. COBRAR OURO
-        // -------------------------------------------------------
-        
-        const goldSuccess = spendGold(user, totalGoldCost);
-        
-        if (!goldSuccess) {
-            return message.reply(`💰 Ouro insuficiente. Precisa de **${totalGoldCost}**.`);
-        }
-        
-        // -------------------------------------------------------
-        // 5. QUEIMAR AS CARTAS E GERAR XP
-        // -------------------------------------------------------
-        
+        for (const card of sacrificeCards) totalGoldCost += Math.floor(card.level ** 1.5 * 50);
+
+        if (!spendGold(user, totalGoldCost)) return message.reply(`💰 Ouro insuficiente. Precisa de **${totalGoldCost}**.`);
+
+        // ------------------------------
+        // 4. QUEIMAR CARTAS E CALCULAR XP REAL
+        // ------------------------------
         const burnDetails = [];
-        
+        let totalXP = 0;
+
         for (const card of sacrificeCards) {
             const burnResult = burnCardForXp(user, card.uniqueId);
-            
             if (!burnResult.success) continue;
-            
+            totalXP += burnResult.gainedXP;
             const template = getCardTemplate(card.id);
             burnDetails.push({
                 name: template?.name || "Carta",
                 xp: burnResult.gainedXP
             });
         }
-        
-        // -------------------------------------------------------
-        // 6. LEVEL UP DA CARTA PRINCIPAL
-        // -------------------------------------------------------
-        
+
+        if (burnDetails.length === 0) return message.reply("⚠️ Nenhuma carta pôde ser sacrificada.");
+
+        // ------------------------------
+        // 5. LEVEL UP DA CARTA PRINCIPAL
+        // ------------------------------
         const levelUpResult = levelUpCard(user, mainCard.uniqueId, totalXP);
-        
-        // -------------------------------------------------------
-        // 7. RESPOSTA AO USUÁRIO
-        // -------------------------------------------------------
-        
-        let burnSummary = burnDetails
-            .map(b => `${b.name} (+${b.xp} XP)`)
-            .join(", ");
-        
-        if (burnSummary.length > 100) {
-            burnSummary = `${burnDetails.length} cartas sacrificadas`;
-        }
-        
-        return message.reply(
-            `✨ **UPGRADE CONCLUÍDO**\n\n` +
-            `🔥 **Sacrifício:** ${burnSummary}\n` +
-            `📈 XP Ganho: **${totalXP}**\n` +
-            `💰 Ouro gasto: **${totalGoldCost}**\n\n` +
-            `🂠 **${mainCard.name}:**\n${levelUpResult.message}`
-        );
+        const newLevel = mainCard.level;
+        const currentXP = mainCard.xp || 0;
+        const nextLevelXP = mainCard.nextLevelXP || 1000;
+
+        // Criar barra visual de progresso XP
+        const barLength = 20;
+        const progress = Math.min(currentXP / nextLevelXP, 1);
+        const filledBars = Math.round(barLength * progress);
+        const emptyBars = barLength - filledBars;
+        const xpBar = `\`${"█".repeat(filledBars)}${"-".repeat(emptyBars)}\` ${Math.floor(progress * 100)}%`;
+
+        // ------------------------------
+        // 6. EMBED DE RESULTADO
+        // ------------------------------
+        let burnSummary = burnDetails.map(b => `${b.name} (+${b.xp} XP)`).join("\n");
+        if (burnSummary.length > 1024) burnSummary = `${burnDetails.length} cartas sacrificadas`;
+
+        const embed = new EmbedBuilder()
+            .setTitle("✨ Upgrade Concluído")
+            .setColor("Gold")
+            .addFields(
+                { name: "Carta Principal", value: mainCard.name, inline: true },
+                { name: "Nível", value: `${previousLevel} → ${newLevel}`, inline: true },
+                { name: "XP Atual", value: xpBar, inline: false },
+                { name: "XP Ganho", value: `${totalXP}`, inline: true },
+                { name: "Ouro Gasto", value: `${totalGoldCost}`, inline: true },
+                { name: "Sacrifício", value: burnSummary, inline: false },
+            )
+            .setFooter({ text: ignoredCards.length > 0 ? `Cartas ignoradas: ${ignoredCards.join(", ")}` : "" });
+
+        // ------------------------------
+        // 7. ENVIO AO USUÁRIO
+        // ------------------------------
+        return message.reply({ embeds: [embed] });
     }
 };

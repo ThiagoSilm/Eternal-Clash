@@ -40,6 +40,19 @@ const rateUpConfig = {
   rateUpBonus: 12, // aumenta chance de cair a carta rate-up
 };
 
+export function getSummonLuck(user) {
+  return user.summonLuck || 0;
+}
+
+export function increaseSummonLuck(user, amount) {
+  user.summonLuck = Math.min(100, (user.summonLuck || 0) + amount);
+  return user.summonLuck;
+}
+
+export function resetSummonLuck(user) {
+  user.summonLuck = 0;
+}
+
 // ----------------------------------------------------
 //  SALVAR HISTÓRICO DE SUMMON
 // ----------------------------------------------------
@@ -80,6 +93,22 @@ function getDropRates(type, user, options = {}) {
   }
 
   return rates;
+}
+
+export function altarJackpotRoll(user) {
+  const luck = getSummonLuck(user);
+  const chance = Math.min(5 + luck * 0.2, 40); // escala com sorte
+  const roll = Math.random() * 100;
+  
+  if (roll <= chance) {
+    const cardId = getRandomCardIdByRarity("legendary");
+    return { jackpot: true, card: `🌟 Carta Lendária: **${cardId}**` };
+  }
+  
+  increaseSummonLuck(user, -10);
+  if (user.summonLuck < 0) user.summonLuck = 0;
+  
+  return { jackpot: false };
 }
 
 // ----------------------------------------------------

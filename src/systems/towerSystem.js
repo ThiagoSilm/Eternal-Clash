@@ -5,14 +5,28 @@ import { addGold, addXP, spendGems } from "./economySystem.js";
 import { giveShardToUser } from "./cardSystem.js";
 
 // ----------------------------------------------
-// 🔧 CONFIG
+// 🔧 CONFIGURAÇÃO
 // ----------------------------------------------
 const MAX_FLOOR = 120;
 const DAILY_ATTEMPTS = 3;
 const REWARD_SCALING_FACTOR = 1.15;
 
 // ----------------------------------------------
-// 🔥 ENEMY GENERATION
+// 🏗 GEMAS TEMPORÁRIAS
+// ----------------------------------------------
+export function addTemporaryGem(user, gem) {
+    if (!user.tower.tempGems) user.tower.tempGems = [];
+    user.tower.tempGems.push(gem);
+    markUserDirty(user.id);
+}
+
+export function clearTemporaryGems(user) {
+    user.tower.tempGems = [];
+    markUserDirty(user.id);
+}
+
+// ----------------------------------------------
+// 🔥 INIMIGOS
 // ----------------------------------------------
 export function getFloorEnemy(floor) {
     const seed = floor % 10;
@@ -22,9 +36,10 @@ export function getFloorEnemy(floor) {
     const hp = Math.floor((500 + floor * 50) * (1 + seed * 0.05));
     const atk = Math.floor((50 + floor * 10) * (1 + seed * 0.05));
     
+    const isBoss = floor % 5 === 0;
     return {
         id: `E_TOWER_${floor}`,
-        name: `Guardião do Andar ${floor} (${suffix})`,
+        name: isBoss ? `👑 Boss do Andar ${floor} (${suffix})` : `Guardião do Andar ${floor} (${suffix})`,
         hp,
         attack: atk,
         type: "tower_enemy",
@@ -34,7 +49,7 @@ export function getFloorEnemy(floor) {
 }
 
 // ----------------------------------------------
-// 🎁 REWARD BASE GOLD & XP
+// 🎁 RECOMPENSAS
 // ----------------------------------------------
 export function getFloorReward(floor) {
     const gold = Math.floor(500 * Math.pow(REWARD_SCALING_FACTOR, floor - 1));
@@ -42,8 +57,16 @@ export function getFloorReward(floor) {
     return { gold, xp };
 }
 
+// Multiplicador de combo de vitórias
+export function applyWinStreakMultiplier(reward, winStreak, floor) {
+    const multiplier = 1 + winStreak * 0.1;
+    reward.gold = Math.floor(reward.gold * multiplier * (1 + floor * 0.05));
+    reward.xp = Math.floor(reward.xp * multiplier * (1 + floor * 0.05));
+    return reward;
+}
+
 // ----------------------------------------------
-// 🧱 TOWER TOKENS
+// 🏆 TOWER TOKENS
 // ----------------------------------------------
 export function addTowerTokens(user, amount) {
     if (!user.tower) return;
@@ -60,7 +83,7 @@ export function spendTowerTokens(user, amount) {
 }
 
 // ----------------------------------------------
-// 🔮 SHARD POOL
+// 💎 SHARDS
 // ----------------------------------------------
 const TOWER_SHARDS = {
     "3": ["golem3", "ninja3", "minotauro3"],
@@ -80,19 +103,14 @@ function rollShard() {
 }
 
 function makeShopItem(s) {
-    return {
-        id: s.id,
-        rarity: s.rarity,
-        cost: s.rarity === 3 ? 30 : s.rarity === 4 ? 60 : 180
-    };
+    return { id: s.id, rarity: s.rarity, cost: s.rarity === 3 ? 30 : s.rarity === 4 ? 60 : 180 };
 }
 
 // ----------------------------------------------
-// 🏪 TOWER SHOP
+// 🏪 LOJA
 // ----------------------------------------------
 export function initTowerShop(user) {
-    if (!user.towerShop)
-        user.towerShop = { lastReset: 0, items: [] };
+    if (!user.towerShop) user.towerShop = { lastReset: 0, items: [] };
     
     const now = Date.now();
     const today = new Date(now).toISOString().split("T")[0];
@@ -102,18 +120,13 @@ export function initTowerShop(user) {
         user.towerShop.lastReset = now;
         user.towerShop.items = [];
         
-        // 3 shards 3★ ~ 4★
         for (let i = 0; i < 3; i++) {
             const s = rollShard();
             if (s.rarity === 5) { i--; continue; }
             user.towerShop.items.push(makeShopItem(s));
         }
         
-        // chance de shard 5★
-        if (Math.random() < 0.20)
-            user.towerShop.items.push(
-                makeShopItem({ rarity: 5, id: rand(TOWER_SHARDS["5"]) })
-            );
+        if (Math.random() < 0.2) user.towerShop.items.push(makeShopItem(rollShard()));
         
         markUserDirty(user.id);
     }
@@ -122,7 +135,6 @@ export function initTowerShop(user) {
 export function getTowerShop(user) {
     initTowerShop(user);
     const tt = user.tower.tokens || 0;
-    
     let out = `🏪 **Loja da Torre** — Você tem **${tt} TT**\n\n`;
     user.towerShop.items.forEach((it, i) => {
         out += `**${i + 1}.** ${it.id} (${it.rarity}★) — **${it.cost} TT**\n`;
@@ -133,37 +145,42 @@ export function getTowerShop(user) {
 export function buyTowerShopItem(user, index) {
     initTowerShop(user);
     const item = user.towerShop.items[index - 1];
-    
     if (!item) return "❌ Item inválido.";
-    if (!spendTowerTokens(user, item.cost))
-        return `❌ Você precisa de **${item.cost} TT**.`;
-    
+    if (!spendTowerTokens(user, item.cost)) return `❌ Você precisa de **${item.cost} TT**.`;
     giveShardToUser(user, item.id, 1);
     return `✅ Você comprou **1 shard ${item.id} (${item.rarity}★)**!`;
 }
 
 // ----------------------------------------------
-// 🏆 EXTRA REWARD — TOWER TOKENS
+// 🔮 EVENTOS ALEATÓRIOS
 // ----------------------------------------------
-export function rewardTowerProgress(user) {
-    const floor = user.tower.floor || 1;
-    const amount = Math.floor(5 + floor * 0.5);
-    
-    addTowerTokens(user, amount);
-    return `🪙 Você recebeu **${amount} TT** pela progressão na Torre!`;
+export function getRandomTowerEvent(floor) {
+    const roll = Math.random();
+    if (roll < 0.25) return { type: "buff", value: 0.2, description: "Inimigo enfraquecido pelo andar" };
+    if (roll < 0.45) return { type: "debuff", value: 0.2, description: "Inimigo fortalecido pelo andar" };
+    if (roll < 0.65) {
+        const gems = ["Fúria", "Proteção", "Velocidade", "Crítico"];
+        const gem = gems[Math.floor(Math.random() * gems.length)];
+        return { type: "gem", gem, description: `Gema temporária concedida: ${gem}` };
+    }
+    if (roll < 0.85) {
+        const stories = [
+            "Um vento gelado percorre a Torre.",
+            "As paredes sussurram segredos antigos.",
+            "Você encontra inscrições de um herói perdido.",
+            "Passos misteriosos ecoam pelo andar."
+        ];
+        return { type: "lore", description: stories[Math.floor(Math.random() * stories.length)] };
+    }
+    return null;
 }
 
 // ----------------------------------------------
-// 🧱 DAILY INIT
+// 🧱 RESET DIÁRIO
 // ----------------------------------------------
 function checkDailyInit(user) {
     if (!user.tower) {
-        user.tower = {
-            floor: 1,
-            attempts: DAILY_ATTEMPTS,
-            lastAccess: 0,
-            tokens: 0
-        };
+        user.tower = { floor: 1, attempts: DAILY_ATTEMPTS, lastAccess: 0, tokens: 0, tempGems: [], winStreak: 0 };
     }
     
     const now = Date.now();
@@ -175,21 +192,17 @@ function checkDailyInit(user) {
     if (today !== last) {
         user.tower.attempts = DAILY_ATTEMPTS;
         user.tower.lastAccess = now;
+        clearTemporaryGems(user);
         
         if (user.tower.floor > 1) {
             const prev = user.tower.floor - 1;
             const r = getFloorReward(prev);
             addGold(user, r.gold);
             addXP(user, r.xp);
-            
-            msg =
-                `🎉 **Bem-vindo de volta à Torre!**\n` +
-                `Tentativas resetadas: **${DAILY_ATTEMPTS}**.\n` +
-                `Recompensa do Andar ${prev}: +${r.gold} ouro, +${r.xp} XP.`;
+            msg = `🎉 Bem-vindo de volta! Tentativas resetadas: **${DAILY_ATTEMPTS}**.\nRecompensa do Andar ${prev}: +${r.gold} ouro, +${r.xp} XP.`;
         } else {
             msg = `🎉 Tentativas resetadas: **${DAILY_ATTEMPTS}**.`;
         }
-        
         markUserDirty(user.id);
     }
     
@@ -197,11 +210,10 @@ function checkDailyInit(user) {
 }
 
 // ----------------------------------------------
-// 🔥 SPEND ATTEMPT
+// 🔥 TENTATIVAS
 // ----------------------------------------------
 export function spendTowerAttempt(user) {
     checkDailyInit(user);
-    
     if (user.tower.attempts > 0) {
         user.tower.attempts--;
         user.tower.lastAccess = Date.now();
@@ -211,49 +223,48 @@ export function spendTowerAttempt(user) {
     return false;
 }
 
+export function buyTowerAttempts(user, amount = 1) {
+    checkDailyInit(user);
+    if (amount <= 0) return "❌ Quantidade inválida.";
+    const cost = amount * 5;
+    if (!spendGems(user, cost)) return `❌ Você precisa de **${cost} Gemas**.`;
+    user.tower.attempts += amount;
+    markUserDirty(user.id);
+    return `💎 Você comprou **${amount}** tentativas. Tentativas atuais: ${user.tower.attempts}.`;
+}
+
 // ----------------------------------------------
 // 📊 STATUS
 // ----------------------------------------------
 export function getTowerStatus(user) {
     const d = checkDailyInit(user);
-    
     const floor = user.tower.floor;
     const attempts = user.tower.attempts;
-    
     const enemy = getFloorEnemy(floor);
     const reward = getFloorReward(floor);
     
-    let t =
-        `**Andar Atual:** ${floor}/${MAX_FLOOR}\n` +
-        `**Tentativas:** ${attempts}/${DAILY_ATTEMPTS}\n` +
-        `**Tower Tokens:** ${user.tower.tokens || 0}\n\n`;
+    let t = `**Andar Atual:** ${floor}/${MAX_FLOOR}\n**Tentativas:** ${attempts}/${DAILY_ATTEMPTS}\n**Tower Tokens:** ${user.tower.tokens || 0}\n💪 Combo de vitórias: ${user.tower.winStreak}\n`;
+    
+    if (user.tower.tempGems?.length > 0) {
+        t += `💎 Gemas ativas: ${user.tower.tempGems.join(", ")}\n`;
+    }
     
     if (floor <= MAX_FLOOR) {
-        t +=
-            `⚔️ **Próximo Inimigo:** ${enemy.name}\n` +
-            `• HP: ${enemy.hp}\n` +
-            `• ATK: ${enemy.attack}\n\n` +
-            `🎁 **Recompensa:** +${reward.gold} Ouro, +${reward.xp} XP`;
+        t += `\n⚔️ **Próximo Inimigo:** ${enemy.name}\n• HP: ${enemy.hp}\n• ATK: ${enemy.attack}\n\n🎁 **Recompensa:** +${reward.gold} Ouro, +${reward.xp} XP`;
     } else {
-        t += `🏆 **VOCÊ CONCLUIU OS ${MAX_FLOOR} ANDARES DA TORRE!**`;
+        t += `\n🏆 **VOCÊ CONCLUIU OS ${MAX_FLOOR} ANDARES DA TORRE!**`;
     }
     
     return d ? `${d}\n\n${t}` : t;
 }
 
 // ----------------------------------------------
-// 💎 BUY ATTEMPTS
+// 🏆 RANKINGS SIMPLES
 // ----------------------------------------------
-export function buyTowerAttempts(user, amount = 1) {
-    checkDailyInit(user);
-    if (amount <= 0) return "❌ Quantidade inválida.";
-    
-    const cost = amount * 5;
-    if (!spendGems(user, cost))
-        return `❌ Você precisa de **${cost} Gemas**.`;
-    
-    user.tower.attempts += amount;
-    markUserDirty(user.id);
-    
-    return `💎 Você comprou **${amount}** tentativas. Tentativas atuais: ${user.tower.attempts}.`;
+export function getTowerRankings() {
+    return [
+        { username: "Player1", floor: 25 },
+        { username: "Player2", floor: 20 },
+        { username: "Player3", floor: 18 }
+    ];
 }
