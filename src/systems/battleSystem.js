@@ -1,7 +1,7 @@
 import { getCardTemplate } from "./cardSystem.js";
 import { runEffectsTrigger, applyFactionModifiers } from "./effectSystem.js";
 import { rng, chanceDecimal, setSeed } from "./rngSystem.js";
-import { CardController } from "./CardController.js";
+import { CardController } from "../controllers/CardController.js";
 
 /* --------------------------
    CONFIG & CONSTANTS
