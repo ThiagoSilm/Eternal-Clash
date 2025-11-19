@@ -6,8 +6,8 @@
 //------------------------------------------------------------
 
 import { deepCloneSafe } from "./utils/helpers.js";
-import { EFFECTS, runEffect as runCardEffect } from "./src/config/effects.js";
-import { GUARDIAN_EFFECTS, runGuardianEffect } from "./src/config/guardianEffects.js";
+import { EFFECTS, runEffect as runCardEffect } from "../config/effects.js";
+import { GUARDIAN_EFFECTS, runGuardianEffect } from "../config/guardianEffects.js";
 
 /* ----------------- FACÇÕES ----------------- */
 export const FACTIONS = {
