@@ -2,7 +2,7 @@
 
 import { markUserDirty } from "./userCacheSystem.js";
 import { addGold, addXP } from "./economySystem.js";
-import { giveCardToUser, addShardsToUser } from "./cardSystem.js";
+import { giveCardToUser, giveShardToUser, addShardsToUser } from "./cardSystem.js";
 import { initBattle, runBattle } from "./battleSystem.js";
 
 /* ---------------------------------------------------------
