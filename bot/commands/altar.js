@@ -7,23 +7,15 @@ import {
   increaseSummonLuck,
   resetSummonLuck,
   altarJackpotRoll,
-  summonCosts,
-  spendCurrency
+  summonCosts
 } from "../../src/systems/summonSystem.js";
+
+import { spendCurrency, CURRENCY_TYPES } from "../../src/systems/economySystem.js";
 
 // Função helper para delay
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-// Cores por raridade (pode usar se mandar embed)
-const rarityEmojis = {
-  1: "⚪",
-  2: "🟢",
-  3: "🔵",
-  4: "🟣",
-  5: "✨🌟"
-};
 
 export default {
   name: "altar",
@@ -41,7 +33,7 @@ export default {
     }
     
     try {
-      // 🔮 Ritual Sagrado
+      // ----------------- Ritual Sagrado -----------------
       if (type === "sagrado") {
         const luck = increaseSummonLuck(user, 20);
         return message.reply(
@@ -49,7 +41,7 @@ export default {
         );
       }
       
-      // 🔥 Ritual Corrupto
+      // ----------------- Ritual Corrupto -----------------
       if (type === "corrupto") {
         const roll = altarJackpotRoll(user);
         if (roll.jackpot) {
@@ -63,37 +55,48 @@ export default {
         );
       }
       
-      // 🔮 Invocar cartas normais
+      // ----------------- Invocação Normal -----------------
       const MAX_SUMMON = 10;
       let count = parseInt(args[1]) || 1;
       if (count < 1) count = 1;
       if (count > MAX_SUMMON) count = MAX_SUMMON;
+      
+      // Mapeamento para seu economySystem
+      const currencyTypeMap = {
+        gold: CURRENCY_TYPES.GOLD,
+        gems: CURRENCY_TYPES.GEMS,
+        coupons: CURRENCY_TYPES.COUPONS
+      };
+      
+      if (!currencyTypeMap[type]) {
+        return message.reply("💰 Tipo de moeda inválido.");
+      }
       
       // ---------- VALIDAÇÃO DE MOEDA ----------
       const costSingle = summonCosts[type]?.single || 0;
       const costMulti = summonCosts[type]?.multi || costSingle * count;
       const totalCost = count > 1 ? costMulti : costSingle;
       
-      if (!spendCurrency(user, type, totalCost)) {
+      if (!spendCurrency(user, currencyTypeMap[type], totalCost)) {
         return message.reply(`💰 Você não tem moedas suficientes para invocar ${count} carta(s).`);
       }
       
       // ---------- Invocação com suspense ----------
-      let summonResults = count === 1 ? [summonCard(user, type)] : summonMultiple(user, type, count).split("\n");
+      const summonResults = count === 1 ?
+        [summonCard(user, type)] :
+        summonMultiple(user, type, count).split("\n");
+      
       let revealedCards = [];
       
       // Mensagem inicial
       const sentMessage = await message.reply(`🔮 Invocando ${count} carta(s) com ${type.toUpperCase()}... 🎴`);
       
       for (let i = 0; i < summonResults.length; i++) {
-        // suspense antes de revelar cada carta
-        await sleep(600 + Math.random() * 400); // 0.6s a 1s de delay
+        await sleep(600 + Math.random() * 400); // 0.6s a 1s de suspense
         
-        // Pegar linha da carta
         const line = summonResults[i].replace(/^-\s*/, ""); // remove traço se houver
         revealedCards.push(`- ${line}`);
         
-        // Atualizar mensagem com cartas reveladas até agora
         await sentMessage.edit(
           `🔮 Invocando ${count} carta(s) com ${type.toUpperCase()}... 🎴\n` +
           `🎲 Sorte atual: ${getSummonLuck(user)}%\n\n` +
@@ -104,12 +107,11 @@ export default {
       // Adicionar estatísticas no final
       const statsLine = summonResults.find(r => r.startsWith("📊 Estatísticas:"));
       if (statsLine) {
-        await sentMessage.edit(
-          sentMessage.content + `\n${statsLine}`
-        );
+        await sentMessage.edit(sentMessage.content + `\n${statsLine}`);
       }
       
       return;
+      
     } catch (err) {
       console.error("❌ Erro no comando Altar:", err);
       return message.reply(err instanceof Error ? `⚠️ ${err.message}` : "⚠️ Erro inesperado.");
