@@ -130,3 +130,23 @@ export function flushCache() {
 export function flushDirtyUsers() {
   flushCache();
 }
+
+/**
+ * Gera um oponente aleatório baseado no ELO fornecido
+ */
+export function generateOpponentForRank(elo) {
+  const level = Math.max(1, Math.floor(elo / 100) + 1);
+  const gold = level * 50;
+  const gems = Math.floor(level / 5);
+  
+  return {
+    id: `npc_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    name: `Oponente_ELO${elo}`,
+    level,
+    gold,
+    gems,
+    energy: { current: 100, max: 100 },
+    cards: [], // opcional: aqui você pode gerar cartas aleatórias
+    decks: {}, // decks do oponente
+  };
+}
