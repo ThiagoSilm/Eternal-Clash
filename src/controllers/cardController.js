@@ -1,27 +1,29 @@
-// src/systems/CardController.js
 import { getCardTemplate } from "./cardSystem.js";
 import { rng } from "./rngSystem.js";
 
-/*  
-=====================================================================
+/* =====================================================================
  CARD CONTROLLER – Sistema seguro de controle de cartas
- Só o battleSystem deve usar.
- Protege deck do usuário e do inimigo contra manipulação externa.
 =====================================================================
 */
 
 function cloneDeck(rawDeck) {
   if (!Array.isArray(rawDeck)) return [];
-  return rawDeck.map(card => ({ ...card }));
+  // Clona o objeto de cada carta, mas mantém a referência do ID/template
+  return rawDeck.map(card => (typeof card === 'string' ? card : { ...card }));
 }
 
 /**
  * Resolve um deck inteiro, convertendo IDs em templates
  * e clonando cartas para evitar manipulação externa.
+ * Cartas que já são objetos são usadas como estão (clonadas).
  */
 function resolveDeck(deck) {
   const cloned = cloneDeck(deck);
-  return cloned.map(c => getCardTemplate(c) || c);
+  return cloned.map(c => {
+    const template = typeof c === 'string' ? getCardTemplate(c) : getCardTemplate(c.id || c.name);
+    // Se for um ID/string, retorna o template. Se já for objeto, usa o objeto clonado.
+    return template || c;
+  });
 }
 
 /**
@@ -30,6 +32,7 @@ function resolveDeck(deck) {
 function shuffle(deck) {
   const arr = [...deck];
   for (let i = arr.length - 1; i > 0; i--) {
+    // Usa rng do seu sistema
     const j = rng(0, i);
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
@@ -65,7 +68,7 @@ function attachCardPackage(entity, pkg) {
  * Controlador principal: recebe player e enemy
  * e devolve versões preparadas para o battleSystem.
  */
-export function prepareBattleCardPackages(player, enemy) {
+function prepareBattleCardPackages(player, enemy) {
   const pPack = buildCardPackage(player.deck || []);
   const ePack = buildCardPackage(enemy.deck || []);
   
@@ -80,7 +83,7 @@ export function prepareBattleCardPackages(player, enemy) {
 }
 
 /**
- * API pública protegida
+ * API pública protegida (MÉTODO ÚNICO)
  */
 export const CardController = {
   prepareBattleCardPackages,

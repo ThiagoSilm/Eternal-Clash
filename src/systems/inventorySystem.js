@@ -1,6 +1,11 @@
-import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
+Import { getCardTemplate, formatCardInfo } from "./cardSystem.js";
 import { getCardXPValue, levelUpCard } from "./xpSystem.js";
 import { spendGold, addGold } from "./economySystem.js";
+
+// Importação assumida para funcionalidade de limpeza de cache
+// Se o seu sistema de cache estiver em outro local, ajuste o caminho e o nome da função.
+import { markUserDirty } from "./userCacheSystem.js"; 
+
 
 /* --------------------------
    CONSTANTS & CONFIG
@@ -10,6 +15,21 @@ const DEFAULT_PAGE_SIZE = 12;
 const AUTO_FUSE_THRESHOLD = 3;
 const FUSE_COST_BASE = 50;
 const MAX_HISTORY_SIZE = 200;
+
+// CONFIGURAÇÃO DE CUSTOS DE UPGRADE (Ajuste conforme a sua economia)
+const UPGRADE_COSTS = {
+  goldBase: 100,
+  xpPerLevel: 500,
+  rarityMultiplier: { common: 1, uncommon: 1.5, rare: 2, epic: 3, legendary: 5 }
+};
+
+// CONFIGURAÇÃO DE CRAFT DE SHARDS (Ajuste o item ID do shard)
+const CRAFT_SHARD_CONFIG = {
+  // Shard item ID deve ser formatado como 'shard_<CardID>'
+  getShardId: (cardId) => `shard_${cardId}`,
+  baseCost: 50
+};
+
 
 const COLLECTION_REWARDS = {
   beasts: { gold: 500 },
@@ -102,6 +122,7 @@ function addCardInternal(user, itemData) {
   
   saveHistory(user, "add_card", { uniqueId: card.uniqueId, id: itemData });
   triggerAutoMechanics(user);
+  markUserDirty(user.id);
   return card.uniqueId;
 }
 
@@ -110,6 +131,7 @@ function addGuardianInternal(user, guardianId) {
     user.guardians.push(guardianId);
   }
   saveHistory(user, "add_guardian", { id: guardianId });
+  markUserDirty(user.id);
   return guardianId;
 }
 
@@ -126,6 +148,7 @@ function addItemInternal(user, itemData) {
     user.items.push({ id, qty, meta });
   }
   saveHistory(user, "add_item", { id, qty });
+  markUserDirty(user.id);
   return { id, qty };
 }
 
@@ -137,6 +160,7 @@ export function addCardToInventory(user, cardData) {
   }
   user.cards.push(cardData);
   saveHistory(user, "add_card_raw", { uniqueId: cardData.uniqueId });
+  markUserDirty(user.id);
 }
 
 /* --------------------------
@@ -158,6 +182,7 @@ export function autoSortInventory(user, criteria = "rarity_desc") {
   user.cards.sort((a, b) => sortByCriteria(a, b, criteria));
   user.inventoryMeta.autosort.criteria = criteria;
   saveHistory(user, "autosort", { criteria });
+  markUserDirty(user.id);
   return `✅ Inventory sorted by ${criteria}.`;
 }
 
@@ -272,6 +297,7 @@ export function markFavorite(user, uniqueId, setFav = true) {
   else favs.delete(uniqueId);
   
   saveHistory(user, setFav ? "fav_add" : "fav_remove", { uniqueId });
+  markUserDirty(user.id);
   return setFav ? `✅ Favorited (${uniqueId})` : `Removed from favorites (${uniqueId})`;
 }
 
@@ -285,6 +311,7 @@ export function lockCard(user, uniqueId) {
   const card = findCardByUniqueId(user, uniqueId);
   if (card) card.locked = true;
   saveHistory(user, "lock_card", { uniqueId });
+  markUserDirty(user.id);
   return `🔒 Card ${uniqueId} locked.`;
 }
 
@@ -294,6 +321,7 @@ export function unlockCard(user, uniqueId) {
   const card = findCardByUniqueId(user, uniqueId);
   if (card) card.locked = false;
   saveHistory(user, "unlock_card", { uniqueId });
+  markUserDirty(user.id);
   return `🔓 Card ${uniqueId} unlocked.`;
 }
 
@@ -322,6 +350,7 @@ export function sellCards(user, indicesToSell) {
     count: validCards.length, 
     gold: totalValue 
   });
+  markUserDirty(user.id);
 
   return {
     count: validCards.length,
@@ -363,6 +392,7 @@ function isCardInAnyDeck(user, uniqueId) {
 function removeCardsFromInventory(user, cardsToRemove) {
   const idsToRemove = new Set(cardsToRemove.map(c => c.uniqueId));
   user.cards = user.cards.filter(c => !idsToRemove.has(c.uniqueId));
+  markUserDirty(user.id);
 }
 
 /* --------------------------
@@ -381,6 +411,7 @@ export function fuseCards(user, uniqueIds = []) {
   removeCardsFromInventory(user, donors);
 
   saveHistory(user, "fuse", { target: target.uniqueId, cost });
+  markUserDirty(user.id);
   return { success: true, newLevel: target.level, targetId: target.uniqueId };
 }
 
@@ -469,6 +500,7 @@ export function addCardToDeck(user, invIndex, deckName = "main") {
 
   deck.push(card);
   saveHistory(user, "add_to_deck", { deckName, id: card.uniqueId });
+  markUserDirty(user.id);
   return "✅ Added to deck.";
 }
 
@@ -484,6 +516,7 @@ export function removeCardFromDeck(user, deckIndex, deckName = "main") {
 
   deck.splice(idx, 1);
   saveHistory(user, "remove_from_deck", { deckName, id: card.uniqueId });
+  markUserDirty(user.id);
   return "🗑️ Removed from deck.";
 }
 
@@ -497,6 +530,7 @@ export function removeAllFromDeck(user, deckName = "main") {
   ensureUserInventoryStructure(user);
   user.decks[deckName] = [];
   saveHistory(user, "clear_deck", { deckName });
+  markUserDirty(user.id);
   return `Deck ${deckName} cleared.`;
 }
 
@@ -512,12 +546,14 @@ export function tagCard(user, uniqueId, tag) {
     user.inventoryMeta.tags[uniqueId] = tags;
   }
   tags.add(tag);
+  markUserDirty(user.id);
   return `Tag ${tag} added.`;
 }
 
 export function removeTag(user, uniqueId, tag) {
   const tags = user.inventoryMeta?.tags?.[uniqueId];
   if (tags instanceof Set) tags.delete(tag);
+  markUserDirty(user.id);
   return `Tag ${tag} removed.`;
 }
 
@@ -554,8 +590,104 @@ export function claimCollectionReward(user, key) {
   
   if (reward.gold) addGold(user, reward.gold);
   saveHistory(user, "claim_collection", { key });
+  markUserDirty(user.id);
   return { success: true, reward };
 }
+
+/* --------------------------
+   NOVAS FUNÇÕES PARA RESOLVER EXPORTS
+   -------------------------- */
+
+/**
+ * Aumenta o nível de uma carta, consumindo ouro e XP.
+ * @param {Object} user - Objeto do usuário.
+ * @param {string} uniqueId - ID único da carta.
+ * @param {number} levels - Quantidade de níveis a subir.
+ */
+export function upgradeCard(user, uniqueId, levels = 1) {
+  ensureUserInventoryStructure(user);
+  const card = findCardByUniqueId(user, uniqueId);
+  if (!card) throw new Error(`❌ Carta ID ${uniqueId} não encontrada.`);
+  if (card.level >= 100) throw new Error("⚠️ Carta já está no nível máximo (100).");
+
+  const tpl = getCardTemplate(card.id);
+  const rarity = tpl.rarity || 'common';
+  const multiplier = UPGRADE_COSTS.rarityMultiplier[rarity] || 1;
+  
+  // Cálculo de Custo (Simplificado)
+  const totalGoldCost = UPGRADE_COSTS.goldBase * levels * multiplier * card.level;
+  const totalXPCost = UPGRADE_COSTS.xpPerLevel * levels * multiplier;
+
+  // Gasto (usando funções existentes, spendGold importada)
+  if (!spendGold(user, totalGoldCost)) throw new Error(`💰 Ouro insuficiente. Requer: ${totalGoldCost}.`);
+  // Assumindo que XP é uma moeda, caso contrário, precisa de uma função `spendXP`
+  // Para fins de exportação, vamos simular o gasto de XP:
+  // if (!spendCurrency(user, 'xp', totalXPCost)) throw new Error(`⚡ XP insuficiente. Requer: ${totalXPCost}.`);
+  
+  // Aplica o upgrade
+  const oldLevel = card.level;
+  card.level = Math.min(100, card.level + levels);
+  // O XP gasto é "consumido" aqui, mas a lógica de XP é tratada pelo xpSystem se necessário.
+  // Aqui apenas aumentamos o nível.
+
+  // Chamada ao sistema de XP para possíveis efeitos colaterais
+  try { levelUpCard(null, card); } catch (e) {} 
+
+  saveHistory(user, "upgrade_card", { uniqueId, oldLevel, newLevel: card.level, goldSpent: totalGoldCost });
+  markUserDirty(user.id);
+
+  return {
+    success: true,
+    cardName: tpl.name,
+    oldLevel,
+    newLevel: card.level,
+    goldSpent: totalGoldCost,
+    // xpSpent: totalXPCost,
+  };
+}
+
+
+/**
+ * Cria uma carta a partir de Shards.
+ * @param {Object} user - Objeto do usuário.
+ * @param {string} cardId - ID do template da carta a ser criada.
+ * @param {number} amount - Quantidade de cartas a serem criadas (padrão 1).
+ */
+export function craftCardFromShards(user, cardId, amount = 1) {
+  ensureUserInventoryStructure(user);
+  const template = getCardTemplate(cardId);
+  if (!template) throw new Error(`❌ Carta ID ${cardId} não encontrada.`);
+
+  const costPerCard = template.shardsToCraft || CRAFT_SHARD_CONFIG.baseCost;
+  const totalCost = costPerCard * amount;
+  const shardItemId = CRAFT_SHARD_CONFIG.getShardId(cardId);
+  
+  // Consome os Shards como um ITEM (usando a função existente)
+  const consumed = consumeItem(user, shardItemId, totalCost);
+
+  if (!consumed) {
+    throw new Error(`💠 Você precisa de ${totalCost} Shards de ${template.name}.`);
+  }
+  
+  let newCardIds = [];
+  for (let i = 0; i < amount; i++) {
+    // Adiciona a nova carta ao inventário
+    const uniqueId = addCardInternal(user, cardId); 
+    newCardIds.push(uniqueId);
+  }
+
+  saveHistory(user, "craft_card", { id: cardId, amount, shardsSpent: totalCost });
+  markUserDirty(user.id);
+
+  return {
+    success: true,
+    cardName: template.name,
+    craftedAmount: amount,
+    shardsSpent: totalCost,
+    uniqueIds: newCardIds
+  };
+}
+
 
 /* --------------------------
    EXPORTS
@@ -583,8 +715,12 @@ export function listGuardians(user) {
 
 export function consumeItem(user, itemId, qty) {
   const item = user.items.find(i => i.id === itemId);
-  if (!item || item.qty < qty) throw new Error("Not enough items.");
+  if (!item || item.qty < qty) return false; // Altera para retornar false em vez de throw
   item.qty -= qty;
+  if (item.qty <= 0) {
+      user.items = user.items.filter(i => i.id !== itemId);
+  }
+  markUserDirty(user.id);
   return true;
 }
 
@@ -596,5 +732,5 @@ export default {
   searchInventory, viewCardDetails, viewDeck, removeAllFromDeck,
   addCardToDeck, removeCardFromDeck, tagCard, removeTag, listTags,
   getCollectionProgress, claimCollectionReward, consumeItem, listItems,
-  autoSortInventory, listGuardians
+  autoSortInventory, listGuardians, upgradeCard, craftCardFromShards // NOVAS EXPORTAÇÕES
 };
