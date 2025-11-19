@@ -193,3 +193,12 @@ export function getMazeMapInfo(user, mapId) {
     prizeHouses: {}, // opcional
   };
 }
+
+export function startMaze(user) {
+  const mapId = getCurrentMapId(user) || "map1";
+  const state = getMazeState(user, mapId);
+  state.position = 0;
+  state.usedToday = 0;
+  state.resetUsed = false;
+  return `✅ Maze iniciado no mapa **${mapId}**! Use \`!maze roll\` para rolar o dado.`;
+}
