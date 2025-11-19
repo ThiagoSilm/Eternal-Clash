@@ -395,7 +395,22 @@ export function giveShardToUser(user, shardId, quantity = 1) {
   return addShardsToUser(user, shardId, quantity);
 }
 
-// ---------- EXPORTS DEFAULT ----------
+// --- ADICIONAR NO FINAL DE cardSystem.js ---
+// ---------- GET RANDOM CARD BY RARITY ----------
+export function getRandomCardIdByRarity(rarity, options = {}) {
+  let list = getCardList().filter(c => c.rarity === rarity);
+  
+  if (options.allowGuardians === false)
+    list = list.filter(c => !c.isGuardian && c.type !== "guardian");
+  
+  if (options.cardType)
+    list = list.filter(c => c.type === options.cardType);
+  
+  if (!list.length) throw new Error(`Nenhuma carta R${rarity}.`);
+  return list[Math.floor(Math.random() * list.length)].id;
+}
+
+// ---------- ATUALIZAÇÃO DO EXPORT DEFAULT ----------
 export default {
   getCardTemplate,
   getCardList,
@@ -415,5 +430,6 @@ export default {
   getElement,
   getGrade,
   addShardsToUser,
-  giveShardToUser
+  giveShardToUser,
+  getRandomCardIdByRarity // <<< adicionado
 };
