@@ -3,6 +3,7 @@ import { getCardTemplate } from "./cardSystem.js";
 import { runEffectsTrigger, applyFactionModifiers } from "./effectSystem.js";
 import { getGuardian } from "./guardianSystem.js";
 import { rng, chanceDecimal, weightedChoice, setSeed } from "./rngSystem.js";
+import { CardController } from "./CardController.js"; // <-- INTEGRADO
 
 // ------------------ CONFIGS ------------------
 const MAX_TURNS = 60;
@@ -17,16 +18,31 @@ const pushLog = (state, entry) => { entry.turn = state.turn; state.log.push(entr
 export function initBattle(user, enemy, options = {}) {
   setSeed(Date.now()); // define seed para RNG
 
+  // preserva o raw input (protegido) para auditoria / debug — outros devs não devem alterar isso
+  const rawUser = JSON.parse(JSON.stringify(user || {}));
+  const rawEnemy = JSON.parse(JSON.stringify(enemy || {}));
+
   const state = {
     turn: 1,
     attacker: "player",
     log: [],
-    player: createEntity(user, "player"),
-    enemy: createEntity(enemy, "enemy"),
+    player: createEntity(rawUser, "player"),
+    enemy: createEntity(rawEnemy, "enemy"),
     summons: [],
     options: { auto: !!options.auto, mapStage: options.mapStage || null },
-    hooks: { beforeTurn: [], afterTurn: [], beforeCard: [], afterCard: [], battleStart: [], death: [] }
+    hooks: { beforeTurn: [], afterTurn: [], beforeCard: [], afterCard: [], battleStart: [], death: [] },
+    _raw: { player: Object.freeze(rawUser), enemy: Object.freeze(rawEnemy) } // congelado para proteção
   };
+
+  // Prepara e aplica pacotes de cartas via CardController (embaralha, resolve templates e monta deck/hand/discard).
+  // Isso garante que decks nunca sejam a referência original e evita alterações acidentais por terceiros.
+  try {
+    const { applyToEntities } = CardController.prepareBattleCardPackages(state.player, state.enemy);
+    applyToEntities();
+  } catch (err) {
+    // fallback: mantém os decks originais caso CardController falhe — evita quebrar o jogo por completo
+    pushLog(state, { actor: "system", note: `CardController failed: ${err?.message || err}` });
+  }
 
   if (state.player.guardian) state.player.guardian = createGuardian(state.player.guardian, "player");
   if (state.enemy.guardian) state.enemy.guardian = createGuardian(state.enemy.guardian, "enemy");
@@ -300,7 +316,18 @@ function playCard(state, side, cardId) {
   const idx = actor.hand.findIndex(c => c.id === cardId);
   if (idx === -1) return;
   const cardTemplate = actor.hand[idx];
-  const card = getCardTemplate(cardTemplate) || cardTemplate;
+
+  // resolve template robustamente: aceita object ou id
+  let card;
+  if (!cardTemplate) return;
+  if (typeof cardTemplate === "string" || typeof cardTemplate === "number") {
+    card = getCardTemplate(cardTemplate) || { id: cardTemplate };
+  } else if (cardTemplate && typeof cardTemplate === "object") {
+    card = getCardTemplate(cardTemplate.id) || cardTemplate;
+  } else {
+    card = cardTemplate;
+  }
+
   actor.hand.splice(idx, 1);
   executeCardEffect(state, side, card);
 }

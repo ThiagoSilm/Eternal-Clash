@@ -1,139 +1,122 @@
-// userCacheSystem.js
+// src/systems/userCacheSystem.js
 import fs from "fs";
 import path from "path";
 
 const dataPath = path.join(process.cwd(), "data/users.json");
 const tempPath = dataPath + ".tmp";
 
-const cache = new Map(); // usuários carregados
-const dirty = new Set(); // usuários alterados
-let allDiskData = {}; // conteúdo original do users.json no disco
+const cache = new Map();
+const dirty = new Set();
+let allDiskData = {};
 
-// ------------------------------------------------------------
-// Carregamento inicial do arquivo users.json
-// ------------------------------------------------------------
-
+/* ---------------------------------------------------------
+   Carregamento inicial do arquivo
+--------------------------------------------------------- */
 function loadAllDiskData() {
   if (!fs.existsSync(dataPath)) {
-    console.warn("[Cache] users.json não encontrado. Será criado depois.");
+    console.warn("[Cache] users.json não existe — será criado.");
     allDiskData = {};
     return;
   }
   
   try {
-    const raw = fs.readFileSync(dataPath, "utf-8");
+    const raw = fs.readFileSync(dataPath, "utf8");
     const parsed = JSON.parse(raw);
     
     if (parsed && typeof parsed === "object") {
       allDiskData = parsed;
-      console.log(`[Cache] Carregado ${Object.keys(allDiskData).length} usuários.`);
+      console.log(`[Cache] ${Object.keys(parsed).length} usuários carregados.`);
     } else {
-      throw new Error("JSON inválido");
+      throw new Error("Formato inválido");
     }
-    
   } catch (err) {
-    console.error("[Cache] Erro ao carregar users.json. Criando novo.", err);
+    console.error("[Cache] ERRO ao ler users.json — recriando arquivo.", err);
     allDiskData = {};
   }
 }
 
 loadAllDiskData();
 
-// ------------------------------------------------------------
-// Funções de apoio internas
-// ------------------------------------------------------------
-
-/**
- * Cria um novo usuário base para fallback, alinhado ao userSystem.js
- */
+/* ---------------------------------------------------------
+   Fallback mínimo (o userSystem fará o saneamento completo)
+--------------------------------------------------------- */
 function createFallbackUser(userId) {
   return {
     id: userId,
-    username: `Player_${userId.slice(0, 4)}`,
     level: 1,
     xp: 0,
     gold: 0,
     gems: 0,
     coupons: 0,
-    energy: { current: 100, max: 100, lastRegen: Date.now() },
+    energy: { current: 100, max: 100 },
+    
     cards: [],
     decks: {},
     graveyard: [],
-    dailyBonusReceived: {},
-    lastEnergyRegen: Date.now(),
+    
+    arena: { attempts: 0, lastAttack: 0, rank: 1 },
+    tower: { attempts: 0, floor: 1, shards: 0 },
+    guardians: { unlocked: [], equipped: null },
+    flags: {},
   };
 }
 
-// ------------------------------------------------------------
-// Funções Exportadas
-// ------------------------------------------------------------
-
-/**
- * Carrega um usuário do cache. Se não existir, carrega do disco ou cria novo.
- */
+/* ---------------------------------------------------------
+   LOAD DO CACHE + AUTO REPAIR MÍNIMO
+--------------------------------------------------------- */
 export function loadUserCached(userId) {
-  if (cache.has(userId)) {
-    return cache.get(userId);
-  }
+  if (cache.has(userId)) return cache.get(userId);
   
-  let user = allDiskData[userId];
+  let loaded = allDiskData[userId];
   
-  if (!user || typeof user !== "object" || !user.id) {
-    user = createFallbackUser(userId);
-    console.log(`[Cache] Novo usuário inicializado: ${userId}`);
+  if (!loaded || typeof loaded !== "object" || !loaded.id) {
+    loaded = createFallbackUser(userId);
+    console.log(`[Cache] Novo usuário criado: ${userId}`);
     dirty.add(userId);
   }
   
-  cache.set(userId, user);
-  return user;
+  cache.set(userId, loaded);
+  return loaded;
 }
 
-/**
- * Marca um usuário como alterado para ser salvo posteriormente.
- */
+/* ---------------------------------------------------------
+   Marca como sujo para salvar futuramente
+--------------------------------------------------------- */
 export function markUserDirty(userId) {
-  if (!userId) return;
-  dirty.add(userId);
+  if (userId) dirty.add(userId);
 }
 
-/**
- * Escreve todos os usuários 'sujos' no disco de forma segura.
- * Usa escrita atômica -> nunca corrompe usuários.json.
- */
+/* ---------------------------------------------------------
+   Salvar TODOS os usuários sujos em modo seguro
+--------------------------------------------------------- */
 export function flushCache() {
   if (dirty.size === 0) return;
   
   dirty.forEach((userId) => {
     const userObj = cache.get(userId);
-    if (!userObj) {
-      delete allDiskData[userId];
-    } else {
-      allDiskData[userId] = userObj;
-    }
+    if (!userObj) delete allDiskData[userId];
+    else allDiskData[userId] = userObj;
   });
   
   try {
-    // escrita atômica (evita perder tudo em caso de falha)
     fs.writeFileSync(tempPath, JSON.stringify(allDiskData, null, 2));
     fs.renameSync(tempPath, dataPath);
     
     console.log(`[Cache] ${dirty.size} usuários salvos.`);
     dirty.clear();
+    
   } catch (err) {
-    console.error("[Cache] ERRO CRÍTICO ao salvar users.json", err);
+    console.error("[Cache] ERRO CRÍTICO AO SALVAR users.json", err);
   }
 }
 
-/**
- * Alias para compatibilidade com sistemas antigos.
- */
 export function flushDirtyUsers() {
   flushCache();
 }
 
-/**
- * Gera um oponente aleatório baseado no ELO fornecido
- */
+/* ---------------------------------------------------------
+   NPC Generator usado na Arena
+--------------------------------------------------------- */
 export function generateOpponentForRank(elo) {
   const level = Math.max(1, Math.floor(elo / 100) + 1);
   const gold = level * 50;
@@ -141,12 +124,15 @@ export function generateOpponentForRank(elo) {
   
   return {
     id: `npc_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    name: `Oponente_ELO${elo}`,
+    name: `NPC_${elo}`,
     level,
     gold,
     gems,
+    
     energy: { current: 100, max: 100 },
-    cards: [], // opcional: aqui você pode gerar cartas aleatórias
-    decks: {}, // decks do oponente
+    
+    cards: [],
+    decks: {},
+    graveyard: [],
   };
 }

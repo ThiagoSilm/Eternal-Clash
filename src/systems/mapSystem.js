@@ -1,7 +1,11 @@
+// src/systems/mapSystem.js
 import fs from "fs";
 import path from "path";
-import { runBattle } from "./battleSystem.js";
+import { spendEnergy, ENERGY_TYPES } from "./economySystem.js";
+import { battleSystem } from "./battleSystem.js";
+import { CardController } from "./CardController.js";
 import { addGold, addXP, addItem } from "./economySystem.js";
+import { markUserDirty } from "./userCacheSystem.js";
 
 // -----------------------------
 // CONFIGURAÇÃO BASE
@@ -11,7 +15,7 @@ export const ENERGY_PER_BATTLE = 3;
 export const DIFFICULTIES = ["Fácil", "Médio", "Difícil"];
 
 // -----------------------------
-// MAP PHASES (sequências)
+// MAP PHASES (sequências) - estrutura de referência
 export const MAP_PHASES = [
   { id: 1, subStages: ["1-1", "1-2", "1-3", "1-4", "1-5", "1-6"] },
   { id: 2, subStages: ["3-1", "3-2", "3-3", "3-4", "3-5", "3-6"] },
@@ -32,61 +36,95 @@ export const MAP_PHASES = [
 ];
 
 // -----------------------------
-// LOAD PHASES.JSON
+// PHASES FILE (padrão: ./data/phases.json)
 const PHASES_FILE = path.resolve("./data/phases.json");
-export const PHASES = JSON.parse(fs.readFileSync(PHASES_FILE, "utf-8"));
+let PHASES = {};
+try {
+  if (fs.existsSync(PHASES_FILE)) {
+    PHASES = JSON.parse(fs.readFileSync(PHASES_FILE, "utf-8") || "{}");
+  } else {
+    console.warn("[mapSystem] phases.json não encontrado — carregando vazio.");
+    PHASES = {};
+  }
+} catch (e) {
+  console.error("[mapSystem] erro lendo phases.json:", e);
+  PHASES = {};
+}
 
 // -----------------------------
-// USUÁRIO MAP PROGRESS
+// UTIL: garante estrutura de progresso do usuário
 export function initUserMapProgress(user) {
-  if (!user.mapProgress) {
+  if (!user) throw new Error("Usuário inválido.");
+  if (!user.mapProgress || typeof user.mapProgress !== "object") {
     user.mapProgress = {
-      completed: [],
-      discovered: [],
-      stars: {},
-      openedChests: {},
-      buffs: [],
-      debuffs: [],
+      completed: [], // lista de phaseId (ex: "1-1")
+      discovered: [], // descobertos (possuem unlock visual)
+      stars: {}, // stars por phaseId
+      openedChests: {}, // contagem por worldId
+      buffs: [], // buffs temporários
+      debuffs: [], // debuffs temporários
     };
+    markUserDirty(user.id);
   }
 }
 
+// -----------------------------
+// VERIFICAÇÕES SIMPLES
 export function hasCompleted(user, id) {
   initUserMapProgress(user);
-  return user.mapProgress.completed.includes(id);
+  return Array.isArray(user.mapProgress.completed) && user.mapProgress.completed.includes(id);
 }
 
 export function markSceneCompleted(user, id, stars = 3) {
   initUserMapProgress(user);
   if (!hasCompleted(user, id)) user.mapProgress.completed.push(id);
-  user.mapProgress.stars[id] = stars;
-}
-
-function discover(user, id) {
-  if (!user.mapProgress.discovered.includes(id)) {
-    user.mapProgress.discovered.push(id);
-  }
+  user.mapProgress.stars[id] = Math.max(0, Math.min(3, Number(stars) || 0));
+  markUserDirty(user.id);
 }
 
 // -----------------------------
-// DESCUBRIR FASES DISPONÍVEIS
+// DISCOVER / NEXT SCENES
+function discover(user, id) {
+  initUserMapProgress(user);
+  if (!user.mapProgress.discovered.includes(id)) user.mapProgress.discovered.push(id);
+  markUserDirty(user.id);
+}
+
 export function discoverNextScenes(user) {
   initUserMapProgress(user);
-  for (const phaseId in PHASES) {
+  
+  // marca a primeira fase do jogo como descoberta se nada existir
+  if (!user.mapProgress.discovered.length) {
+    const first = Object.keys(PHASES)[0];
+    if (first) discover(user, first);
+  }
+  
+  for (const phaseId of Object.keys(PHASES)) {
     if (hasCompleted(user, phaseId)) continue;
     
-    const [world, stage] = phaseId.split("-").map(Number);
+    const [world, stage] = phaseId.split("-").map(n => Number(n));
+    if (!world || !stage) continue;
     
+    // regra simples: a fase 1-1 fica disponível sempre
     if (world === 1 && stage === 1) {
-      discover(user, phaseId); // primeira fase desbloqueada automaticamente
+      discover(user, phaseId);
       continue;
     }
     
-    const prevStageId = stage === 1 ?
-      `${world - 1}-${MAP_PHASES[world-2]?.subStages?.slice(-1)[0]}` :
-      `${world}-${stage - 1}`;
+    // determina id da fase anterior
+    const prevStageId = (() => {
+      if (stage === 1) {
+        // pega último subStage do world-1 se existir
+        const prevWorld = world - 1;
+        const prevMap = MAP_PHASES.find(p => p.id === prevWorld);
+        if (!prevMap) return null;
+        const last = prevMap.subStages[prevMap.subStages.length - 1];
+        return last;
+      }
+      return `${world}-${stage - 1}`;
+    })();
     
-    if (hasCompleted(user, prevStageId)) discover(user, phaseId);
+    if (prevStageId && hasCompleted(user, prevStageId)) discover(user, phaseId);
   }
 }
 
@@ -96,31 +134,48 @@ export function getNextAvailableScenes(user) {
 }
 
 // -----------------------------
-// ENTRAR EM UMA FASE
-export async function enterScene(user, phaseId) {
+// ENTER SCENE - lógica principal
+export async function enterScene(user, phaseId, difficulty = "Fácil") {
   initUserMapProgress(user);
+  
+  if (!PHASES[phaseId]) return `❌ Fase inválida: ${phaseId}`;
+  if (!DIFFICULTIES.includes(difficulty)) return `❌ Dificuldade inválida. Use: ${DIFFICULTIES.join(", ")}`;
+  
+  // só permite entrar em fases desbloqueadas
+  const next = getNextAvailableScenes(user);
+  if (!next.includes(phaseId)) return `⚠️ Você não pode ir para ${phaseId} ainda.`;
+  
+  // consome energia por tentativa
+  if (!spendEnergy(user, ENERGY_TYPES.ADVENTURE, ENERGY_PER_BATTLE)) {
+    return `⚠️ Energia insuficiente (custa ${ENERGY_PER_BATTLE}).`;
+  }
+  
   const phaseData = PHASES[phaseId];
-  if (!phaseData) return `❌ Fase inválida: ${phaseId}`;
+  if (!phaseData || !Array.isArray(phaseData.enemies)) return `⚠️ Fase ${phaseId} sem dados de inimigos.`;
   
-  if (!getNextAvailableScenes(user).includes(phaseId)) {
-    return `⚠️ Você não pode ir para ${phaseId} ainda.`;
-  }
-  
-  if ((user.energy ?? 0) < ENERGY_PER_BATTLE) {
-    return `⚠️ Energia insuficiente para entrar em ${phaseId}.`;
-  }
-  
-  user.energy -= ENERGY_PER_BATTLE;
-  
+  // stars começam como 3, vão caindo se perde batalhas
   let stars = 3;
   let victory = true;
   
-  for (const enemy of phaseData.enemies) {
-    const battleState = battleSystem.initBattle(user, enemy, { mapStage: phaseId });
-    const { state, winner } = battleSystem.runBattle(battleState);
+  // loop de inimigos sequenciais
+  for (let i = 0; i < phaseData.enemies.length; i++) {
+    const rawEnemy = phaseData.enemies[i];
+    
+    // permite que PHASES defina variantes por dificuldade
+    const enemy = (() => {
+      if (rawEnemy.variants && rawEnemy.variants[difficulty]) return rawEnemy.variants[difficulty];
+      return rawEnemy.base || rawEnemy;
+    })();
+    
+    // integra CardController no initBattle
+    const init = battleSystem.initBattle(user, enemy, { mapStage: phaseId, index: i, difficulty }, CardController);
+    const res = battleSystem.runBattle(init);
+    
+    // formato de retorno suportado: { state, winner } ou { winner }
+    const winner = res?.winner ?? (res?.state?.winner ?? null);
     if (winner !== "player") {
       victory = false;
-      stars = 0;
+      stars = Math.max(0, 3 - (i + 1)); // penaliza por derrota
       break;
     }
   }
@@ -135,57 +190,71 @@ export async function enterScene(user, phaseId) {
 }
 
 // -----------------------------
-// RECOMPENSAS
-function grantPhaseRewards(user, phaseId) {
+// RECOMPENSAS - leve e configurável por phase
+export function grantPhaseRewards(user, phaseId) {
   const phaseData = PHASES[phaseId];
   if (!phaseData?.reward) return;
   
   const { gold = 0, gems = 0, card = null, items = [] } = phaseData.reward;
-  addGold(user, gold);
-  addItem(user, "gem", gems);
-  if (card) addItem(user, card, 1); // adiciona carta ao inventário
   
-  if (items.length) {
-    for (const i of items) addItem(user, i.id, i.amount);
+  if (gold) addGold(user, gold);
+  if (gems) addItem(user, "gem", gems);
+  if (card) addItem(user, card, 1);
+  
+  if (Array.isArray(items) && items.length) {
+    for (const it of items) {
+      if (!it || !it.id) continue;
+      addItem(user, it.id, it.amount || 1);
+    }
   }
+  
+  markUserDirty(user.id);
 }
 
 // -----------------------------
-// ABRIR BAÚS POR ESTRELAS
+// OPEN CHEST - por worldId (1..WORLDS)
 export function openChest(user, worldId) {
   initUserMapProgress(user);
-  if (!user.mapProgress.openedChests[worldId]) user.mapProgress.openedChests[worldId] = 0;
-  const opened = user.mapProgress.openedChests[worldId];
+  const world = Number(worldId);
+  if (!Number.isInteger(world) || world < 1 || world > WORLDS) return "World inválido.";
+  
+  user.mapProgress.openedChests[world] = user.mapProgress.openedChests[world] || 0;
+  const opened = user.mapProgress.openedChests[world];
   if (opened >= 3) return "⚠️ Todos os baús dessa sequência já foram abertos.";
   
+  // conta estrelas das fases desse world (usa MAP_PHASES)
+  const phaseMeta = MAP_PHASES.find(p => p.id === world);
+  if (!phaseMeta) return "World sem fases configuradas.";
+  
   const totalStars = Object.entries(user.mapProgress.stars)
-    .filter(([stage]) => MAP_PHASES.find(p => p.id === worldId)?.subStages.includes(stage))
-    .reduce((acc, [_, s]) => acc + s, 0);
+    .filter(([stage]) => phaseMeta.subStages.includes(stage))
+    .reduce((acc, [_, s]) => acc + (Number(s) || 0), 0);
   
-  const requiredStars = (opened + 1) * 3;
-  if (totalStars < requiredStars) return `⚠️ Precisa de ${requiredStars} estrelas para abrir este baú.`;
+  const required = (opened + 1) * 3;
+  if (totalStars < required) return `⚠️ Precisa de ${required} estrelas para abrir este baú.`;
   
-  user.mapProgress.openedChests[worldId]++;
+  user.mapProgress.openedChests[world]++;
   const gold = 50 * (opened + 1);
   const gem = 1 * (opened + 1);
   
   addGold(user, gold);
   addItem(user, "gem", gem);
+  markUserDirty(user.id);
   
-  return `🎁 Baú aberto! Você recebeu: ${gold} ouro, ${gem} gemas`;
+  return `🎁 Baú aberto! Você recebeu: ${gold} ouro, ${gem} gemas.`;
 }
 
 // -----------------------------
-// VISUALIZADOR DE MAPA
+// VISUALIZAÇÃO DO MAPA
 export function visualizeMap(user) {
   initUserMapProgress(user);
   discoverNextScenes(user);
   
-  let text = `🌍 **MAPA — Exploração**\n`;
+  let text = `🌍 MAPA — Exploração\n`;
   for (const world of MAP_PHASES) {
-    text += `\n**🌐 World ${world.id}**\n`;
+    text += `\n🌐 World ${world.id}: `;
     for (const stage of world.subStages) {
-      let icon = "⬛";
+      let icon = "⬛"; // sem dado
       if (!user.mapProgress.discovered.includes(stage)) icon = "❔";
       else if (hasCompleted(user, stage)) icon = "✅";
       else if (getNextAvailableScenes(user).includes(stage)) icon = "🎯";
@@ -193,6 +262,11 @@ export function visualizeMap(user) {
       text += `${icon} `;
     }
   }
-  
-  return text + `\n\nLegenda: 🎯 Disponível | ✅ Completo | ❔ Não descoberto | ⬜ Não disponível`;
+  text += `\n\nLegenda: 🎯 Disponível | ✅ Completo | ❔ Não descoberto | ⬜ Não disponível`;
+  return text;
 }
+
+// -----------------------------
+// HELPERS EXPOSITOS
+export function getNextAvailableScenesForUser(user) { return getNextAvailableScenes(user); }
+export function getPhaseInfo(phaseId) { return PHASES[phaseId] || null; }

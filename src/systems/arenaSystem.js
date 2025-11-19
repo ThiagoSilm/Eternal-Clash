@@ -2,11 +2,12 @@
 import { addGems, addGold, addXP } from "./economySystem.js";
 import { battleSystem } from "./battleSystem.js";
 import { generateOpponentForRank } from "./userCacheSystem.js";
+import { CardController } from "./CardController.js";
 
-// ======================= CONFIGURAÇÃO =======================
+// ======================= CONFIG =======================
 const ARENA = {
     MAX_ATTEMPTS: 8,
-    ATTACK_COOLDOWN_MS: 2 * 60 * 1000, // 2 minutos
+    ATTACK_COOLDOWN_MS: 2 * 60 * 1000,
     DAILY_WIN_REWARD: 5,
     WEEKLY_RESET_MS: 7 * 24 * 60 * 60 * 1000,
     GEM_REWARD_WIN: 4,
@@ -48,18 +49,18 @@ function generateOpponentList(user) {
         const offset = Math.floor(Math.random() * (variance * 2) - variance);
         const targetElo = clamp(baseElo + offset, 0, 9999);
         const op = generateOpponentForRank(targetElo);
-        list.push({ 
-            id: op.id, 
-            name: op.name, 
-            elo: targetElo, 
-            defeated: false, 
+        list.push({
+            id: op.id,
+            name: op.name,
+            elo: targetElo,
+            defeated: false,
             lastBattle: 0
         });
     }
     return list;
 }
 
-// ======================= ARENA =======================
+// ======================= ARENA ROOT =======================
 export function initializeArena(user) {
     if (!user.arena) {
         user.arena = {
@@ -93,12 +94,12 @@ export function arenaStatus(user) {
     initializeArena(user);
     const a = user.arena;
     const weeklyReset = applyWeeklyReset(user);
-
+    
     const opsText = a.opponents.map((o, idx) => {
         const cd = ARENA.ATTACK_COOLDOWN_MS - (now() - (o.lastBattle || 0));
         return `${idx + 1}. ${o.name} [${o.elo} ELO] — ${o.defeated ? "Vencido" : formatCooldown(cd)}`;
     }).join("\n");
-
+    
     return (
         `🏆 **Arena PvP**\n` +
         (weeklyReset ? "🔄 Reset semanal aplicado!\n" : "") +
@@ -123,64 +124,80 @@ export async function arenaChallenge(user, index) {
 
     const cdGlobal = now() - a.lastBattleTime;
     if (cdGlobal < ARENA.ATTACK_COOLDOWN_MS)
-        throw new Error(`Aguarde ${(ARENA.ATTACK_COOLDOWN_MS - cdGlobal) / 1000}s para batalhar novamente.`);
-
-    const cdOpponent = now() - (a.opponents[i].lastBattle || 0);
-    if (cdOpponent < ARENA.ATTACK_COOLDOWN_MS)
-        throw new Error(`Aguarde ${(ARENA.ATTACK_COOLDOWN_MS - cdOpponent) / 1000}s para enfrentar este oponente.`);
+        throw new Error(`Aguarde ${(ARENA.ATTACK_COOLDOWN_MS - cdGlobal) / 1000}s.`);
 
     const opponent = a.opponents[i];
+    const cdOpponent = now() - (opponent.lastBattle || 0);
+    if (cdOpponent < ARENA.ATTACK_COOLDOWN_MS)
+        throw new Error(`Aguarde ${(ARENA.ATTACK_COOLDOWN_MS - cdOpponent) / 1000}s.`);
 
+    // PLAYER
+    const playerObj = {
+        name: user.name,
+        hp: user.hp || 100,
+        deck: user.decks?.main || []
+    };
+
+    // OPONENTE ARTIFICIAL
+    const enemyGen = generateOpponentForRank(opponent.elo);
+    const enemyObj = {
+        name: enemyGen.name,
+        hp: enemyGen.hp || 100,
+        deck: enemyGen.deck || []
+    };
+
+    // PREPARAÇÃO DOS DECKS VIA CARD CONTROLLER
+    const pack = CardController.prepareBattleCardPackages(playerObj, enemyObj);
+    pack.applyToEntities();
+
+    // BATALHA COM LOG
     const state = battleSystem.initBattle(
-        { name: user.name, deck: user.decks?.main || [], hp: user.hp || 100 },
-        generateOpponentForRank(opponent.elo),
-        { auto: true }
+        playerObj, enemyObj,
+        { auto: true, arena: true, returnLog: true }
     );
 
+    let battleLog = [];
     while (state.turn <= 60 && state.player.hp > 0 && state.enemy.hp > 0) {
-        battleSystem.runBattle(state);
+        const turnLog = battleSystem.runBattle(state);
+        if (turnLog) battleLog.push(...turnLog);
     }
 
     const win = state.player.hp > 0 && state.enemy.hp <= 0;
 
+    // ATUALIZA ARENA
     a.lastBattleTime = now();
     opponent.lastBattle = now();
     a.attempts--;
 
-    let msg = `⚔️ **Vs ${opponent.name} (${opponent.elo} ELO)**\n`;
+    let msg = `⚔️ **Arena — ${user.name} vs ${opponent.name} (${opponent.elo} ELO)**\n`;
 
     if (win) {
         opponent.defeated = true;
 
-        const scaleFactor = 1 + opponent.elo / 1000;
-        const gemsReward = Math.floor(ARENA.GEM_REWARD_WIN * scaleFactor);
-        const goldReward = Math.floor(ARENA.GOLD_REWARD_WIN * scaleFactor);
-        const xpReward = Math.floor(ARENA.XP_REWARD_WIN * scaleFactor);
+        const f = 1 + opponent.elo / 1000;
+        const gems = Math.floor(ARENA.GEM_REWARD_WIN * f);
+        const gold = Math.floor(ARENA.GOLD_REWARD_WIN * f);
+        const xp = Math.floor(ARENA.XP_REWARD_WIN * f);
 
-        addGems(user, gemsReward);
-        addGold(user, goldReward);
-        addXP(user, xpReward);
+        addGems(user, gems);
+        addGold(user, gold);
+        addXP(user, xp);
 
         a.elo += ARENA.ELO_WIN;
-
-        const chestPoints = Math.max(5, Math.floor(opponent.elo / 100));
-        a.pointsChest += chestPoints;
-
+        const chestPts = Math.max(5, Math.floor(opponent.elo / 100));
+        a.pointsChest += chestPts;
         a.dailyWins = Math.min(5, a.dailyWins + 1);
 
-        msg += `\n🏆 **Vitória!**\n` +
-               `+${gemsReward}💎 +${goldReward}💰 +${xpReward}XP\n` +
-               `+${ARENA.ELO_WIN} ELO → **${a.elo}**\n` +
-               `+${chestPoints} pts no Baú`;
+        msg += `\n🏆 **Vitória!**\n+${gems}💎 +${gold}💰 +${xp}XP\n+${ARENA.ELO_WIN} ELO → **${a.elo}**\n+${chestPts} pts`;
 
         if (a.opponents.every(o => o.defeated)) {
             a.opponents = generateOpponentList(user);
-            msg += "\n🔄 Nova lista de oponentes gerada!";
+            msg += "\n🔄 Nova lista de oponentes!";
         }
 
         if (a.dailyWins === 5) {
             addGems(user, ARENA.DAILY_WIN_REWARD);
-            msg += `\n🎁 **Bônus diário:** +${ARENA.DAILY_WIN_REWARD} gemas!`;
+            msg += `\n🎁 Bônus diário: +${ARENA.DAILY_WIN_REWARD}💎`;
         }
 
     } else {
@@ -188,10 +205,11 @@ export async function arenaChallenge(user, index) {
         msg += `\n❌ **Derrota**\n-${ARENA.ELO_LOSS} ELO → **${a.elo}**`;
     }
 
-    a.history.unshift({ 
-        opponent: opponent.name, 
-        win, 
-        timestamp: now(), 
+    // HISTÓRICO
+    a.history.unshift({
+        opponent: opponent.name,
+        win,
+        timestamp: now(),
         eloAfter: a.elo,
         chestPoints: win ? Math.max(5, Math.floor(opponent.elo / 100)) : 0,
         playerHP: state.player.hp,
@@ -200,6 +218,9 @@ export async function arenaChallenge(user, index) {
     });
     if (a.history.length > ARENA.MAX_HISTORY) a.history.pop();
 
+    if (battleLog.length > 0)
+        msg += `\n\n📜 **Log da Batalha**\n` + battleLog.slice(0, 40).join("\n");
+
     return msg;
 }
 
@@ -207,17 +228,17 @@ export async function arenaChallenge(user, index) {
 export function arenaReward(user) {
     initializeArena(user);
     const a = user.arena;
-
+    
     if (a.pointsChest < 50) return "💼 Você precisa de 50 pontos no Baú.";
-
+    
     const gems = Math.floor(a.pointsChest / 10);
     const gold = a.pointsChest * 5;
-
+    
     addGems(user, gems);
     addGold(user, gold);
-
+    
     a.pointsChest = 0;
-
+    
     return `🎁 **Recompensa da Arena**\n• ${gems} 💎\n• ${gold} 💰`;
 }
 
