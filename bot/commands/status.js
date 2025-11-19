@@ -3,56 +3,51 @@ import { viewDeck } from "../../src/systems/inventorySystem.js";
 import { getDailyStatus } from "../../src/systems/dailySystem.js";
 import { EmbedBuilder } from "discord.js";
 
-// Barra animada com degradê para XP
-function createXPBar(current, max, size = 10) {
+// Simplifica a barra de XP com cores mais legíveis
+function createSimpleXPBar(current, max, size = 10) {
   const ratio = Math.min(current / max, 1);
   const filled = Math.round(ratio * size);
   const empty = size - filled;
   
-  const gradient = ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "✨"]; // degradê colorido
-  let bar = "";
-  for (let i = 0; i < filled; i++) {
-    bar += gradient[i % gradient.length];
-  }
-  bar += "⬛".repeat(empty);
-  return bar;
+  // Usando quadrados sólidos para clareza visual
+  const filledChar = "🟦";
+  const emptyChar = "⬜";
+  
+  return filledChar.repeat(filled) + emptyChar.repeat(empty);
 }
 
-// Barra de energia animada
-function createEnergyBar(current = 0, max = 10, size = 10) {
+// Simplifica a barra de energia
+function createSimplifiedEnergyBar(current = 0, max = 10, size = 10) {
   current = Number(current) || 0;
-  max = Number(max) || 1; // evitar divisão por zero
+  max = Number(max) || 1;
   
   const ratio = Math.min(current / max, 1);
   const filled = Math.round(ratio * size);
   const empty = size - filled;
   
-  let bar = "";
-  for (let i = 0; i < filled; i++) {
-    bar += i % 2 === 0 ? "⚡" : "🔥";
-  }
-  bar += "⚪".repeat(empty);
+  // Usando emoji de raio para consistência
+  const filledChar = "⚡";
+  const emptyChar = "⚪";
+  
+  const bar = filledChar.repeat(filled) + emptyChar.repeat(empty);
   return bar + ` (${current}/${max})`;
 }
 
-// Formata deck com raridade e tipo
-function formatDeck(deck) {
-  if (!deck || deck.length === 0) return "Nenhuma carta no deck.";
+// Formata o deck para um resumo mais limpo, focando no Guardião
+function formatDeckSummary(deck) {
+  if (!deck || deck.length === 0) return "Nenhuma carta equipada.";
   
-  return deck.map((card, i) => {
-    let rarityEmoji = "🟦"; // comum
-    if (card.rarity === "raro") rarityEmoji = "🟪";
-    else if (card.rarity === "épico") rarityEmoji = "🟧";
-    else if (card.rarity === "lendário") rarityEmoji = "🟥";
+  const totalCards = deck.length;
+  // Tenta encontrar o Guardião (assumindo type: 'guardian' ou ID prefixado 'g')
+  const guardian = deck.find(c => c.type === 'guardian' || c.id.startsWith('g')); 
+  
+  const guardianInfo = guardian 
+    ? `🛡️ **${guardian.name}** (Lvl ${guardian.level} - ${guardian.rarity}★)`
+    : "❌ Nenhum Guardião Ativo";
     
-    let typeEmoji = "⚔️"; // ataque
-    if (card.type === "magia") typeEmoji = "🪄";
-    else if (card.type === "defesa") typeEmoji = "🛡️";
-    else if (card.type === "suporte") typeEmoji = "🩹";
-    
-    return `\`${i + 1}.\` ${rarityEmoji}${typeEmoji} **${card.name}**`;
-  }).join("\n");
+  return `${guardianInfo}\n*Total de Cartas na Equipe: ${totalCards}*`;
 }
+
 
 export default {
   name: "status",
@@ -65,49 +60,58 @@ export default {
       const username = message.author.username;
       
       // -----------------------
-      // Energia
+      // Obter Dados
       // -----------------------
-      let maxEnergy = 10;
-      let energyStatus = "⚠️ Sistema de energia indisponível.";
-      try {
-        const energy = getEnergyStatus(userId) ?? 0;
-        energyStatus = createEnergyBar(energy, maxEnergy);
-      } catch {}
+      const maxEnergy = 10;
+      const energy = getEnergyStatus(userId) ?? 0;
+      const energyStatus = createSimplifiedEnergyBar(energy, maxEnergy);
       
-      // -----------------------
-      // Status diário
-      // -----------------------
-      let dailyStatus = "⚠️ Sistema diário indisponível.";
+      let dailyStatus = "⚠️ Erro ao obter status diário.";
       try {
         dailyStatus = getDailyStatus(userId) ?? "⚠️ (indefinido)";
       } catch {}
       
-      // -----------------------
-      // Deck
-      // -----------------------
-      let deckStatus = "Nenhuma carta no deck.";
-      try {
-        const deck = viewDeck(user, "main");
-        deckStatus = formatDeck(deck);
-      } catch {}
+      const deck = viewDeck(user, "main");
+      const deckSummary = formatDeckSummary(deck);
       
-      // -----------------------
-      // XP
-      // -----------------------
       const level = Number(user.level) || 1;
       const currentXP = Number(user.xp) || 0;
-      const xpForNext = 100 * level;
-      const xpBar = createXPBar(currentXP, xpForNext);
+      const xpForNext = 100 * level; 
+      const xpBar = createSimpleXPBar(currentXP, xpForNext);
       
       // -----------------------
-      // Embed ultra HUD
+      // Embed profissional (HUD V2)
       // -----------------------
       const embed = new EmbedBuilder()
-        .setTitle(`🎮 HUD de ${username}`)
-        .setDescription("💥 Status RPG interativo completo 💥")
-        .addFields({ name: "📈 Nível", value: `${level}`, inline: true }, { name: "⭐ XP", value: `${currentXP}/${xpForNext} ${xpBar}`, inline: false }, { name: "💰 Ouro", value: `${user.gold ?? 0}`, inline: true }, { name: "⚡ Energia", value: energyStatus, inline: false }, { name: "🃏 Deck Principal", value: deckStatus, inline: false }, { name: "🎁 Status Diário", value: dailyStatus, inline: false })
-        .setColor("#FFD700")
-        .setFooter({ text: "✨ Continue evoluindo e colecionando!" })
+        .setTitle(`✨ Status de RPG de ${username}`)
+        .setDescription(`**${level > 5 ? "👑 Herói" : "⚔️ Aventureiro"} de Nível ${level}**\n\n`)
+        .addFields(
+          // --- PROGRESSÃO ---
+          { 
+            name: "📈 Nível e XP", 
+            value: `${xpBar}\n**XP:** ${currentXP}/${xpForNext}`, 
+            inline: false 
+          },
+          // --- RECURSOS ---
+          { 
+            name: "💰 ECONOMIA", 
+            value: `**Ouro:** ${user.gold?.toLocaleString() ?? 0}\n**Gemas:** ${user.gems?.toLocaleString() ?? 0}`, // Gems adicionadas
+            inline: true 
+          },
+          { 
+            name: "⚡ RECURSOS ATUAIS", 
+            value: `**Energia:** ${energyStatus}\n**Diário:** ${dailyStatus}`,
+            inline: true 
+          },
+          // --- GUARDIÃO E DECK ---
+          { 
+            name: "🛡️ EQUIPE PRINCIPAL", 
+            value: deckSummary, 
+            inline: false 
+          }
+        )
+        .setColor("#3498DB") // Cor azul para clareza
+        .setFooter({ text: `Próximo Nível em ${xpForNext - currentXP} XP | Use !inventario para detalhes.` })
         .setTimestamp();
       
       await message.reply({ embeds: [embed], allowedMentions: { repliedUser: false } });
