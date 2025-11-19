@@ -12,7 +12,7 @@ import { EmbedBuilder } from "discord.js";
 
 export default {
     name: "maze",
-    description: "Jogue no Maze, role o dado, use Gold Dice, resete o mapa ou inicie o Maze.",
+    description: "Jogue no Maze: role o dado, use Gold Dice, resete o mapa ou inicie o Maze.",
     usage: "[start | roll | gold <mapId?> <targetHouse> | reset]",
 
     async execute(message, args, user) {
@@ -25,7 +25,7 @@ export default {
 
         const currentMapId = getCurrentMapId(user) || "map1";
 
-        // Renderiza um mini mapa em texto
+        // Renderiza o mini mapa em texto
         const renderMiniMap = (mapInfo, targetHouse = null) => {
             if (!mapInfo) return "❌ Mapa não disponível.";
             const housesPerLine = 10;
@@ -34,15 +34,7 @@ export default {
                 if (i === mapInfo.currentHouse) mapStr += "🧍";
                 else if (i === targetHouse) mapStr += "🎯";
                 else if (mapInfo.visitedHouses.includes(i)) mapStr += "✅";
-                else if (mapInfo.prizeHouses[i]) {
-                    switch (mapInfo.prizeHouses[i]) {
-                        case "coin": mapStr += "💰"; break;
-                        case "trophy": mapStr += "🏆"; break;
-                        case "rare": mapStr += "✨"; break;
-                        default: mapStr += "💎";
-                    }
-                } else mapStr += "⬜";
-
+                else mapStr += "⬜";
                 if (i % housesPerLine === 0) mapStr += "\n";
             }
             return mapStr;
@@ -78,22 +70,20 @@ export default {
             }
 
             const handleRollOrGold = async (type) => {
-                const mapIdArg = toInt(args[1]) || currentMapId;
+                const mapIdArg = args[1] || currentMapId;
                 const targetHouse = type === "gold" ? toInt(args[2]) : null;
 
                 if (type === "gold" && !targetHouse)
                     return message.reply("❌ Informe a **casa alvo**: `!maze gold <mapId?> <casa>`");
 
-                const mapInfo = getMazeMapInfo(user, mapIdArg);
-                if (!mapInfo)
-                    return message.reply("❌ Mapa inválido ou não iniciado. Use `!maze start` para começar.");
-
-                if (targetHouse && targetHouse > mapInfo.totalHouses)
-                    return message.reply(`❌ Essa casa não existe neste mapa. O máximo é ${mapInfo.totalHouses}.`);
-
+                // Executa ação
                 const actionResult = type === "roll"
                     ? await rollMaze(user, mapIdArg)
                     : useGoldDice(user, mapIdArg, targetHouse);
+
+                // Pega o estado atualizado do mapa
+                const mapInfo = getMazeMapInfo(user, mapIdArg);
+                if (!mapInfo) return message.reply("❌ Mapa inválido ou não iniciado. Use `!maze start`.");
 
                 const prizeMsg = renderPrizeMessage(actionResult.prize);
 
@@ -119,22 +109,23 @@ export default {
             if (sub === "gold") return handleRollOrGold("gold");
 
             if (sub === "reset") {
-                const mapIdArg = toInt(args[1]) || currentMapId;
+                const mapIdArg = args[1] || currentMapId;
                 const mapInfo = getMazeMapInfo(user, mapIdArg);
-
-                if (!mapInfo)
-                    return message.reply("❌ Mapa inválido ou não iniciado. Use `!maze start` para começar.");
+                if (!mapInfo) return message.reply("❌ Mapa inválido ou não iniciado. Use `!maze start`.");
 
                 const result = resetMaze(user, mapIdArg);
+
+                // Atualiza o mapa após reset
+                const updatedMapInfo = getMazeMapInfo(user, mapIdArg);
 
                 const embed = new EmbedBuilder()
                     .setTitle(`🔄 Maze - Reset`)
                     .addFields(
                         { name: "Mapa", value: `#${mapIdArg}`, inline: true },
                         { name: "Casa Antes do Reset", value: `${mapInfo.currentHouse}` },
-                        { name: "Progresso", value: `${mapInfo.visitedHouses.length}/${mapInfo.totalHouses}` },
+                        { name: "Progresso", value: `${updatedMapInfo.visitedHouses.length}/${updatedMapInfo.totalHouses}` },
                         { name: "Resultado", value: result },
-                        { name: "Tabuleiro", value: renderMiniMap(mapInfo) }
+                        { name: "Tabuleiro", value: renderMiniMap(updatedMapInfo) }
                     )
                     .setColor("Red");
 
