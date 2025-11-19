@@ -7,29 +7,15 @@ import { markUserDirty } from "./userCacheSystem.js";
 export const mazeConfig = {
   energyCost: 4,
   goldDiceGemCost: 20,
-  rarityWeights: {
-    common: 55,
-    rare: 25,
-    epic: 12,
-    elite: 6,
-    event: 2,
-  },
   maps: {
-    map1: { maxHouses: 20, baseForce: 10, unlocked: true, rewardScale: 1 },
-    map2: { maxHouses: 25, baseForce: 20, unlocked: false, rewardScale: 1.3 },
-    map3: { maxHouses: 30, baseForce: 30, unlocked: false, rewardScale: 1.6 },
+    map1: { maxHouses: 40, baseForce: 10, unlocked: true, rewardScale: 1 },
+    map2: { maxHouses: 60, baseForce: 20, unlocked: false, rewardScale: 1.3 },
+    map3: { maxHouses: 80, baseForce: 30, unlocked: false, rewardScale: 1.6 },
   },
+  houseTypes: ["empty", "question", "enemy"], // empty = casas normais, question = ?, enemy = inimigo
+  questionChance: 0.2, // 20% chance de casa “?”
+  enemyChance: 0.1, // 10% chance de casa com inimigo
 };
-
-function rollRarity() {
-  const r = Math.random() * 100;
-  let acc = 0;
-  for (const [rar, w] of Object.entries(mazeConfig.rarityWeights)) {
-    acc += w;
-    if (r <= acc) return rar;
-  }
-  return "common";
-}
 
 function initMazeState(user, mapId) {
   user.mazes ||= {};
@@ -51,29 +37,67 @@ function resetDaily(mazeState) {
   }
 }
 
-async function mazeBattle(user, map) {
-  const enemy = { type: "mazeEnemy", force: map.baseForce + Math.floor(Math.random() * 10) };
-  return await runBattle(user, enemy);
+function getHouseType() {
+  const r = Math.random();
+  if (r < mazeConfig.enemyChance) return "enemy";
+  if (r < mazeConfig.enemyChance + mazeConfig.questionChance) return "question";
+  return "empty";
 }
 
-function runMazeEvent(user) {
-  const r = Math.random();
-  if (r < 0.25) {
-    const gold = 200 + Math.floor(Math.random() * 400);
+function generateMazeEnemy(map) {
+  return {
+    type: "mazeEnemy",
+    force: map.baseForce + Math.floor(Math.random() * 10),
+    deck: "deckSimulado", // deck placeholder
+    guardian: "guardiãoSimulado", // guardião placeholder
+  };
+}
+
+async function handleHouse(user, map, houseType) {
+  let msg = "";
+  let prize = null;
+
+  if (houseType === "empty") {
+    const gold = Math.floor(200 * map.rewardScale);
+    const xp = Math.floor(50 * map.rewardScale);
     addGold(user, gold);
-    return { message: `🎁 Evento! Você encontrou um baú e ganhou **${gold} ouro**!`, prize: { type: "coin", amount: gold } };
-  }
-  if (r < 0.5) {
-    const xp = 50 + Math.floor(Math.random() * 150);
     addXP(user, xp);
-    return { message: `✨ Evento! Sabedoria antiga encontrada: **${xp} XP**!`, prize: { type: "xp", amount: xp } };
+    msg = `💰 Casa comum: você ganhou **${gold} ouro + ${xp} XP**.`;
+    prize = { type: "coin", amount: gold, xp };
+  } else if (houseType === "question") {
+    const r = Math.random();
+    if (r < 0.5) {
+      const gold = Math.floor(400 * map.rewardScale + Math.random() * 600);
+      addGold(user, gold);
+      msg = `🎁 Casa “?”! Você encontrou **${gold} ouro**!`;
+      prize = { type: "coin", amount: gold };
+    } else if (r < 0.8) {
+      const cards = summonMultiple(user, "mazeCard", 2 + Math.floor(Math.random() * 2));
+      msg = `🎴 Casa “?”! Você ganhou cartas:\n${cards}`;
+      prize = { type: "cards" };
+    } else {
+      const enemy = generateMazeEnemy(map);
+      const battle = await runBattle(user, enemy);
+      if (battle.win) {
+        msg = `⚔️ Casa “?”! Você venceu o inimigo com guardião ${enemy.guardian}!`;
+        prize = { type: "trophy" };
+      } else {
+        msg = `💀 Casa “?”! Você perdeu para o inimigo e voltou 2 casas.`;
+      }
+    }
+  } else if (houseType === "enemy") {
+    const enemy = generateMazeEnemy(map);
+    const battle = await runBattle(user, enemy);
+    if (battle.win) {
+      msg = `⚔️ Você venceu o inimigo com guardião ${enemy.guardian}!`;
+      prize = { type: "trophy" };
+    } else {
+      msg = `💀 Você perdeu para o inimigo e voltou 2 casas.`;
+      return { message: msg, prize, rollback: 2 };
+    }
   }
-  if (r < 0.7) return { message: `🔮 Evento misterioso... Nada aconteceu. Talvez na próxima.`, prize: null };
-  if (r < 0.85) {
-    user.energy = Math.min(user.energyMax, user.energy + 5);
-    return { message: `⚡ Uma fonte de energia! Você recuperou **5 energia**.`, prize: { type: "energy", amount: 5 } };
-  }
-  return { message: `💀 Armadilha! Você perde **1 casa**.`, prize: null };
+
+  return { message: msg, prize, rollback: 0 };
 }
 
 export async function rollMaze(user, mapId) {
@@ -91,44 +115,18 @@ export async function rollMaze(user, mapId) {
 
   let msg = `🎲 Você rolou **${roll}** → casa **${mazeState.position}/${map.maxHouses}**\n`;
 
-  const rarity = rollRarity();
-  let prize = null;
+  const houseType = getHouseType();
+  const houseResult = await handleHouse(user, map, houseType);
 
-  if (rarity === "common") {
-    const gold = Math.floor(200 * map.rewardScale);
-    addGold(user, gold);
-    msg += `💰 (Comum) Você ganhou **${gold} ouro**.\n`;
-    prize = { type: "coin", amount: gold };
-  } else if (rarity === "rare") {
-    const xp = Math.floor(80 * map.rewardScale);
-    addXP(user, xp);
-    msg += `✨ (Raro) Você ganhou **${xp} XP**.\n`;
-    prize = { type: "xp", amount: xp };
-  } else if (rarity === "epic") {
-    const g = Math.floor(500 * map.rewardScale);
-    const x = Math.floor(150 * map.rewardScale);
-    addGold(user, g);
-    addXP(user, x);
-    msg += `🌟 (Épico) Recompensa dupla! **${g} ouro + ${x} XP**.\n`;
-    prize = { type: "epic", gold: g, xp: x };
-  } else if (rarity === "elite") {
-    const battle = await mazeBattle(user, map);
-    msg += battle.win ? `⚔️ (Elite) Você venceu!\n` : `💀 (Elite) Você perdeu e voltou 2 casas.\n`;
-    if (!battle.win) mazeState.position = Math.max(mazeState.position - 2, 0);
-    prize = { type: battle.win ? "trophy" : null };
-  } else if (rarity === "event") {
-    const eventResult = runMazeEvent(user);
-    msg += `🎭 (Evento) ${eventResult.message}\n`;
-    prize = eventResult.prize;
-  }
+  msg += houseResult.message + "\n";
+  if (houseResult.rollback) mazeState.position = Math.max(mazeState.position - houseResult.rollback, 0);
 
   mazeState.usedToday++;
 
   // Boss final
   if (mazeState.position === map.maxHouses) {
-    msg += `👑 CHEFÃO do mapa **${mapId}** encontrado!\n`;
-    const battle = await mazeBattle(user, map);
-
+    msg += `👑 CHEFÃO do mapa **${mapId}**!\n`;
+    const battle = await runBattle(user, generateMazeEnemy(map));
     if (!battle.win) {
       mazeState.position -= 3;
       msg += `❌ Você perdeu! Voltou 3 casas.\n`;
@@ -139,15 +137,14 @@ export async function rollMaze(user, mapId) {
       addXP(user, x);
       msg += `🏆 Vitória! Recompensas:\n• **3 cartas (boss)**\n• **${g} ouro**\n• **${x} XP**\n`;
       msg += summonMultiple(user, "mazeBoss", 3) || "";
-      prize = { type: "boss", gold: g, xp: x };
     }
   }
 
   markUserDirty(user.id);
-  return { message: msg, prize };
+  return { message: msg, prize: houseResult.prize };
 }
 
-// Funções restantes
+// Gold Dice
 export function useGoldDice(user, mapId, targetHouse) {
   const map = mazeConfig.maps[mapId];
   const mazeState = initMazeState(user, mapId);
@@ -182,15 +179,13 @@ export function getCurrentMapId(user) {
 
 export function getMazeMapInfo(user, mapId) {
   const map = mazeConfig.maps[mapId];
-  if (!map || !map.unlocked) return null; // ❌ Retorna null se mapa inválido ou bloqueado
-  
+  if (!map || !map.unlocked) return null;
+
   const state = getMazeState(user, mapId);
-  
   return {
     totalHouses: map.maxHouses,
     currentHouse: state.position,
     visitedHouses: Array.from({ length: state.position }, (_, i) => i + 1),
-    prizeHouses: {}, // opcional
   };
 }
 

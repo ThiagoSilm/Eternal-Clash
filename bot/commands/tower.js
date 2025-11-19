@@ -7,11 +7,11 @@ import {
   getTowerRankings,
   getRandomTowerEvent,
   addTemporaryGem,
+  giveGuardianShard
 } from "../../src/systems/towerSystem.js";
 
 import { runBattle } from "../../src/systems/battleSystem.js";
-import { addXP, addGold, addItem } from "../../src/systems/economySystem.js";
-import { getGuardian } from "../../src/systems/guardianSystem.js";
+import { addXP, addGold } from "../../src/systems/economySystem.js";
 import { EmbedBuilder } from "discord.js";
 
 export default {
@@ -23,7 +23,6 @@ export default {
     try {
       console.log("🚀 Executando !tower", args, "User tower:", user.tower);
 
-      // Inicialização completa do user.tower
       if (!user.tower) user.tower = {
         floor: 1,
         attempts: 3,
@@ -75,6 +74,7 @@ export default {
           ];
         }
 
+        // Eventos aleatórios do andar
         const event = getRandomTowerEvent(floor);
         let eventText = "";
         if (event) {
@@ -95,13 +95,10 @@ export default {
         const isBossFloor = floor % 5 === 0;
         if (isBossFloor) {
           enemy.name = `👑 Boss Épico: ${enemy.name}`;
-          enemy.guardian = getGuardian(enemy.guardianId);
         }
 
         const result = runBattle(user, enemy, { auto: true });
-        if (!result || !result.log) {
-          return message.reply("⚠️ Ocorreu um erro na batalha. Tente novamente.");
-        }
+        if (!result || !result.log) return message.reply("⚠️ Ocorreu um erro na batalha. Tente novamente.");
 
         const battleLogs = result.log.map(l =>
           `\`${l.turn ? `Turno ${l.turn}` : ""}\` **${l.actor}**: ${l.action || l.note || ""}`
@@ -115,14 +112,25 @@ export default {
         // Vitória
         if (result.winner === "player") {
           user.tower.winStreak += 1;
-          const reward = getFloorReward(floor);
+          let reward = getFloorReward(floor);
+
+          // Grandes recompensas a cada 5 níveis
+          if (floor % 5 === 0) {
+            reward.gold *= 3;
+            reward.xp *= 3;
+
+            // Ganha shard de guardião
+            const shardId = giveGuardianShard(user);
+            embed.addFields([
+              { name: "🎴 Shard de Guardião!", value: `Você recebeu 1 shard do guardião: **${shardId}**` }
+            ]);
+          }
+
+          // Aplica combo de vitórias
           const multiplier = 1 + user.tower.winStreak * 0.1;
           reward.xp = Math.floor(reward.xp * (1 + floor * 0.05) * multiplier);
           reward.gold = Math.floor(reward.gold * (1 + floor * 0.05) * multiplier);
-          if (Math.random() < (isBossFloor ? 0.5 : 0.15)) {
-            reward.item = `🎴 Carta Lendária do Andar ${floor}`;
-            addItem(user, reward.item);
-          }
+
           addXP(user, reward.xp);
           addGold(user, reward.gold);
           user.tower.floor += 1;
@@ -130,7 +138,7 @@ export default {
           embed.addFields([
             {
               name: "🏆 Vitória!",
-              value: `Recompensas: **+${reward.xp} XP**, **+${reward.gold} Ouro**${reward.item ? `, ${reward.item}` : ""}\n🔥 Combo de vitórias: x${multiplier.toFixed(1)}\n➡️ Próximo Andar: **${user.tower.floor}**`
+              value: `Recompensas: **+${reward.xp} XP**, **+${reward.gold} Ouro**\n🔥 Combo de vitórias: x${multiplier.toFixed(1)}\n➡️ Próximo Andar: **${user.tower.floor}**`
             }
           ]);
         } else {
@@ -158,7 +166,7 @@ export default {
           "`!tower status` — Veja seu andar, tentativas, combo de vitórias e gemas temporárias.\n" +
           "`!tower challenge` — Gasta 1 tentativa e lute contra o próximo andar.\n" +
           "`!tower rankings` — Veja o ranking global da Torre.\n" +
-          "🎯 Andares especiais podem ter eventos, buffs/debuffs, gemas temporárias, mini-histórias e cartas lendárias!"
+          "🎯 Andares especiais (a cada 5 níveis) dão shards de guardiões e grandes recompensas!"
         )
         .setColor("Blue");
 

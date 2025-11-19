@@ -1,17 +1,22 @@
-// src/commands/mapa.js
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { visualizeMap, enterScene, getNextAvailableScenes, mapScenes } from "../../src/systems/mapSystem.js";
+import {
+  visualizeMap,
+  enterScene,
+  getNextAvailableScenes,
+  MAP_PHASES,
+  initUserMapProgress,
+  openChest
+} from "../../src/systems/mapSystem.js";
 
 const BUTTONS_PER_ROW = 5;
-const ROWS_PER_PAGE = 2;
 
 export default {
   name: "mapa",
-  description: "Visualize o mapa ou entre em batalhas de forma interativa.",
-  usage: "[visualizar]",
+  description: "Visualize o mapa ou entre em fases de forma interativa.",
   
   async execute(message, args, user) {
     if (!user) return message.reply("⚠️ Usuário não encontrado no sistema.");
+    initUserMapProgress(user);
     
     try {
       await this.sendMapPage(message, user, 0);
@@ -26,43 +31,47 @@ export default {
   // -----------------------------
   async sendMapPage(messageOrInteraction, user, page) {
     const availableScenes = getNextAvailableScenes(user);
-    const mapData = mapScenes; // usa todos os cenários para o embed
     
-    // Criar embed
     const embed = new EmbedBuilder()
       .setTitle(`🗺 Mapa — Página ${page + 1}`)
-      .setDescription(
-        mapData
-        .map(scene => {
-          const id = scene.id;
-          if (!user.mapProgress.discovered.includes(id)) return "❔";
-          if (user.mapProgress.completed.includes(id)) return "✅";
-          if (availableScenes.some(x => x.id === id)) return "🎯";
-          return scene.type === "elite" ? "🔥" : scene.type === "boss" ? "💀" : "⬜";
-        })
-        .join(" ")
-      )
+      .setDescription(visualizeMap(user))
       .setColor("#00FF00")
-      .setFooter({ text: "🎯 Disponível | 🔥 Elite | 💀 Boss | ❔ Não descoberto | ✅ Concluído" });
+      .setFooter({ text: "🎯 Disponível | ✅ Completo | ⭐ Estrelas | 🗝 Baú disponível | ❔ Não descoberto" });
     
-    // Cria botões paginados
-    const start = page * BUTTONS_PER_ROW * ROWS_PER_PAGE;
-    const end = start + BUTTONS_PER_ROW * ROWS_PER_PAGE;
+    // Paginação de fases
+    const start = page * BUTTONS_PER_ROW;
+    const end = start + BUTTONS_PER_ROW;
     const slice = availableScenes.slice(start, end);
     
     const rows = [];
-    for (let i = 0; i < slice.length; i += BUTTONS_PER_ROW) {
+    if (slice.length) {
       const row = new ActionRowBuilder();
-      slice.slice(i, i + BUTTONS_PER_ROW).forEach(scene => {
+      slice.forEach(scene => {
+        const stars = user.mapProgress.stars[scene.id] || 0;
         row.addComponents(
           new ButtonBuilder()
           .setCustomId(`enter_scene_${scene.id}`)
-          .setLabel(scene.id)
+          .setLabel(`${scene.id} ${stars ? "⭐".repeat(stars) : ""}`)
           .setStyle(ButtonStyle.Primary)
         );
       });
       rows.push(row);
     }
+    
+    // Botões de baú
+    MAP_PHASES.forEach(phase => {
+      const opened = user.mapProgress.openedChests[phase.id] || 0;
+      if (opened < 3) {
+        const row = new ActionRowBuilder();
+        row.addComponents(
+          new ButtonBuilder()
+          .setCustomId(`open_chest_${phase.id}`)
+          .setLabel(`🗝 Baú Fase ${phase.id} (${opened}/3)`)
+          .setStyle(ButtonStyle.Success)
+        );
+        rows.push(row);
+      }
+    });
     
     // Botões de navegação
     if (availableScenes.length > end) {
@@ -96,17 +105,19 @@ export default {
     if (!interaction.isButton()) return;
     const cid = interaction.customId;
     
-    // Entrar na cena
+    // Entrar em uma fase
     if (cid.startsWith("enter_scene_")) {
-      const sceneId = cid.replace("enter_scene_", "");
-      const available = getNextAvailableScenes(user);
-      
-      if (!available.find(s => s.id === sceneId)) {
-        return interaction.reply({ content: "⚠️ Cena não disponível.", ephemeral: true });
-      }
-      
-      const result = await enterScene(user, sceneId);
-      await this.sendMapPage(interaction, user, 0); // atualiza mapa
+      const stageId = cid.replace("enter_scene_", "");
+      const result = await enterScene(user, stageId);
+      await this.sendMapPage(interaction, user, 0);
+      return interaction.followUp({ content: result, ephemeral: true });
+    }
+    
+    // Abrir baú
+    if (cid.startsWith("open_chest_")) {
+      const phaseId = parseInt(cid.replace("open_chest_", ""));
+      const result = openChest(user, phaseId);
+      await this.sendMapPage(interaction, user, 0);
       return interaction.followUp({ content: result, ephemeral: true });
     }
     
