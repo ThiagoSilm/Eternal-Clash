@@ -503,6 +503,36 @@ export function getRandomCardIdByRarity(rarity, options = {}) {
   return list[Math.floor(Math.random() * list.length)].id;
 }
 
+// ---------- NOVAS FUNÇÕES DE SHARD ----------
+export function addShardsToUser(user, shardId, quantity = 1) {
+  if (!user.cards) user.cards = [];
+  const existing = user.cards.find(c => c.type === "shard" && c.shardOf === shardId);
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    // Tenta obter o template da carta para criar o shard
+    const template = getCardTemplate(shardId); 
+    if (!template) return { success: false, message: "Template de carta base para o shard não encontrado." };
+
+    const newShard = {
+        uniqueId: uuidv4(),
+        id: `shard_${shardId}`,
+        name: `Shard de ${template.name}`,
+        shardOf: shardId,
+        quantity: quantity,
+        type: "shard",
+        rarity: template.rarity || 1,
+        // Informações adicionais necessárias
+        shardsToCraft: template.shardsToCraft || 50 // Assumindo custo base no template
+    };
+    user.cards.push(newShard);
+  }
+
+  markUserDirty(user.id);
+  return { success: true, message: `Adicionados ${quantity} Shards de ${getCardTemplate(shardId)?.name || shardId}.` };
+}
+
+
 // ---------- ATUALIZAÇÃO DO EXPORT DEFAULT ----------
 export default {
   getCardTemplate,
@@ -527,5 +557,6 @@ export default {
   getRandomCardIdByRarity,
   // Novos exports de dados
   cardDefinitions,
-  guardianDefinitions
+  guardianDefinitions,
+  addShardsToUser
 };

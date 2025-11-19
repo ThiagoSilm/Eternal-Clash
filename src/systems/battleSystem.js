@@ -1,6 +1,5 @@
 import { getCardTemplate } from "./cardSystem.js";
 import { runEffectsTrigger, applyFactionModifiers } from "./effectSystem.js";
-import { getGuardian } from "./guardianSystem.js";
 import { rng, chanceDecimal, setSeed } from "./rngSystem.js";
 import { CardController } from "./CardController.js";
 
@@ -83,7 +82,7 @@ function createEntity(data, role) {
 function initializeEntityFeatures(entity, role) {
   // Setup Guardian
   if (entity.guardianId) {
-    const template = getGuardian(entity.guardianId) || entity.guardian;
+    const template = getCardTemplate(entity.guardianId) || entity.guardian;
     if (template) entity.guardian = createGuardianState(template, role);
   }
   // Apply Perks
