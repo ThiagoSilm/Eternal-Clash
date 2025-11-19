@@ -20,10 +20,11 @@ export default {
         const sub = (args[0] || "roll").toLowerCase();
         const toInt = (v) => { const n = parseInt(v); return Number.isInteger(n) && n > 0 ? n : null; };
 
-        // ✅ Garantir mapa atual válido
+        // 🔹 Inicializa Maze se o usuário ainda não tiver mapa
         let currentMapId = getCurrentMapId(user);
         if (!currentMapId && sub !== "start") {
-            return message.reply("❌ Você ainda não iniciou o Maze. Use `!maze start` primeiro.");
+            startMaze(user);
+            currentMapId = "map1";
         }
 
         const renderMiniMap = (mapInfo) => {
