@@ -1,4 +1,3 @@
-// src/systems/effectSystem.js
 //------------------------------------------------------------
 // EFFECT SYSTEM AVANÇADO COM FASES DE BATALHA
 // Executor unificado de todos os efeitos (Cartas + Guardiões)
@@ -7,7 +6,7 @@
 
 import { deepCloneSafe } from "./utils/helpers.js";
 import { EFFECTS, runEffect as runCardEffect } from "../config/effects.js";
-import { GUARDIAN_EFFECTS, runGuardianEffect } from "../config/guardianEffects.js";
+import { GUARDIAN_EFFECTS } from "../config/guardianEffects.js";
 
 /* ----------------- FACÇÕES ----------------- */
 export const FACTIONS = {
@@ -25,29 +24,45 @@ export function getEffectValue(eff, level = 1) {
 
 /* ----------------- EXECUTOR UNIFICADO ----------------- */
 function executeEffect(id, ctx) {
-  if (EFFECTS[id]) runCardEffect(id, ctx);
-  else if (GUARDIAN_EFFECTS[id]) runGuardianEffect(id, ctx);
-  else console.warn(`[effectSystem] Efeito não encontrado: ${id}`);
+  if (EFFECTS[id]) {
+    try {
+      runCardEffect(id, ctx);
+    } catch (err) {
+      console.error(`[effectSystem] Erro ao executar efeito de carta ${id}:`, err);
+      ctx.pushLog?.(`❌ Erro no efeito de carta: ${id}`);
+    }
+  } else if (GUARDIAN_EFFECTS[id]) {
+    const eff = GUARDIAN_EFFECTS[id];
+    if (typeof eff.effect === "function") {
+      try {
+        eff.effect(ctx);
+      } catch (err) {
+        console.error(`[effectSystem] Erro ao executar efeito de guardião ${id}:`, err);
+        ctx.pushLog?.(`❌ Erro no efeito de guardião: ${id}`);
+      }
+    } else {
+      console.warn(`[effectSystem] Guardião sem função: ${id}`);
+      ctx.pushLog?.(`⚠️ Guardião sem função: ${id}`);
+    }
+  } else {
+    console.warn(`[effectSystem] Efeito não encontrado: ${id}`);
+    ctx.pushLog?.(`⚠️ Efeito não encontrado: ${id}`);
+  }
 }
 
-/* ----------------- RUN TRIGGER COM FASES ----------------- */
+/* ----------------- RUN TRIGGER COM FASES PROTEGIDO ----------------- */
 export function runEffectsTrigger(trigger, owner, opponent, extraCtx = {}, pushLog = () => {}) {
   if (!owner || typeof owner !== "object") return;
   
   const entities = [
-    ...(owner.field || []),
-    ...(owner.hand || []),
-    ...(owner.graveyard || []),
+    ...(Array.isArray(owner.field) ? owner.field : []),
+    ...(Array.isArray(owner.hand) ? owner.hand : []),
+    ...(Array.isArray(owner.graveyard) ? owner.graveyard : []),
   ];
   if (owner.guardian) entities.push(owner.guardian);
   
-  const phaseQueues = {
-    buff: [],
-    damage: [],
-    special: [],
-  };
+  const phaseQueues = { buff: [], damage: [], special: [] };
   
-  // Categoriza efeitos por fase
   for (const subject of entities) {
     if (!subject || !Array.isArray(subject.effects)) continue;
     
@@ -57,27 +72,33 @@ export function runEffectsTrigger(trigger, owner, opponent, extraCtx = {}, pushL
         pushLog?.(`⚠️ Efeito inválido: ${effId}`);
         continue;
       }
-      if (EFFECTS[effId] && (!Array.isArray(eff.trigger) || !eff.trigger.includes(trigger))) continue;
       
-      const phase = eff.phase || (GUARDIAN_EFFECTS[effId] ? 'special' : 'damage');
+      if (EFFECTS[effId] && Array.isArray(eff.trigger) && !eff.trigger.includes(trigger)) continue;
+      
+      const phase = eff.phase || (GUARDIAN_EFFECTS[effId] ? "special" : "damage");
       phaseQueues[phase].push({ effId, subject });
     }
   }
   
-  // Executa cada fase em ordem
-  for (const phase of ['buff', 'damage', 'special']) {
+  for (const phase of ["buff", "damage", "special"]) {
     for (const { effId, subject } of phaseQueues[phase]) {
       const ctx = {
         subject,
         owner,
         opponent,
         target: extraCtx?.target || opponent,
-        allies: extraCtx?.allies || owner.field || [],
-        enemies: extraCtx?.enemies || opponent?.field || [],
+        allies: Array.isArray(extraCtx?.allies) ? extraCtx.allies : (Array.isArray(owner.field) ? owner.field : []),
+        enemies: Array.isArray(extraCtx?.enemies) ? extraCtx.enemies : (opponent?.field || []),
         ...deepCloneSafe(extraCtx),
         pushLog,
       };
-      executeEffect(effId, ctx);
+      
+      try {
+        executeEffect(effId, ctx);
+      } catch (err) {
+        console.error(`[effectSystem] Erro ao executar efeito ${effId}:`, err);
+        pushLog?.(`❌ Erro no efeito ${effId}`);
+      }
     }
   }
 }
