@@ -1,50 +1,36 @@
 // src/commands/arena.js
-import { SlashCommandBuilder } from "discord.js";
 import { arenaStatus, arenaChallenge, arenaReward } from "../../src/systems/arenaSystem.js";
 
-// Exporta named exports para garantir compatibilidade
-export const data = new SlashCommandBuilder()
-    .setName("arena")
-    .setDescription("Comandos da Arena PvP")
-    .addStringOption(option =>
-        option.setName("acao")
-            .setDescription("O que deseja fazer")
-            .setRequired(true)
-            .addChoices(
-                { name: "Status", value: "status" },
-                { name: "Desafiar", value: "challenge" },
-                { name: "Baú", value: "reward" }
-            )
-    )
-    .addIntegerOption(option =>
-        option.setName("oponente")
-            .setDescription("Número do oponente (apenas para desafiar)")
-            .setRequired(false)
-    );
-
-export async function execute(interaction, client, user) {
-    const acao = interaction.options.getString("acao");
-    const oponente = interaction.options.getInteger("oponente");
-
-    try {
-        switch (acao) {
-            case "status": {
+export default {
+    name: "arena",
+    description: "Comandos da Arena PvP: status, desafiar, baú",
+    usage: "[status | challenge <oponente> | reward]",
+    async execute(message, args, user) {
+        const acao = args[0]?.toLowerCase();
+        const oponente = args[1] ? parseInt(args[1]) : undefined;
+        
+        try {
+            if (!acao) return message.reply("⚠️ Use: !arena status | challenge <oponente> | reward");
+            
+            if (acao === "status") {
                 const msg = arenaStatus(user);
-                return interaction.reply({ content: msg, ephemeral: true });
+                return message.reply(msg);
             }
-            case "challenge": {
-                if (!oponente) return interaction.reply({ content: "⚠️ Informe o número do oponente.", ephemeral: true });
+            
+            if (acao === "challenge") {
+                if (!oponente) return message.reply("⚠️ Informe o número do oponente.");
                 const msg = await arenaChallenge(user, oponente);
-                return interaction.reply({ content: msg });
+                return message.reply(msg);
             }
-            case "reward": {
+            
+            if (acao === "reward") {
                 const msg = arenaReward(user);
-                return interaction.reply({ content: msg });
+                return message.reply(msg);
             }
-            default:
-                return interaction.reply({ content: "⚠️ Ação inválida.", ephemeral: true });
+            
+            return message.reply("⚠️ Ação inválida. Use: status, challenge ou reward.");
+        } catch (err) {
+            return message.reply(`❌ ${err.message}`);
         }
-    } catch (err) {
-        return interaction.reply({ content: `❌ ${err.message}`, ephemeral: true });
     }
-}
+};
